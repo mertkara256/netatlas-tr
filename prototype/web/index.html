@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Türkiye Ev İnterneti Haritası</title>
+  <meta name="description" content="Türkiye'de ev internetinin illere göre ne kadar hızlı olduğu (Ookla ölçümleri) ve ne kadar yaygın olduğu (BTK abonelik verisi).">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    try {
+      const saved = localStorage.getItem("tr-internet-theme");
+      if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <div>
+        <h1>Türkiye Ev İnterneti Haritası</h1>
+        <p class="lede">Ev internetinin illere göre ne kadar hızlı olduğu (Ookla ölçümleri) ve kaç kişiye ulaştığı (BTK abonelikleri), aynı haritada.</p>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Açık/koyu tema">
+        <span aria-hidden="true">◐</span>
+      </button>
+    </header>
+
+    <section class="kpis" aria-label="Türkiye geneli">
+      <div class="kpi">
+        <span class="kpi-label">Ortalama indirme hızı</span>
+        <span class="kpi-value" id="kpi-down">–</span>
+        <span class="kpi-note" id="kpi-down-note"></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">2019'dan bu yana</span>
+        <span class="kpi-value" id="kpi-growth">–</span>
+        <span class="kpi-note" id="kpi-growth-note"></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">100 kişiye sabit abonelik</span>
+        <span class="kpi-value" id="kpi-subs">–</span>
+        <span class="kpi-note" id="kpi-subs-note"></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Aboneliklerde fiber payı</span>
+        <span class="kpi-value" id="kpi-fiber">–</span>
+        <span class="kpi-note" id="kpi-fiber-note"></span>
+      </div>
+    </section>
+
+    <nav class="controls" aria-label="Haritada gösterilen değer">
+      <div class="segmented" id="metric-switch" role="radiogroup" aria-label="Gösterge"></div>
+    </nav>
+
+    <main class="layout">
+      <section class="map-card" aria-label="Harita">
+        <div id="map" role="region" aria-label="Türkiye il haritası"></div>
+        <div class="map-footer">
+          <div class="legend" id="legend" aria-live="polite"></div>
+          <label class="cells-toggle" id="cells-toggle-wrap">
+            <input type="checkbox" id="cells-toggle" checked>
+            Yakınlaşınca ~2,4 km'lik hız hücrelerini göster
+          </label>
+        </div>
+      </section>
+
+      <aside class="detail" id="detail" aria-live="polite"></aside>
+    </main>
+
+    <section class="card relation">
+      <div class="card-head">
+        <h2>Hız ve erişim</h2>
+        <p class="muted">Her nokta bir il. Sağa gittikçe daha çok kişide ev interneti var, yukarı çıktıkça ölçülen hız artıyor. Çizgiler Türkiye genelini gösteriyor.</p>
+      </div>
+      <div id="scatter" class="scatter"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Tüm iller</h2>
+        <p class="muted">Sütun başlığına tıklayarak sıralayın, bir satıra tıklayarak ili haritada açın.</p>
+      </div>
+      <div class="table-wrap">
+        <table id="table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card method" id="method">
+      <h2>Yöntem ve kaynaklar</h2>
+      <div class="method-grid">
+        <div>
+          <h3>Hız verisi</h3>
+          <p>Speedtest® by Ookla® açık verisi: Speedtest uygulamalarından Wi-Fi ya da kablolu bağlantıyla yapılmış, konumu GPS doğruluğunda olan testler. Ookla bunları ~610 m'lik karelere toplayıp her kare için ortalama veriyor. Burada <span data-fill="speed_period"></span> arasındaki dört çeyrek birleştirildi; tek çeyrekte bazı illerde ölçüm çok az.</p>
+          <p>İl değeri, illerdeki tüm testlerin <strong>test ağırlıklı ortalaması</strong>. Ortalama, birkaç gigabit fiber kullanıcısı yüzünden tipik kullanıcının hızından yüksek çıkar; Speedtest'in kendi yayınladığı Türkiye medyanı 2026'da ~84 Mbps civarında. Bu yüzden haritayı iller arası karşılaştırma olarak okuyun.</p>
+          <p>Ölçülen hız, altyapı ile aynı şey değildir: ucuz paket kullananların çok olduğu bir yerde fiber olsa da ortalama düşük çıkabilir.</p>
+        </div>
+        <div>
+          <h3>Erişim verisi</h3>
+          <p>BTK, <em>Elektronik Haberleşme Sektörüne İlişkin İl Bazlı Yıllık İstatistik Bülteni 2026</em> (<span data-fill="btk_year"></span> yıl sonu). Değerler abonelik sayısıdır; 100 kişiye düşen abonelik, hane oranı değildir (bir hanede genelde tek abonelik vardır).</p>
+          <p>Fiber payı = fiber abonelikleri / tüm sabit genişbant abonelikleri. Türkiye toplamı, BTK'nın illere dağıtamadığı ISDN ve uydu aboneliklerini de içerdiği için il toplamından %0,1 fazladır.</p>
+          <h3>Güvenilirlik</h3>
+          <p>Dört çeyrekte <span data-fill="floor_yuksek"></span> testin üstü <em>yüksek</em>, <span data-fill="floor_orta"></span>–<span data-fill="floor_yuksek"></span> arası <em>orta</em>, altı <em>düşük</em> sayılır. Hücre katmanında en az <span data-fill="min_cell_tests"></span> test olan ~2,4 km'lik hücreler gösterilir.</p>
+        </div>
+        <div>
+          <h3>Kaynaklar ve lisanslar</h3>
+          <ul class="sources">
+            <li><a href="https://github.com/teamookla/ookla-open-data" rel="noopener">Ookla Open Data</a>: Speedtest® by Ookla® Global Fixed and Mobile Network Performance Maps. Based on analysis by Ookla of Speedtest Intelligence® data for <span data-fill="speed_period"></span> and <span data-fill="baseline_period"></span>. Provided by Ookla and accessed <span data-fill="generated"></span>. Ookla trademarks used under license and reprinted with permission. Lisans: CC BY-NC-SA 4.0 (ticari olmayan kullanım).</li>
+            <li><a href="https://www.btk.gov.tr/" rel="noopener">BTK</a> il bazlı yıllık istatistik bülteni.</li>
+            <li>İl sınırları: <a href="https://www.geoboundaries.org/" rel="noopener">geoBoundaries</a> (© OpenStreetMap katkıcıları).</li>
+            <li>Altlık harita: <a href="https://openfreemap.org/" rel="noopener">OpenFreeMap</a>, © OpenMapTiles, © OpenStreetMap katkıcıları.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot muted">Prototip. Veriler <span data-fill="generated"></span> tarihinde üretildi.</footer>
+  </div>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
