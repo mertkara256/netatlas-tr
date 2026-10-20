@@ -1,0 +1,19 @@
+[project]
+name = "netatlas-tr"
+version = "0.1.0"
+description = "Data pipeline for the NetAtlas TR home-internet atlas"
+requires-python = ">=3.11"
+dependencies = [
+    "certifi",
+    "openpyxl",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["pipeline/tests"]
