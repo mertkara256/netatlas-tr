@@ -21,7 +21,8 @@ It shows what people actually measured in an area, not the maximum speed availab
 |---|---|---|
 | Fixed-broadband speed tests | [Speedtest® by Ookla® Open Data](https://github.com/teamookla/ookla-open-data) | CC BY-NC-SA 4.0 |
 | Provincial subscriptions and fiber | [BTK, Yıllık İl İstatistikleri](https://www.btk.gov.tr/yillik-il-istatistikleri) | No open license (© BTK); used with attribution |
-| Administrative boundaries | [geoBoundaries](https://www.geoboundaries.org/) (OpenStreetMap based) | CC BY-SA / ODbL |
+| Province and district boundaries | [OCHA COD-AB Türkiye](https://data.humdata.org/dataset/cod-ab-tur), from the General Command of Mapping (Harita Genel Müdürlüğü) | CC BY-IGO |
+| District names | OpenStreetMap via [geoBoundaries](https://www.geoboundaries.org/) | ODbL |
 | Basemap | [OpenFreeMap](https://openfreemap.org/), © OpenMapTiles, © OpenStreetMap contributors | |
 
 ## License
