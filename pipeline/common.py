@@ -58,7 +58,9 @@ def province_code(name: str) -> str | None:
 
 
 def download(url: str) -> bytes:
-    # certifi keeps HTTPS working on Python builds that ship without system CA roots.
+    # certifi keeps HTTPS working on Python builds that ship without system CA roots;
+    # HDX refuses Python's default user agent.
     context = ssl.create_default_context(cafile=certifi.where())
-    with urllib.request.urlopen(url, context=context) as resp:
+    request = urllib.request.Request(url, headers={"User-Agent": "netatlas-tr-pipeline"})
+    with urllib.request.urlopen(request, context=context) as resp:
         return resp.read()
