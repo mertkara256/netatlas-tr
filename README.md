@@ -8,7 +8,7 @@
 
 ## What it will show
 
-- Average download, upload and latency from Ookla's open Speedtest data, on Ookla's own ~475 m squares (at Türkiye's latitude), with province and district summaries when zoomed out.
+- Average download, upload and latency from Ookla's open Speedtest data as a heat map: Ookla's own ~475 m squares (at Türkiye's latitude) up close, merged into larger cells as you zoom out, plus province and district summaries.
 - How reliable each value is, based on the number of tests behind it.
 - Yearly views from 2019 to 2025, plus a "current" view of the latest four published quarters.
 - Fixed-broadband subscriptions per 100 people and fiber share per province, from BTK (Türkiye's telecom regulator).
@@ -39,7 +39,7 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 
 ### Neler gösterecek
 
-- Ookla'nın açık Speedtest verisinden ortalama indirme, yükleme ve gecikme; Ookla'nın kendi ~475 m'lik karelerinde. Uzaklaşınca il ve ilçe özetleri.
+- Ookla'nın açık Speedtest verisinden ortalama indirme, yükleme ve gecikme, ısı haritası olarak: yakınlaşınca Ookla'nın kendi ~475 m'lik kareleri, uzaklaştıkça daha büyük hücreler. Ayrıca il ve ilçe özetleri.
 - Her değerin ne kadar güvenilir olduğu (arkasındaki test sayısına göre).
 - 2019–2025 yıllık görünümler ve yayınlanmış son dört çeyreği gösteren "Güncel" görünüm.
 - BTK'dan il bazında 100 kişiye sabit abonelik ve fiber payı.
