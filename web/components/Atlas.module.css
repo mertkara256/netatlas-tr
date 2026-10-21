@@ -1,0 +1,244 @@
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  align-items: flex-end;
+  padding: 10px 16px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.fieldLabel strong {
+  color: var(--ink);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.periodField {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+.periodField input {
+  width: 100%;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--wash);
+}
+
+.segmented button {
+  font: inherit;
+  font-size: 14px;
+  border: 0;
+  border-radius: 7px;
+  padding: 5px 11px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.segmented button:focus-visible,
+.periodField input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.mapWrap {
+  position: relative;
+  flex: 1;
+  min-height: 360px;
+}
+
+.legend {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  width: 300px;
+  max-width: calc(100% - 20px);
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.legendTitle {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.legendPeriod {
+  margin-bottom: 6px;
+  color: var(--muted);
+}
+
+.swatches {
+  display: grid;
+  gap: 2px;
+}
+
+.swatches span {
+  height: 12px;
+}
+
+.swatches span:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.swatches span:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.swatches.small {
+  width: 84px;
+  flex: none;
+}
+
+.swatches.small span {
+  height: 8px;
+}
+
+.breakLabels {
+  position: relative;
+  height: 15px;
+  margin-top: 2px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakLabels span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.classLabels {
+  display: grid;
+  gap: 2px;
+  margin-top: 3px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.noData {
+  width: 18px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 2;
+  width: 224px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.tooltipTitle {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.tooltipValue {
+  margin: 4px 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltip dl {
+  margin: 0;
+}
+
+.tooltip dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tooltip dt {
+  color: var(--ink-2);
+}
+
+.tooltip dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .controls {
+    gap: 8px 12px;
+    padding: 8px 12px 10px;
+  }
+
+  .periodField {
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  /* The buttons say what they are; the groups keep their aria-label. */
+  .groupLabel {
+    display: none;
+  }
+
+  .segmented button {
+    padding: 4px 9px;
+  }
+
+  /* The attribution opens along the bottom on phones. */
+  .legend {
+    top: 10px;
+    bottom: auto;
+  }
+}
