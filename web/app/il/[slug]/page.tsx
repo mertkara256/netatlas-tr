@@ -7,7 +7,7 @@ import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, metricById } from "@/lib/metrics";
 import { readDistricts, readProvinces } from "@/lib/serverData";
 import { slugify } from "@/lib/slug";
-import styles from "../il.module.css";
+import styles from "../../pages.module.css";
 
 const DOWNLOAD = metricById("indirme");
 const UPLOAD = metricById("yukleme");
@@ -66,6 +66,7 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
       <nav className={styles.nav} aria-label="Gezinme">
         <Link href="/">← Harita</Link>
         <Link href="/il/">Tüm iller</Link>
+        <Link href="/yontem/">Yöntem</Link>
       </nav>
       <h1>{province.ad}</h1>
       <p className={styles.lead}>

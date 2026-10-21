@@ -261,7 +261,13 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       dragRotate={false}
       touchPitch={false}
       attributionControl={{ compact: true, customAttribution: "Speedtest® by Ookla® Open Data · OCHA COD-AB" }}
-      locale={{ "NavigationControl.ZoomIn": "Yakınlaş", "NavigationControl.ZoomOut": "Uzaklaş" }}
+      locale={{
+        "Map.Title": "Hız haritası: ok tuşlarıyla kaydır, + ve − ile yakınlaş",
+        "NavigationControl.ZoomIn": "Yakınlaş",
+        "NavigationControl.ZoomOut": "Uzaklaş",
+        "AttributionControl.ToggleAttribution": "Kaynakları göster ya da gizle",
+        "AttributionControl.MapFeedback": "Harita için geri bildirim",
+      }}
       interactiveLayerIds={view === "kareler" ? ["cells"] : [AREA_LAYERS[view]]}
       onLoad={handleLoad}
       onMouseMove={handlePointer}

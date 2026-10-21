@@ -23,10 +23,22 @@
   font-size: 14px;
 }
 
+.nav {
+  display: flex;
+  gap: 14px;
+}
+
 .navLink {
   color: var(--accent);
   font-size: 15px;
   text-underline-offset: 2px;
+}
+
+.loading {
+  flex: 1;
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
 }
 
 .search {
@@ -311,8 +323,15 @@
     display: none;
   }
 
+  /* Title and links on one row, the search on its own row below. */
+  .header {
+    flex-wrap: wrap;
+    padding-bottom: 8px;
+  }
+
   .search {
-    flex-basis: 180px;
+    order: 3;
+    flex-basis: 100%;
   }
 
   .controls {

@@ -74,6 +74,28 @@ export default function TrendChart({ title, data, areaName, format, axisFormat =
           />
         </LineChart>
       </ResponsiveContainer>
+      {/* The chart's values without the chart, for screen readers and anyone who wants the numbers. */}
+      <details className={styles.chartTable}>
+        <summary>Tablo olarak göster</summary>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Dönem</th>
+              <th scope="col">{areaName}</th>
+              {national && <th scope="col">Türkiye</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((d) => (
+              <tr key={d.etiket}>
+                <th scope="row">{d.etiket}</th>
+                <td>{d.alan == null ? "–" : format(d.alan)}</td>
+                {national && <td>{d.turkiye == null ? "–" : format(d.turkiye)}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
     </figure>
   );
 }

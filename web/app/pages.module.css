@@ -77,6 +77,59 @@
   color: var(--muted);
 }
 
+.toc {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.toc ol {
+  margin: 0;
+  padding-left: 20px;
+  columns: 2;
+}
+
+.toc a,
+.prose a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
+.prose {
+  max-width: 720px;
+}
+
+.prose p,
+.prose li {
+  line-height: 1.55;
+}
+
+.prose li + li {
+  margin-top: 6px;
+}
+
+.caption {
+  caption-side: bottom;
+  padding: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: left;
+}
+
+.quote {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: var(--wash);
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .toc ol {
+    columns: 1;
+  }
+}
+
 .footnote {
   margin-top: 10px;
   color: var(--muted);

@@ -5,7 +5,7 @@ import { formatNumber, formatValue } from "@/lib/format";
 import { metricById } from "@/lib/metrics";
 import { readProvinces } from "@/lib/serverData";
 import { provincePath } from "@/lib/slug";
-import styles from "./il.module.css";
+import styles from "../pages.module.css";
 
 const DOWNLOAD = metricById("indirme");
 
@@ -34,6 +34,7 @@ export default async function ProvincesPage() {
     <main className={styles.page}>
       <nav className={styles.nav} aria-label="Gezinme">
         <Link href="/">← Harita</Link>
+        <Link href="/yontem/">Yöntem</Link>
       </nav>
       <h1>İller</h1>
       <p className={styles.lead}>
