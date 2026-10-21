@@ -1,12 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
-import { loadAreas, type Area, type AreaKind, type PeriodInfo, type View } from "@/lib/data";
+import { useCallback, useEffect, useState } from "react";
+import { loadAreas, type Area, type AreaKind, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { metricById, type MetricId } from "@/lib/metrics";
 import { useColorScheme } from "@/lib/useColorScheme";
 import Controls from "./Controls";
 import Legend from "./Legend";
+import RegionPanel from "./RegionPanel";
 import Tooltip, { type HoverInfo } from "./Tooltip";
 import styles from "./Atlas.module.css";
 
@@ -20,18 +21,25 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
   const [view, setView] = useState<View>("kareler");
   const [areas, setAreas] = useState<Partial<Record<AreaKind, Record<string, Area>>>>({});
   const [hover, setHover] = useState<HoverInfo | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
 
-  // Province and district values are only fetched once their view is opened.
+  // Province and district values are fetched only when a view or the panel needs them;
+  // the panel always needs the provinces, for BTK figures and Türkiye's values.
   useEffect(() => {
-    if (view === "kareler" || areas[view]) return;
+    const needed = new Set<AreaKind>();
+    if (view !== "kareler") needed.add(view);
+    if (selection) needed.add("iller").add(selection.kind);
     let cancelled = false;
-    loadAreas(view).then((data) => {
-      if (!cancelled) setAreas((loaded) => ({ ...loaded, [view]: data }));
-    });
+    for (const kind of needed) {
+      if (areas[kind]) continue;
+      loadAreas(kind).then((data) => {
+        if (!cancelled) setAreas((loaded) => ({ ...loaded, [kind]: data }));
+      });
+    }
     return () => {
       cancelled = true;
     };
-  }, [view, areas]);
+  }, [view, selection, areas]);
 
   const period = periods[periodIndex];
   const metric = metricById(metricId);
@@ -40,6 +48,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
     set(value);
     setHover(null);
   };
+  const closePanel = useCallback(() => setSelection(null), []);
 
   return (
     <>
@@ -52,17 +61,33 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
         view={view}
         onView={andClearHover(setView)}
       />
-      <div className={styles.mapWrap} role="region" aria-label="Hız haritası">
-        <MapView
-          period={period}
-          metric={metric}
-          view={view}
-          theme={theme}
-          areas={view === "kareler" ? null : areas[view] ?? null}
-          onHover={setHover}
-        />
-        <Legend metric={metric} period={period} view={view} theme={theme} />
-        {hover && <Tooltip info={hover} />}
+      <div className={styles.body}>
+        <div className={styles.mapWrap} role="region" aria-label="Hız haritası">
+          <MapView
+            period={period}
+            metric={metric}
+            view={view}
+            theme={theme}
+            areas={view === "kareler" ? null : areas[view] ?? null}
+            selection={selection}
+            onHover={setHover}
+            onSelect={setSelection}
+          />
+          <Legend metric={metric} period={period} view={view} theme={theme} panelOpen={selection !== null} />
+          {hover && <Tooltip info={hover} />}
+        </div>
+        {selection && (
+          <RegionPanel
+            selection={selection}
+            areas={areas}
+            periods={periods}
+            period={period}
+            metric={metric}
+            theme={theme}
+            onClose={closePanel}
+            onSelect={setSelection}
+          />
+        )}
       </div>
     </>
   );

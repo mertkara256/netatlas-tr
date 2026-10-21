@@ -22,6 +22,13 @@ export const RAMPS: Record<Theme, { full: string[]; muted: string[]; reliability
   },
 };
 
+// Panel charts: the selected area in categorical slot 1 (blue), Türkiye in the de-emphasis
+// grey, and the reference palette's chart chrome.
+export const CHART: Record<Theme, { area: string; national: string; grid: string; axis: string; muted: string; surface: string }> = {
+  light: { area: "#2a78d6", national: "#898781", grid: "#e1e0d9", axis: "#c3c2b7", muted: "#898781", surface: "#fcfcfb" },
+  dark: { area: "#3987e5", national: "#898781", grid: "#2c2c2a", axis: "#383835", muted: "#898781", surface: "#1a1a19" },
+};
+
 export function areaColor(metric: Metric, value: number, tests: number, theme: Theme): string {
   const ramps = RAMPS[theme];
   if (metric.id === "guvenilirlik") return ramps.reliability[classIndex(tests, metric.breaks)];

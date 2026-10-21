@@ -5,7 +5,7 @@ import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as Ma
 import { Protocol } from "pmtiles";
 import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
-import { PMTILES_PATH, type Area, type PeriodInfo, type View } from "@/lib/data";
+import { CELL_SIZE, PMTILES_PATH, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
 import type { HoverInfo } from "./Tooltip";
@@ -25,11 +25,9 @@ const LINES: Record<Theme, { district: string; province: string; hover: string }
   dark: { district: "rgba(240, 239, 236, 0.22)", province: "rgba(240, 239, 236, 0.6)", hover: "#f0efec" },
 };
 const TURKEY_BOUNDS: [number, number, number, number] = [25.6, 35.8, 44.9, 42.2];
-// Cell width at Türkiye's latitude for each level in the tiles (Ookla's own squares are level 16).
-const CELL_SIZE: Record<number, string> = {
-  10: "~30 km", 11: "~15 km", 12: "~7,6 km", 13: "~3,8 km", 14: "~1,9 km", 15: "~950 m", 16: "~475 m",
-};
 const AREA_LAYERS = { ilceler: "district-fill", iller: "province-fill" } as const;
+// Share of the map the region panel covers on phones (max-height in RegionPanel.module.css).
+const PHONE_SHEET_SHARE = 0.62;
 
 type Values = { d: number; u: number; l: number; t: number };
 
@@ -59,13 +57,15 @@ function describe(metric: Metric, v: Values | null): Pick<HoverInfo, "value" | "
 
 const lowNote = (v: Values | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
 
-export default function MapView({ period, metric, view, theme, areas, onHover }: {
+export default function MapView({ period, metric, view, theme, areas, selection, onHover, onSelect }: {
   period: PeriodInfo;
   metric: Metric;
   view: View;
   theme: Theme;
   areas: Record<string, Area> | null;
+  selection: Selection | null;
   onHover: (info: HoverInfo | null) => void;
+  onSelect: (selection: Selection) => void;
 }) {
   const mapRef = useRef<MapRef>(null);
   // Which basemap has finished loading, and the label layer ours must go under. The light and
@@ -78,16 +78,47 @@ export default function MapView({ period, metric, view, theme, areas, onHover }:
     themeRef.current = theme;
   }, [theme]);
 
+  // Set when the panel opens or closes, for the next resize only (see handleLoad). None comes
+  // on phones, where the panel lies over the map, hence the timeout.
+  const anchorLeft = useRef(false);
+  const panelOpen = selection !== null;
+  const wasOpen = useRef(panelOpen);
+  useEffect(() => {
+    if (wasOpen.current === panelOpen) return;
+    wasOpen.current = panelOpen;
+    anchorLeft.current = true;
+    const timer = setTimeout(() => (anchorLeft.current = false), 1000);
+    return () => clearTimeout(timer);
+  }, [panelOpen]);
+
   const handleLoad = useCallback(() => {
     const map = mapRef.current!.getMap();
     const update = () => setLoaded({ theme: themeRef.current, beforeId: firstLabelLayer(map) });
     update();
     map.on("style.load", update);
-    // MapLibre opens the compact attribution on load; on a phone it would cover the map's foot.
-    // The ⓘ button still opens it.
-    if (map.getContainer().clientWidth < 640) {
-      map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
-    }
+
+    // MapLibre opens the compact attribution on load; where it and the legend (300 px) do not
+    // fit side by side, it would run over the legend. The ⓘ button still opens it.
+    const container = map.getContainer();
+    const collapseAttribution = () => setTimeout(() => {
+      if (container.clientWidth < 960) {
+        container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+      }
+    }, 0);
+    collapseAttribution();
+
+    // When the region panel opens beside the map, MapLibre keeps the centre and the place
+    // just clicked slides left. Keep the left edge instead, so the panel takes the right side.
+    let width = container.clientWidth;
+    map.on("resize", () => {
+      const next = container.clientWidth;
+      if (anchorLeft.current && next !== width) {
+        map.panBy([(next - width) / 2, 0], { animate: false });
+        anchorLeft.current = false;
+      }
+      width = next;
+      collapseAttribution();
+    });
   }, []);
 
   const highlight = useCallback((next: { layer: string; id: string } | null) => {
@@ -136,6 +167,40 @@ export default function MapView({ period, metric, view, theme, areas, onHover }:
     });
   }, [view, period, metric, areas, highlight, onHover, clear]);
 
+  // A click opens the panel of the area under the pointer; in the heat map, of the district,
+  // remembering the clicked cell. On phones this replaces the tooltip.
+  const handleClick = useCallback((e: MapLayerMouseEvent) => {
+    let selection: Selection;
+    if (view === "kareler") {
+      if (!e.target.getLayer("district-hit")) return; // clicked before our layers were added
+      const district = e.target.queryRenderedFeatures(e.point, { layers: ["district-hit"] })[0];
+      if (!district) return;
+      selection = { kind: "ilceler", code: String(district.properties.ilce_kodu), cell: e.features?.[0]?.properties };
+    } else {
+      const feature = e.features?.[0];
+      if (!feature) return;
+      selection = { kind: view, code: String(feature.id) };
+    }
+    clear();
+    onSelect(selection);
+    // On phones the panel covers the lower part of the map; bring the clicked place above it.
+    const { clientWidth, clientHeight } = e.target.getContainer();
+    const visible = clientHeight * (1 - PHONE_SHEET_SHARE);
+    if (clientWidth < 640 && e.point.y > visible) e.target.panBy([0, e.point.y - visible / 2]);
+  }, [view, clear, onSelect]);
+
+  // Outline the selected area; tile features keep their state across period and metric changes,
+  // but a basemap switch re-adds the source, so the state is set again then.
+  const selected = useRef<Selection | null>(null);
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || loaded?.theme !== theme || !map.getSource("harita")) return;
+    for (const [target, state] of [[selected.current, false], [selection, true]] as const) {
+      if (target) map.setFeatureState({ source: "harita", sourceLayer: target.kind, id: target.code }, { selected: state });
+    }
+    selected.current = selection;
+  }, [selection, loaded, theme]);
+
   const areaFill = useMemo<ExpressionSpecification | null>(() => {
     if (view === "kareler" || !areas) return null;
     const pairs = Object.entries(areas).flatMap(([code, area]) => {
@@ -151,6 +216,7 @@ export default function MapView({ period, metric, view, theme, areas, onHover }:
   const before = loaded?.beforeId || undefined;
   const visible = (on: boolean) => ({ visibility: on ? ("visible" as const) : ("none" as const) });
   const hoverWidth: ExpressionSpecification = ["case", ["boolean", ["feature-state", "hover"], false], 2.5, 0];
+  const selectedWidth: ExpressionSpecification = ["case", ["boolean", ["feature-state", "selected"], false], 3, 0];
 
   return (
     <Map
@@ -166,7 +232,7 @@ export default function MapView({ period, metric, view, theme, areas, onHover }:
       interactiveLayerIds={view === "kareler" ? ["cells"] : [AREA_LAYERS[view]]}
       onLoad={handleLoad}
       onMouseMove={handlePointer}
-      onClick={handlePointer}
+      onClick={handleClick}
       onMouseLeave={clear}
       onDragStart={clear}
       style={{ position: "absolute", inset: 0 }}
@@ -224,6 +290,16 @@ export default function MapView({ period, metric, view, theme, areas, onHover }:
               type="line"
               source-layer={layer}
               paint={{ "line-color": lines.hover, "line-width": hoverWidth }}
+              beforeId={before}
+            />
+          ))}
+          {(["ilceler", "iller"] as const).map((layer) => (
+            <Layer
+              key={`${layer}-selected`}
+              id={`${layer}-selected`}
+              type="line"
+              source-layer={layer}
+              paint={{ "line-color": lines.hover, "line-width": selectedWidth }}
               beforeId={before}
             />
           ))}
