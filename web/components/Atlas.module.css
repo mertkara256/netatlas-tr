@@ -80,6 +80,14 @@
   outline-offset: 1px;
 }
 
+/* The map, and the region panel beside it on wide screens (over it on phones). */
+.body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 .mapWrap {
   position: relative;
   flex: 1;
@@ -240,5 +248,9 @@
   .legend {
     top: 10px;
     bottom: auto;
+  }
+
+  .legend.besidePanel {
+    display: none;
   }
 }
