@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { periodText, type Area, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
@@ -152,7 +153,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
       </section>
 
       <p className={styles.source}>
-        Hız: Speedtest® by Ookla® açık verisi, test ağırlıklı ortalama. Erişim: BTK yıllık il istatistikleri.
+        Hız: Speedtest® by Ookla® açık verisi, test ağırlıklı ortalama. Erişim: BTK yıllık il istatistikleri.{" "}
+        <Link href="/yontem/">Yöntem, sınırlamalar ve kaynaklar</Link>
       </p>
     </div>
   );

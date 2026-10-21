@@ -2,6 +2,13 @@ import { periodText, type PeriodInfo, type View } from "@/lib/data";
 import { METRICS, type MetricId } from "@/lib/metrics";
 import styles from "./Atlas.module.css";
 
+export type Display = "harita" | "tablo";
+
+const DISPLAYS: { id: Display; label: string }[] = [
+  { id: "harita", label: "Harita" },
+  { id: "tablo", label: "Tablo" },
+];
+
 const VIEWS: { id: View; label: string }[] = [
   { id: "kareler", label: "Isı haritası" },
   { id: "ilceler", label: "İlçeler" },
@@ -36,6 +43,8 @@ export default function Controls(props: {
   onMetric: (id: MetricId) => void;
   view: View;
   onView: (view: View) => void;
+  display: Display;
+  onDisplay: (display: Display) => void;
 }) {
   const period = props.periods[props.periodIndex];
   return (
@@ -66,6 +75,7 @@ export default function Controls(props: {
         onChange={props.onMetric}
       />
       <Segmented label="Görünüm" options={VIEWS} value={props.view} onChange={props.onView} />
+      <Segmented label="Gösterim" options={DISPLAYS} value={props.display} onChange={props.onDisplay} />
     </div>
   );
 }

@@ -16,6 +16,14 @@ export default function RegionPanel({ selection, areas, periods, period, metric,
   onSelect: (selection: Selection) => void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
+  // When the panel closes, give focus back to whatever opened it (a table row, the search box,
+  // the map). Declared before the heading's focus, so it records the opener, not the heading.
+  useEffect(() => {
+    const opener = document.activeElement;
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    };
+  }, []);
   useEffect(() => heading.current?.focus(), [selection.kind, selection.code]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();

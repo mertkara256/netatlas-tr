@@ -9,7 +9,8 @@ its cells are 8-16 px wide.
 
 Outputs (web/public/data/, not in git):
     harita.pmtiles   layers "hucreler" (speed cells, every period), "ilceler" and "iller" (shapes)
-    iller.json       periods, then Türkiye and the 81 provinces: speeds per period, BTK per year
+    iller.json       periods, Ookla's access date and quarters (for its attribution), then Türkiye
+                     and the 81 provinces: speeds per period, BTK per year
     ilceler.json     the 973 districts: speeds per period
     arama.json       province and district names for search, with bounding boxes
 """
@@ -20,6 +21,7 @@ import json
 import subprocess
 import tempfile
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
 import pyarrow as pa
@@ -31,6 +33,7 @@ from .boundaries import DISTRICTS_PATH, PROVINCES_PATH
 from .btk import OUT_PATH as BTK_PATH
 from .build import DISTRICT_PATH, PROVINCE_PATH, TILES_PATH, available_quarters, periods
 from .common import ROOT, normalize_name, quadkey_to_tile, tile_bounds
+from .ookla import output_path
 
 OUT_DIR = ROOT / "web" / "public" / "data"
 PMTILES_PATH = OUT_DIR / "harita.pmtiles"
@@ -119,6 +122,13 @@ def btk_values(row: dict) -> dict:
             "abone_100": round(fixed / population * 100, 2), "fiber_payi": round(float(row["fiber"]) / fixed, 3)}
 
 
+def ookla_source(quarters: list[tuple[int, int]]) -> dict:
+    """What Ookla's suggested attribution asks for: when the data was accessed (the latest
+    download) and which quarters it covers."""
+    accessed = max(output_path(*q).stat().st_mtime for q in quarters)
+    return {"erisim": date.fromtimestamp(accessed).isoformat(), "ilk": list(quarters[0]), "son": list(quarters[-1])}
+
+
 def write_json(name: str, data) -> None:
     (OUT_DIR / name).write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
@@ -143,7 +153,8 @@ def main() -> None:
     print("speed cells")
     build_pmtiles(cell_features(pq.read_table(TILES_PATH)))
 
-    period_quarters = periods(available_quarters())
+    quarters = available_quarters()
+    period_quarters = periods(quarters)
     provinces: dict[str, dict] = {}
     for row in read_csv(PROVINCE_PATH):
         provinces.setdefault(row["il_kodu"], {"ad": row["il"], "hiz": {}, "btk": {}})["hiz"][row["donem"]] = speed_values(row)
@@ -155,6 +166,7 @@ def main() -> None:
         "donemler": [{"id": p, "ad": "Güncel" if p == "guncel" else p, "aralik": period_label(p, q)}
                      for p, q in period_quarters.items()],
         "btk_yillari": sorted(btk_years),
+        "ookla": ookla_source(quarters),
         "iller": provinces,
     })
 
