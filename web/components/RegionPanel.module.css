@@ -60,17 +60,17 @@
   outline-offset: 2px;
 }
 
-.panel section {
+.details section {
   margin-top: 18px;
 }
 
-.panel h3 {
+.details h3 {
   margin: 0 0 8px;
   font-size: 14px;
   font-weight: 600;
 }
 
-.panel p {
+.details p {
   margin: 0;
 }
 
