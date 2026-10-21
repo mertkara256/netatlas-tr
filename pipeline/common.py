@@ -96,3 +96,13 @@ def quadkey_to_tile(quadkey: str) -> tuple[int, int, int]:
         if d & 2:
             y |= mask
     return x, y, zoom
+
+
+def _tile_lat(y: float, zoom: int) -> float:
+    return math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * y / 2 ** zoom))))
+
+
+def tile_bounds(x: int, y: int, zoom: int) -> tuple[float, float, float, float]:
+    """(west, south, east, north) in degrees."""
+    n = 2 ** zoom
+    return x / n * 360.0 - 180.0, _tile_lat(y + 1, zoom), (x + 1) / n * 360.0 - 180.0, _tile_lat(y, zoom)
