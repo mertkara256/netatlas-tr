@@ -7,7 +7,9 @@ Türkiye ev interneti atlası: Ookla açık verisinden 475 m'lik karelerde hız,
 | Konu | Karar |
 |---|---|
 | Ana açı | Yoğun veriye dayanan ev interneti atlası (sabit internet). Mobil, katman olarak sonra. |
-| Maliyet | Sıfır. Açık repo, GitHub Pages, ücretli alan adı yok. |
+| Maliyet | Sıfır. GitHub Pages, ücretli alan adı yok. |
+| Repo | Geliştirme sırasında özel; yayından önce açılacak (ücretsiz planda GitHub Pages açık repo istiyor). |
+| Harita görünümü | Her ölçekte kare ısı haritası: yakınlaşınca Ookla'nın 475 m'lik kareleri, uzaklaştıkça daha büyük hücrelerde birleşen kareler. İl ve ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı bir seçenek. |
 | Repo adı | `netatlas-tr` (yayından önce değiştirilebilir) |
 | Kod lisansı | MIT. Ookla'dan türetilen veri CC BY-NC-SA 4.0. |
 | README | İki dilli: önce İngilizce, sonra Türkçe. Arayüz Türkçe. |
@@ -55,7 +57,7 @@ Her adım, doğrulaması geçmeden bitmiş sayılmaz.
 ### 0. Hazırlık
 - Klasör adı `netatlas-tr`, prototip `prototype/` altında, git başlatıldı.
 - README iskeleti, MIT lisansı, bu yol haritası.
-- GitHub'da açık repo (yüklemeden önce onay alınacak).
+- GitHub'da özel repo (yayından önce açılacak).
 - **Doğrulama:** İlk commit atılmış; ham veri ve yerel ortam dosyaları git'e girmemiş; repo GitHub'da görünüyor.
 
 ### 1. Veri hattı
@@ -67,7 +69,7 @@ Her adım, doğrulaması geçmeden bitmiş sayılmaz.
   **Doğrulama:** Her çeyrekte Türkiye var; kare ve test sayıları makul.
 - **1d. Toplama:** Kareleri il/ilçeye ata; yıllık değerler (2019–2025 ve "Güncel"); güvenilirlik etiketleri.
   **Doğrulama (pytest):** Her kare tek ile atanmış; il ve ilçe toplamları kare toplamlarıyla tutuyor; birkaç il elle hesapla karşılaştırılmış.
-- **1e. Çıktılar:** PMTiles karoları, il/ilçe JSON'ları, arama dizini.
+- **1e. Çıktılar:** PMTiles karoları (475 m kareler, uzaklaştıkça birleşen hücreler, il/ilçe sınırları), il/ilçe JSON'ları, arama dizini.
   **Doğrulama:** PMTiles 100 MB'ın altında (aşarsa yıl başına ayrı dosya) ve bir PMTiles görüntüleyicide açılıyor.
 
 ### 2. Ön yüz iskeleti
@@ -75,7 +77,7 @@ Her adım, doğrulaması geçmeden bitmiş sayılmaz.
 - **Doğrulama:** `npm run build` hatasız; karolar yerelde yükleniyor.
 
 ### 3. Harita
-- Yıl kaydırıcısı; gösterge seçimi (indirme, yükleme, gecikme, güvenilirlik); renk açıklaması ve bilgi kutusu; az testli kareler soluk; uzakta il/ilçe, yakında 475 m kareler.
+- Yıl kaydırıcısı; gösterge seçimi (indirme, yükleme, gecikme, güvenilirlik); renk açıklaması ve bilgi kutusu; az testli kareler soluk; her ölçekte kare ısı haritası (uzaklaştıkça birleşen hücreler, yakınlaşınca 475 m kareler), il/ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı seçenek.
 - **Doğrulama:** Masaüstü, telefon ve koyu temada denenmiş; renkler doğrulayıcıdan geçmiş.
 
 ### 4. Bölge paneli ve sayfalar
@@ -87,7 +89,7 @@ Her adım, doğrulaması geçmeden bitmiş sayılmaz.
 - **Doğrulama:** Atıf lisansın istediği gibi; harita olmadan da tüm değerlere tablodan ulaşılıyor.
 
 ### 6. Yayın ve kontroller
-- Her değişiklikte testler ve derleme; GitHub Pages'e otomatik yayın.
+- Repo açılır (onay alınarak); her değişiklikte testler ve derleme; GitHub Pages'e otomatik yayın.
 - **Doğrulama:** Site github.io adresinde açık; karolar orada da parça parça yükleniyor.
 
 ### 7. Çeyreklik otomasyon
