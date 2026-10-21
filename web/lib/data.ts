@@ -34,12 +34,8 @@ export const CELL_SIZE: Record<number, string> = {
   10: "~30 km", 11: "~15 km", 12: "~7,6 km", 13: "~3,8 km", 14: "~1,9 km", 15: "~950 m", 16: "~475 m",
 };
 
-/** A speed cell's properties from the tiles: seviye plus d/u/l/t (download, upload, latency,
- *  tests) for each period with measurements, e.g. d2019, tguncel. */
-export type CellProperties = Record<string, number>;
-
-/** The area whose panel is open, and the speed cell that was clicked to open it, if any. */
-export type Selection = { kind: AreaKind; code: string; cell?: CellProperties };
+/** The area whose panel is open, and the point clicked on the map to open it, if any. */
+export type Selection = { kind: AreaKind; code: string; point?: [number, number] };
 
 const loading = new Map<AreaKind, Promise<Record<string, Area>>>();
 

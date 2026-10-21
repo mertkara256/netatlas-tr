@@ -8,6 +8,7 @@ import { RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
 import { CELL_SIZE, PMTILES_PATH, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
+import { NEARBY_RADIUS } from "@/lib/nearby";
 import type { HoverInfo } from "./Tooltip";
 
 // Copied into public/ by scripts/copy-maplibre-worker.mjs before dev and build.
@@ -30,6 +31,17 @@ const AREA_LAYERS = { ilceler: "district-fill", iller: "province-fill" } as cons
 const PHONE_SHEET_SHARE = 0.62;
 
 type Values = { d: number; u: number; l: number; t: number };
+
+/** A circle of `radius` metres around a point, as a GeoJSON polygon of 64 sides. */
+function circle([lon, lat]: [number, number], radius: number): GeoJSON.Feature<GeoJSON.Polygon> {
+  const dLat = (radius / 6371008.8) * (180 / Math.PI);
+  const dLon = dLat / Math.cos((lat * Math.PI) / 180);
+  const ring = Array.from({ length: 65 }, (_, i) => {
+    const a = (i / 64) * 2 * Math.PI;
+    return [lon + dLon * Math.cos(a), lat + dLat * Math.sin(a)];
+  });
+  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring] } };
+}
 
 // Our layers go above the basemap's fills and roads but below its final run of labels.
 function firstLabelLayer(map: MapLibreMap): string {
@@ -188,15 +200,16 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   // remembering the clicked cell. On phones this replaces the tooltip.
   const handleClick = useCallback((e: MapLayerMouseEvent) => {
     let selection: Selection;
+    const point: [number, number] = [e.lngLat.lng, e.lngLat.lat];
     if (view === "kareler") {
       if (!e.target.getLayer("district-hit")) return; // clicked before our layers were added
       const district = e.target.queryRenderedFeatures(e.point, { layers: ["district-hit"] })[0];
       if (!district) return;
-      selection = { kind: "ilceler", code: String(district.properties.ilce_kodu), cell: e.features?.[0]?.properties };
+      selection = { kind: "ilceler", code: String(district.properties.ilce_kodu), point };
     } else {
       const feature = e.features?.[0];
       if (!feature) return;
-      selection = { kind: view, code: String(feature.id) };
+      selection = { kind: view, code: String(feature.id), point };
     }
     clear();
     onSelect(selection);
@@ -228,6 +241,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     // TypeScript cannot see that the spread holds code/colour pairs, hence the cast.
     return ["match", ["get", key], ...pairs, RAMPS[theme].noData] as unknown as ExpressionSpecification;
   }, [view, areas, period.id, metric, theme]);
+
+  const point = selection?.point;
+  const nearbyCircle = useMemo(() => (point ? circle(point, NEARBY_RADIUS) : null), [point]);
 
   const lines = LINES[theme];
   const before = loaded?.beforeId || undefined;
@@ -320,6 +336,12 @@ export default function MapView({ period, metric, view, theme, areas, selection,
               beforeId={before}
             />
           ))}
+        </Source>
+      )}
+      {/* The area the panel's "nearest 1 km" figure pools. */}
+      {loaded?.theme === theme && nearbyCircle && (
+        <Source key={`nearby-${theme}`} id="nearby" type="geojson" data={nearbyCircle}>
+          <Layer id="nearby-line" type="line" paint={{ "line-color": lines.hover, "line-width": 2 }} beforeId={before} />
         </Source>
       )}
     </Map>
