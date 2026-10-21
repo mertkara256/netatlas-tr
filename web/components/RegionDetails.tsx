@@ -1,8 +1,10 @@
 "use client";
 
-import { CELL_SIZE, periodText, type Area, type CellProperties, type PeriodInfo } from "@/lib/data";
+import { useEffect, useState } from "react";
+import { periodText, type Area, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
+import { NEARBY_RADIUS, nearby, siteArchive, type Nearby } from "@/lib/nearby";
 import { useColorScheme } from "@/lib/useColorScheme";
 import TrendChart from "./TrendChart";
 import styles from "./RegionPanel.module.css";
@@ -26,17 +28,37 @@ function Stat({ label, value, note }: { label: string; value: string; note: stri
   );
 }
 
-function CellSection({ cell, period }: { cell: CellProperties; period: PeriodInfo }) {
-  const tests = cell[`t${period.id}`];
+/** Test-weighted averages of Ookla's 475 m squares within 1 km of the clicked point, read from the
+ *  map tiles in the browser whatever the zoom (lib/nearby.ts). */
+function NearbySection({ point, period }: { point: [number, number]; period: PeriodInfo }) {
+  const key = `${point.join(",")}|${period.id}`;
+  const [result, setResult] = useState<{ key: string; value: Nearby | null } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    nearby(siteArchive(), point[0], point[1], period.id).then((value) => {
+      if (!cancelled) setResult({ key, value });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [key, point, period.id]);
+  const value = result?.key === key ? result.value : undefined;
+
   return (
     <section className={styles.cell}>
-      <h3>Tıkladığın kare <span className={styles.muted}>{CELL_SIZE[cell.seviye]}</span></h3>
-      {tests == null ? (
-        <p>Bu dönemde bu karede ölçüm yok.</p>
+      <h3>Tıkladığın yerin çevresi <span className={styles.muted}>{formatNumber(NEARBY_RADIUS / 1000)} km</span></h3>
+      {value === undefined ? (
+        <p className={styles.muted}>Hesaplanıyor…</p>
+      ) : value === null ? (
+        <p>Bu dönemde {formatNumber(NEARBY_RADIUS / 1000)} km içinde ölçüm yok.</p>
       ) : (
         <p>
-          {formatValue(DOWNLOAD, cell[`d${period.id}`])} indirme · {formatValue(UPLOAD, cell[`u${period.id}`])} yükleme ·{" "}
-          {formatNumber(tests)} test ({reliability(tests).toLocaleLowerCase("tr-TR")} güvenilirlik)
+          {formatValue(DOWNLOAD, value.download)} indirme · {formatValue(UPLOAD, value.upload)} yükleme ·{" "}
+          {formatValue(LATENCY, value.latency)} gecikme
+          <br />
+          <span className={styles.muted}>
+            {formatNumber(value.squares)} kare, {formatNumber(value.tests)} test ({reliability(value.tests).toLocaleLowerCase("tr-TR")} güvenilirlik)
+          </span>
         </p>
       )}
     </section>
@@ -45,7 +67,7 @@ function CellSection({ cell, period }: { cell: CellProperties; period: PeriodInf
 
 /** Speeds, yearly trend and BTK access of a province or district, beside Türkiye's.
  *  Shared by the map's region panel and the province pages. */
-export default function RegionDetails({ area, province, national, isDistrict, periods, period, metric, cell }: {
+export default function RegionDetails({ area, province, national, isDistrict, periods, period, metric, point }: {
   area: Area;
   /** The area itself, or a district's province (BTK publishes no district figures). */
   province: Area;
@@ -54,7 +76,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
   periods: PeriodInfo[];
   period: PeriodInfo;
   metric: Metric;
-  cell?: CellProperties;
+  /** The point clicked on the map to open the panel. */
+  point?: [number, number];
 }) {
   const theme = useColorScheme();
   const v = area.hiz[period.id];
@@ -67,7 +90,7 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
 
   return (
     <div className={styles.details}>
-      {cell && <CellSection cell={cell} period={period} />}
+      {point && <NearbySection point={point} period={period} />}
 
       <section>
         <h3>{periodText(period)}</h3>

@@ -64,7 +64,7 @@ export default function RegionPanel({ selection, areas, periods, period, metric,
           periods={periods}
           period={period}
           metric={metric}
-          cell={selection.cell}
+          point={selection.point}
         />
       )}
     </aside>
