@@ -1,81 +1,232 @@
 "use client";
 
-import { useState } from "react";
-import {
-  addProtocol,
-  setWorkerUrl,
-  type ExpressionSpecification,
-  type Map as MapLibreMap,
-  type MapLibreEvent,
-} from "maplibre-gl";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as MapLibreMap } from "maplibre-gl";
 import { Protocol } from "pmtiles";
-import Map, { Layer, NavigationControl, Source } from "react-map-gl/maplibre";
-import { PMTILES_PATH, type Period } from "@/lib/data";
+import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
+import { RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
+import { PMTILES_PATH, type Area, type PeriodInfo, type View } from "@/lib/data";
+import { formatNumber, formatValue } from "@/lib/format";
+import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
+import type { HoverInfo } from "./Tooltip";
 
 // Copied into public/ by scripts/copy-maplibre-worker.mjs before dev and build.
 setWorkerUrl("/maplibre-gl-worker.mjs");
 // Lets MapLibre read vector tiles straight out of the single PMTiles file with range requests.
 addProtocol("pmtiles", new Protocol().tile);
 
-// OpenFreeMap: free vector basemap, no API key.
-const BASEMAP = "https://tiles.openfreemap.org/styles/positron";
+// OpenFreeMap: free vector basemaps, no API key.
+const BASEMAPS: Record<Theme, string> = {
+  light: "https://tiles.openfreemap.org/styles/positron",
+  dark: "https://tiles.openfreemap.org/styles/dark",
+};
+const LINES: Record<Theme, { district: string; province: string; hover: string }> = {
+  light: { district: "rgba(11, 11, 11, 0.22)", province: "rgba(11, 11, 11, 0.6)", hover: "#0b0b0b" },
+  dark: { district: "rgba(240, 239, 236, 0.22)", province: "rgba(240, 239, 236, 0.6)", hover: "#f0efec" },
+};
 const TURKEY_BOUNDS: [number, number, number, number] = [25.6, 35.8, 44.9, 42.2];
-const BREAKS = [15, 30, 60, 120]; // Mbps
+// Cell width at Türkiye's latitude for each level in the tiles (Ookla's own squares are level 16).
+const CELL_SIZE: Record<number, string> = {
+  10: "~30 km", 11: "~15 km", 12: "~7,6 km", 13: "~3,8 km", 14: "~1,9 km", 15: "~950 m", 16: "~475 m",
+};
+const AREA_LAYERS = { ilceler: "district-fill", iller: "province-fill" } as const;
 
-function cssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
-
-function downloadColor(period: Period): ExpressionSpecification {
-  const ramp = [1, 2, 3, 4, 5].map((i) => cssVar(`--seq-${i}`));
-  const steps = BREAKS.flatMap((b, i) => [b, ramp[i + 1]]);
-  return ["step", ["get", `d${period}`], ramp[0], ...steps];
-}
+type Values = { d: number; u: number; l: number; t: number };
 
 // Our layers go above the basemap's fills and roads but below its final run of labels.
-function firstLabelLayer(map: MapLibreMap): string | undefined {
+function firstLabelLayer(map: MapLibreMap): string {
   const layers = map.getStyle().layers;
   let first = layers.length;
   while (first > 0 && layers[first - 1].type === "symbol") first--;
-  return layers[first]?.id;
+  return layers[first]?.id ?? "";
 }
 
-export default function MapView({ period }: { period: Period }) {
-  const [beforeId, setBeforeId] = useState<string | null>(null);
+function describe(metric: Metric, v: Values | null): Pick<HoverInfo, "value" | "rows"> {
+  if (!v) return { value: null, rows: [] };
+  const reliability = RELIABILITY_LABELS[classIndex(v.t, [LOW_TESTS, 50])];
+  const rows: [string, string][] = [
+    ["İndirme", formatValue(metricById("indirme"), v.d)],
+    ["Yükleme", formatValue(metricById("yukleme"), v.u)],
+    ["Gecikme", formatValue(metricById("gecikme"), v.l)],
+    ["Test", formatNumber(v.t)],
+    ["Güvenilirlik", reliability],
+  ];
+  if (metric.id === "guvenilirlik") {
+    return { value: `${reliability} (${formatNumber(v.t)} test)`, rows: rows.slice(0, 3) };
+  }
+  return { value: formatValue(metric, v[metric.tileKey]), rows: rows.filter(([k]) => k !== metric.label) };
+}
+
+const lowNote = (v: Values | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
+
+export default function MapView({ period, metric, view, theme, areas, onHover }: {
+  period: PeriodInfo;
+  metric: Metric;
+  view: View;
+  theme: Theme;
+  areas: Record<string, Area> | null;
+  onHover: (info: HoverInfo | null) => void;
+}) {
+  const mapRef = useRef<MapRef>(null);
+  // Which basemap has finished loading, and the label layer ours must go under. The light and
+  // dark basemaps end in different label layers, so our layers are added afresh after a switch.
+  const [loaded, setLoaded] = useState<{ theme: Theme; beforeId: string } | null>(null);
+  const themeRef = useRef(theme);
+  const hovered = useRef<{ layer: string; id: string } | null>(null);
+
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
+
+  const handleLoad = useCallback(() => {
+    const map = mapRef.current!.getMap();
+    const update = () => setLoaded({ theme: themeRef.current, beforeId: firstLabelLayer(map) });
+    update();
+    map.on("style.load", update);
+    // MapLibre opens the compact attribution on load; on a phone it would cover the map's foot.
+    // The ⓘ button still opens it.
+    if (map.getContainer().clientWidth < 640) {
+      map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+    }
+  }, []);
+
+  const highlight = useCallback((next: { layer: string; id: string } | null) => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    for (const [target, hover] of [[hovered.current, false], [next, true]] as const) {
+      if (target) map.setFeatureState({ source: "harita", sourceLayer: target.layer, id: target.id }, { hover });
+    }
+    hovered.current = next;
+  }, []);
+
+  const clear = useCallback(() => {
+    highlight(null);
+    onHover(null);
+  }, [highlight, onHover]);
+
+  const handlePointer = useCallback((e: MapLayerMouseEvent) => {
+    const feature = e.features?.[0];
+    if (!feature) return clear();
+    const container = e.target.getContainer();
+    const base = { x: e.point.x, y: e.point.y, width: container.clientWidth, height: container.clientHeight };
+    const p = feature.properties;
+    if (view === "kareler") {
+      const values = p[`t${period.id}`] == null ? null : {
+        d: p[`d${period.id}`], u: p[`u${period.id}`], l: p[`l${period.id}`], t: p[`t${period.id}`],
+      };
+      const district = e.target.queryRenderedFeatures(e.point, { layers: ["district-hit"] })[0]?.properties;
+      highlight(null);
+      onHover({
+        ...base,
+        title: district ? `${district.ilce}, ${district.il}` : "Türkiye",
+        subtitle: `${CELL_SIZE[p.seviye]} hücre · ${period.ad}${lowNote(values)}`,
+        ...describe(metric, values),
+      });
+      return;
+    }
+    const code = String(feature.id);
+    const v = areas?.[code]?.hiz[period.id];
+    const values = v ? { d: v.indirme_mbps, u: v.yukleme_mbps, l: v.gecikme_ms, t: v.test } : null;
+    highlight({ layer: view, id: code });
+    onHover({
+      ...base,
+      title: view === "ilceler" ? `${p.ilce}, ${p.il}` : p.il,
+      subtitle: `${view === "ilceler" ? "İlçe" : "İl"} · ${period.ad}${lowNote(values)}`,
+      ...describe(metric, values),
+    });
+  }, [view, period, metric, areas, highlight, onHover, clear]);
+
+  const areaFill = useMemo<ExpressionSpecification | null>(() => {
+    if (view === "kareler" || !areas) return null;
+    const pairs = Object.entries(areas).flatMap(([code, area]) => {
+      const v = area.hiz[period.id];
+      return v ? [code, areaColor(metric, v[metric.areaKey] as number, v.test, theme)] : [];
+    });
+    const key = view === "ilceler" ? "ilce_kodu" : "il_kodu";
+    // TypeScript cannot see that the spread holds code/colour pairs, hence the cast.
+    return ["match", ["get", key], ...pairs, RAMPS[theme].noData] as unknown as ExpressionSpecification;
+  }, [view, areas, period.id, metric, theme]);
+
+  const lines = LINES[theme];
+  const before = loaded?.beforeId || undefined;
+  const visible = (on: boolean) => ({ visibility: on ? ("visible" as const) : ("none" as const) });
+  const hoverWidth: ExpressionSpecification = ["case", ["boolean", ["feature-state", "hover"], false], 2.5, 0];
 
   return (
     <Map
+      ref={mapRef}
       initialViewState={{ bounds: TURKEY_BOUNDS, fitBoundsOptions: { padding: 12 } }}
-      mapStyle={BASEMAP}
+      mapStyle={BASEMAPS[theme]}
       minZoom={3}
       maxZoom={15}
       dragRotate={false}
       touchPitch={false}
       attributionControl={{ compact: true, customAttribution: "Speedtest® by Ookla® Open Data · OCHA COD-AB" }}
-      onLoad={(e: MapLibreEvent) => setBeforeId(firstLabelLayer(e.target) ?? "")}
+      locale={{ "NavigationControl.ZoomIn": "Yakınlaş", "NavigationControl.ZoomOut": "Uzaklaş" }}
+      interactiveLayerIds={view === "kareler" ? ["cells"] : [AREA_LAYERS[view]]}
+      onLoad={handleLoad}
+      onMouseMove={handlePointer}
+      onClick={handlePointer}
+      onMouseLeave={clear}
+      onDragStart={clear}
       style={{ position: "absolute", inset: 0 }}
     >
       <NavigationControl showCompass={false} />
-      {beforeId !== null && (
-        <Source id="harita" type="vector" url={`pmtiles://${window.location.origin}${PMTILES_PATH}`}>
+      {loaded?.theme === theme && (
+        <Source
+          key={theme}
+          id="harita"
+          type="vector"
+          url={`pmtiles://${window.location.origin}${PMTILES_PATH}`}
+          promoteId={{ ilceler: "ilce_kodu", iller: "il_kodu" }}
+        >
           <Layer
             id="cells"
             type="fill"
             source-layer="hucreler"
-            filter={["has", `t${period}`]}
-            paint={{ "fill-color": downloadColor(period), "fill-opacity": 0.9 }}
-            beforeId={beforeId || undefined}
+            filter={["has", `t${period.id}`]}
+            layout={visible(view === "kareler")}
+            paint={{ "fill-color": cellColor(metric, period.id, theme) }}
+            beforeId={before}
+          />
+          {(["ilceler", "iller"] as const).map((layer) => (
+            <Layer
+              key={layer}
+              id={AREA_LAYERS[layer]}
+              type="fill"
+              source-layer={layer}
+              layout={visible(view === layer && areaFill !== null)}
+              paint={{ "fill-color": view === layer && areaFill ? areaFill : RAMPS[theme].noData }}
+              beforeId={before}
+            />
+          ))}
+          {/* Invisible, so the cell tooltip can name the district under the pointer. */}
+          <Layer id="district-hit" type="fill" source-layer="ilceler" paint={{ "fill-opacity": 0 }} beforeId={before} />
+          <Layer
+            id="district-line"
+            type="line"
+            source-layer="ilceler"
+            minzoom={view === "kareler" ? 7 : 0}
+            paint={{ "line-color": lines.district, "line-width": 0.7 }}
+            beforeId={before}
           />
           <Layer
             id="province-line"
             type="line"
             source-layer="iller"
-            paint={{
-              "line-color": cssVar("--province"),
-              "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.6, 10, 1.6],
-            }}
-            beforeId={beforeId || undefined}
+            paint={{ "line-color": lines.province, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 10, 1.6] }}
+            beforeId={before}
           />
+          {(["ilceler", "iller"] as const).map((layer) => (
+            <Layer
+              key={`${layer}-hover`}
+              id={`${layer}-hover`}
+              type="line"
+              source-layer={layer}
+              paint={{ "line-color": lines.hover, "line-width": hoverWidth }}
+              beforeId={before}
+            />
+          ))}
         </Source>
       )}
     </Map>

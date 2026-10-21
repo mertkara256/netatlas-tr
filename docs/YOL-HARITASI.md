@@ -77,7 +77,7 @@ Her adım, doğrulaması geçmeden bitmiş sayılmaz.
 - **Doğrulama:** `npm run build` hatasız; karolar yerelde yükleniyor.
 
 ### 3. Harita
-- Yıl kaydırıcısı; gösterge seçimi (indirme, yükleme, gecikme, güvenilirlik); renk açıklaması ve bilgi kutusu; az testli kareler soluk; her ölçekte kare ısı haritası (uzaklaştıkça birleşen hücreler, yakınlaşınca 475 m kareler), il/ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı seçenek.
+- Yıl kaydırıcısı; gösterge seçimi (indirme, yükleme, gecikme, güvenilirlik); renk açıklaması ve bilgi kutusu; az testli kareler gri (aynı açıklıkta, değeri değiştirmeden belirsiz olduğu görünsün); her ölçekte kare ısı haritası (uzaklaştıkça birleşen hücreler, yakınlaşınca 475 m kareler), il/ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı seçenek.
 - **Doğrulama:** Masaüstü, telefon ve koyu temada denenmiş; renkler doğrulayıcıdan geçmiş.
 
 ### 4. Bölge paneli ve sayfalar
