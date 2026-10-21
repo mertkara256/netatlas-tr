@@ -57,13 +57,15 @@ function describe(metric: Metric, v: Values | null): Pick<HoverInfo, "value" | "
 
 const lowNote = (v: Values | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
 
-export default function MapView({ period, metric, view, theme, areas, selection, onHover, onSelect }: {
+export default function MapView({ period, metric, view, theme, areas, selection, focus, onHover, onSelect }: {
   period: PeriodInfo;
   metric: Metric;
   view: View;
   theme: Theme;
   areas: Record<string, Area> | null;
   selection: Selection | null;
+  /** A bounding box to fly to (a search result); count changes for every new request. */
+  focus: { bbox: [number, number, number, number]; count: number } | null;
   onHover: (info: HoverInfo | null) => void;
   onSelect: (selection: Selection) => void;
 }) {
@@ -90,6 +92,21 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     const timer = setTimeout(() => (anchorLeft.current = false), 1000);
     return () => clearTimeout(timer);
   }, [panelOpen]);
+
+  // Fly to a search result once the panel it opens has taken its place, keeping the area clear
+  // of the phone sheet. The fit replaces the left-edge anchoring of that same resize.
+  useEffect(() => {
+    if (!focus) return;
+    anchorLeft.current = false;
+    const timer = setTimeout(() => {
+      const map = mapRef.current?.getMap();
+      if (!map) return;
+      const { clientWidth, clientHeight } = map.getContainer();
+      const sheet = clientWidth < 640 ? clientHeight * PHONE_SHEET_SHARE : 0;
+      map.fitBounds(focus.bbox, { padding: { top: 30, left: 30, right: 30, bottom: 30 + sheet }, maxZoom: 11, duration: 800 });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [focus]);
 
   const handleLoad = useCallback(() => {
     const map = mapRef.current!.getMap();

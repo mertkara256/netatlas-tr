@@ -1,13 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { loadAreas, type Area, type AreaKind, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { metricById, type MetricId } from "@/lib/metrics";
+import type { Place } from "@/lib/search";
 import { useColorScheme } from "@/lib/useColorScheme";
 import Controls from "./Controls";
 import Legend from "./Legend";
 import RegionPanel from "./RegionPanel";
+import SearchBox from "./SearchBox";
 import Tooltip, { type HoverInfo } from "./Tooltip";
 import styles from "./Atlas.module.css";
 
@@ -49,9 +52,27 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
     setHover(null);
   };
   const closePanel = useCallback(() => setSelection(null), []);
+  // A search result opens its panel and brings it into view; the counter lets the same place
+  // be flown to again.
+  const [focus, setFocus] = useState<{ bbox: Place["bbox"]; count: number } | null>(null);
+  const pickPlace = (place: Place) => {
+    setSelection({ kind: place.tur === "il" ? "iller" : "ilceler", code: place.kod });
+    setFocus((last) => ({ bbox: place.bbox, count: (last?.count ?? 0) + 1 }));
+    setHover(null);
+  };
 
   return (
     <>
+      <header className={styles.header}>
+        <div className={styles.brand}>
+          <h1 className={styles.title}>NetAtlas TR</h1>
+          <p className={styles.subtitle}>Türkiye&apos;de ölçülen sabit internet hızları, 475 m&apos;lik karelere kadar</p>
+        </div>
+        <SearchBox onPick={pickPlace} />
+        <nav aria-label="Sayfalar">
+          <Link className={styles.navLink} href="/il/">İller</Link>
+        </nav>
+      </header>
       <Controls
         periods={periods}
         periodIndex={periodIndex}
@@ -70,6 +91,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
             theme={theme}
             areas={view === "kareler" ? null : areas[view] ?? null}
             selection={selection}
+            focus={focus}
             onHover={setHover}
             onSelect={setSelection}
           />
