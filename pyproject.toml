@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "certifi",
     "openpyxl",
+    "pyarrow>=16",
     "shapely>=2.0",
 ]
 

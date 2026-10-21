@@ -1,6 +1,7 @@
-"""Shared paths, the province list and a download helper."""
+"""Shared paths, the province list, a download helper and Web Mercator tile helpers."""
 from __future__ import annotations
 
+import math
 import re
 import ssl
 import unicodedata
@@ -64,3 +65,34 @@ def download(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "netatlas-tr-pipeline"})
     with urllib.request.urlopen(request, context=context) as resp:
         return resp.read()
+
+
+# --- Web Mercator tiles (the grid Ookla uses) ---------------------------------
+
+def lonlat_to_tile(lon: float, lat: float, zoom: int) -> tuple[int, int]:
+    n = 2 ** zoom
+    x = int((lon + 180.0) / 360.0 * n)
+    r = math.radians(lat)
+    y = int((1.0 - math.log(math.tan(r) + 1.0 / math.cos(r)) / math.pi) / 2.0 * n)
+    return x, y
+
+
+def tile_to_quadkey(x: int, y: int, zoom: int) -> str:
+    digits = []
+    for i in range(zoom, 0, -1):
+        mask = 1 << (i - 1)
+        digits.append(str((1 if x & mask else 0) + (2 if y & mask else 0)))
+    return "".join(digits)
+
+
+def quadkey_to_tile(quadkey: str) -> tuple[int, int, int]:
+    x = y = 0
+    zoom = len(quadkey)
+    for i, ch in enumerate(quadkey):
+        mask = 1 << (zoom - i - 1)
+        d = ord(ch) - 48
+        if d & 1:
+            x |= mask
+        if d & 2:
+            y |= mask
+    return x, y, zoom
