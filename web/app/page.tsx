@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import Link from "next/link";
 import Atlas from "@/components/Atlas";
 import type { PeriodInfo } from "@/lib/data";
 import styles from "./page.module.css";
@@ -15,8 +16,13 @@ export default async function Home() {
   return (
     <main className={styles.main}>
       <header className={styles.header}>
-        <h1 className={styles.title}>NetAtlas TR</h1>
-        <p className={styles.subtitle}>Türkiye&apos;de ölçülen sabit internet hızları, 475 m&apos;lik karelere kadar</p>
+        <div>
+          <h1 className={styles.title}>NetAtlas TR</h1>
+          <p className={styles.subtitle}>Türkiye&apos;de ölçülen sabit internet hızları, 475 m&apos;lik karelere kadar</p>
+        </div>
+        <nav aria-label="Sayfalar">
+          <Link className={styles.navLink} href="/il/">İller</Link>
+        </nav>
       </header>
       <Atlas periods={periods} />
     </main>

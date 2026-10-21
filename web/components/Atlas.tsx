@@ -83,7 +83,6 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
             periods={periods}
             period={period}
             metric={metric}
-            theme={theme}
             onClose={closePanel}
             onSelect={setSelection}
           />
