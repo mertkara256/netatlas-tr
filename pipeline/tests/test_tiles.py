@@ -1,6 +1,7 @@
 """Checks on the map tiles, JSON files and search index (run `python -m pipeline.tiles` first)."""
 import csv
 import json
+from datetime import date
 import shutil
 import subprocess
 from collections import defaultdict
@@ -117,6 +118,9 @@ def test_province_json_matches_the_tables():
     assert [p["id"] for p in data["donemler"]] == PERIODS
     assert data["donemler"][-1] == {"id": "guncel", "ad": "Güncel", "aralik": "2025 Ç4 – 2026 Ç3"}
     assert data["btk_yillari"] == list(range(2020, 2026))
+    # Ookla's attribution names the access date and the quarters used.
+    assert data["ookla"]["ilk"] == [2019, 1] and tuple(data["ookla"]["son"]) >= (2026, 3)
+    assert date.fromisoformat(data["ookla"]["erisim"]) >= date(2026, 10, 1)
     assert set(data["iller"]) == {*PROVINCES, NATIONAL}
     for row in read_csv(PROVINCE_PATH):
         values = data["iller"][row["il_kodu"]]["hiz"][row["donem"]]
