@@ -51,9 +51,21 @@ def available_quarters() -> list[tuple[int, int]]:
 
 
 def periods(quarters: list[tuple[int, int]]) -> dict[str, list[tuple[int, int]]]:
+    """Complete calendar years and the four consecutive quarters ending at the latest one."""
+    if not quarters:
+        raise ValueError("No Ookla quarters found; the current period requires four consecutive quarters.")
+    latest_year, latest_quarter = max(quarters)
+    last = latest_year * 4 + latest_quarter - 1
+    current = [(i // 4, i % 4 + 1) for i in range(last - 3, last + 1)]
+    missing = [q for q in current if q not in quarters]
+    if missing:
+        labels = ", ".join(f"{year} Q{quarter}" for year, quarter in missing)
+        raise ValueError(f"The current period requires four consecutive quarters ending at "
+                         f"{latest_year} Q{latest_quarter}; missing: {labels}. "
+                         "Download the missing Ookla quarters before building.")
     years = sorted({y for y, _ in quarters if all((y, q) in quarters for q in range(1, 5))})
     out = {str(y): [(y, q) for q in range(1, 5)] for y in years}
-    out["guncel"] = quarters[-4:]
+    out["guncel"] = current
     return out
 
 
@@ -142,6 +154,7 @@ def area_totals(pooled: pa.Table, key: str) -> dict[str, list[float]]:
 
 def main() -> None:
     quarters = available_quarters()
+    period_quarters = periods(quarters)
     data = {q: read_quarter(*q) for q in quarters}
     quadkeys = pc.unique(pa.concat_arrays([t["quadkey"].combine_chunks() for t in data.values()]))
     assignment = assign(quadkeys.to_pylist())
@@ -150,7 +163,7 @@ def main() -> None:
         district_names = {d["ilce_kodu"]: d for d in csv.DictReader(f)}
 
     tiles, province_rows, district_rows = [], [], []
-    for period, members in periods(quarters).items():
+    for period, members in period_quarters.items():
         pooled = (pa.concat_tables([data[q] for q in members])
                   .group_by("quadkey").aggregate([(c, "sum") for c in SUMS])
                   .rename_columns(["quadkey"] + SUMS)
