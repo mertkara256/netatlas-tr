@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { periodText, type Area, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
-import { NEARBY_RADIUS, nearby, siteArchive, type Nearby } from "@/lib/nearby";
+import { NEARBY_RADIUS } from "@/lib/nearby";
+import { startNearbyRequest, type NearbyRequestResult } from "@/lib/nearby-request";
 import { useColorScheme } from "@/lib/useColorScheme";
 import TrendChart from "./TrendChart";
 import styles from "./RegionPanel.module.css";
@@ -32,33 +33,38 @@ function Stat({ label, value, note }: { label: string; value: string; note: stri
 /** Test-weighted averages of Ookla's 475 m squares within 1 km of the clicked point, read from the
  *  map tiles in the browser whatever the zoom (lib/nearby.ts). */
 function NearbySection({ point, period }: { point: [number, number]; period: PeriodInfo }) {
-  const key = `${point.join(",")}|${period.id}`;
-  const [result, setResult] = useState<{ key: string; value: Nearby | null } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    nearby(siteArchive(), point[0], point[1], period.id).then((value) => {
-      if (!cancelled) setResult({ key, value });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [key, point, period.id]);
-  const value = result?.key === key ? result.value : undefined;
+  const [attempt, setAttempt] = useState(0);
+  const [lon, lat] = point;
+  const periodId = period.id;
+  // A fresh identity keeps retries and A → B → A changes from showing an old result.
+  const request = useMemo(() => ({ lon, lat, periodId, attempt }), [lon, lat, periodId, attempt]);
+  const [result, setResult] = useState<{ request: typeof request; outcome: NearbyRequestResult } | null>(null);
+  useEffect(() => startNearbyRequest(request.lon, request.lat, request.periodId, (outcome) => {
+    setResult({ request, outcome });
+  }), [request]);
+  const outcome = result?.request === request ? result.outcome : null;
 
   return (
     <section className={styles.cell}>
       <h3>Tıkladığın yerin çevresi <span className={styles.muted}>{formatNumber(NEARBY_RADIUS / 1000)} km</span></h3>
-      {value === undefined ? (
-        <p className={styles.muted}>Hesaplanıyor…</p>
-      ) : value === null ? (
+      {outcome === null ? (
+        <p className={`${styles.muted} ${styles.nearbyLoading}`} role="status">
+          <span className={styles.spinner} aria-hidden="true" />Hesaplanıyor…
+        </p>
+      ) : outcome.status === "error" ? (
+        <div role="alert">
+          <p>Çevrendeki ölçümler yüklenemedi.</p>
+          <button type="button" className={styles.retry} onClick={() => setAttempt((value) => value + 1)}>Yeniden dene</button>
+        </div>
+      ) : outcome.value === null ? (
         <p>Bu dönemde {formatNumber(NEARBY_RADIUS / 1000)} km içinde ölçüm yok.</p>
       ) : (
         <p>
-          {formatValue(DOWNLOAD, value.download)} indirme · {formatValue(UPLOAD, value.upload)} yükleme ·{" "}
-          {formatValue(LATENCY, value.latency)} gecikme
+          {formatValue(DOWNLOAD, outcome.value.download)} indirme · {formatValue(UPLOAD, outcome.value.upload)} yükleme ·{" "}
+          {formatValue(LATENCY, outcome.value.latency)} gecikme
           <br />
           <span className={styles.muted}>
-            {formatNumber(value.squares)} kare, {formatNumber(value.tests)} test ({reliability(value.tests).toLocaleLowerCase("tr-TR")} güvenilirlik)
+            {formatNumber(outcome.value.squares)} kare, {formatNumber(outcome.value.tests)} test ({reliability(outcome.value.tests).toLocaleLowerCase("tr-TR")} güvenilirlik)
           </span>
         </p>
       )}
