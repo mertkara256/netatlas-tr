@@ -74,3 +74,8 @@ export function siteArchive(): PMTiles {
   archive ??= new PMTiles(`${window.location.origin}${PMTILES_PATH}`);
   return archive;
 }
+
+/** A failed header or directory can remain cached; let the next query use a fresh archive. */
+export function invalidateSiteArchive(failed: PMTiles): void {
+  if (archive === failed) archive = null;
+}
