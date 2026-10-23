@@ -9,6 +9,7 @@ import { CELL_SIZE, PMTILES_PATH, type Area, type PeriodInfo, type Selection, ty
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
+import { hasPhoneSheet } from "@/lib/viewport";
 import type { HoverInfo } from "./Tooltip";
 
 // Copied into public/ by scripts/copy-maplibre-worker.mjs before dev and build.
@@ -113,8 +114,8 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     const timer = setTimeout(() => {
       const map = mapRef.current?.getMap();
       if (!map) return;
-      const { clientWidth, clientHeight } = map.getContainer();
-      const sheet = clientWidth < 640 ? clientHeight * PHONE_SHEET_SHARE : 0;
+      const { clientHeight } = map.getContainer();
+      const sheet = hasPhoneSheet() ? clientHeight * PHONE_SHEET_SHARE : 0;
       map.fitBounds(focus.bbox, { padding: { top: 30, left: 30, right: 30, bottom: 30 + sheet }, maxZoom: 11, duration: 800 });
     }, 80);
     return () => clearTimeout(timer);
@@ -214,9 +215,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     clear();
     onSelect(selection);
     // On phones the panel covers the lower part of the map; bring the clicked place above it.
-    const { clientWidth, clientHeight } = e.target.getContainer();
+    const { clientHeight } = e.target.getContainer();
     const visible = clientHeight * (1 - PHONE_SHEET_SHARE);
-    if (clientWidth < 640 && e.point.y > visible) e.target.panBy([0, e.point.y - visible / 2]);
+    if (hasPhoneSheet() && e.point.y > visible) e.target.panBy([0, e.point.y - visible / 2]);
   }, [view, clear, onSelect]);
 
   // Outline the selected area; tile features keep their state across period and metric changes,
