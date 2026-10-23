@@ -6,12 +6,13 @@ import { provincePath } from "@/lib/slug";
 import RegionDetails from "./RegionDetails";
 import styles from "./RegionPanel.module.css";
 
-export default function RegionPanel({ selection, areas, periods, period, metric, onClose, onSelect }: {
+export default function RegionPanel({ selection, areas, periods, period, metric, loadingFailed, onClose, onSelect }: {
   selection: Selection;
   areas: Partial<Record<AreaKind, Record<string, Area>>>;
   periods: PeriodInfo[];
   period: PeriodInfo;
   metric: Metric;
+  loadingFailed: boolean;
   onClose: () => void;
   onSelect: (selection: Selection) => void;
 }) {
@@ -41,7 +42,7 @@ export default function RegionPanel({ selection, areas, periods, period, metric,
     <aside className={styles.panel} aria-label="Bölge bilgileri">
       <div className={styles.head}>
         <div>
-          <h2 ref={heading} tabIndex={-1}>{area?.ad ?? "Yükleniyor…"}</h2>
+          <h2 ref={heading} tabIndex={-1}>{area?.ad ?? (loadingFailed ? "Bölge verileri yüklenemedi" : "Yükleniyor…")}</h2>
           <p className={styles.kind}>
             {selection.kind === "iller" ? "İl" : "İlçe"}
             {selection.kind === "ilceler" && province && provinceCode && (

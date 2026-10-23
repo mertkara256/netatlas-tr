@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { loadPlaces, searchPlaces, type Place } from "@/lib/search";
 import styles from "./Atlas.module.css";
 
@@ -6,15 +6,26 @@ import styles from "./Atlas.module.css";
  *  with ↑ ↓ and Enter. The index is only fetched once the box is used. */
 export default function SearchBox({ onPick }: { onPick: (place: Place) => void }) {
   const id = useId();
+  const input = useRef<HTMLInputElement>(null);
   const [places, setPlaces] = useState<Place[] | null>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [wanted, setWanted] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (wanted && !places) loadPlaces().then(setPlaces);
-  }, [wanted, places]);
+    if (!wanted || places || failed) return;
+    let cancelled = false;
+    loadPlaces().then((data) => {
+      if (!cancelled) setPlaces(data);
+    }).catch(() => {
+      if (!cancelled) setFailed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [wanted, places, failed]);
 
   const results = places ? searchPlaces(places, query) : [];
   const expanded = open && results.length > 0;
@@ -28,6 +39,7 @@ export default function SearchBox({ onPick }: { onPick: (place: Place) => void }
   return (
     <div className={styles.search}>
       <input
+        ref={input}
         type="search"
         role="combobox"
         aria-label="İl ya da ilçe ara"
@@ -35,6 +47,7 @@ export default function SearchBox({ onPick }: { onPick: (place: Place) => void }
         aria-expanded={expanded}
         aria-controls={`${id}-list`}
         aria-activedescendant={expanded ? `${id}-${active}` : undefined}
+        aria-describedby={failed ? `${id}-error` : undefined}
         placeholder="İl ya da ilçe ara"
         value={query}
         onFocus={() => setWanted(true)}
@@ -54,6 +67,16 @@ export default function SearchBox({ onPick }: { onPick: (place: Place) => void }
           e.stopPropagation(); // Escape here should not also close the region panel
         }}
       />
+      {failed && (
+        <div id={`${id}-error`} className={styles.searchError} role="alert">
+          <p>Arama verileri yüklenemedi.</p>
+          <button type="button" onClick={() => {
+            setFailed(false);
+            setOpen(true);
+            input.current?.focus();
+          }}>Yeniden dene</button>
+        </div>
+      )}
       {expanded && (
         <ul id={`${id}-list`} role="listbox" className={styles.results}>
           {results.map((place, i) => (

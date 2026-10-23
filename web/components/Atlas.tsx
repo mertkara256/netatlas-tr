@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadAreas, type Area, type AreaKind, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { metricById, type MetricId } from "@/lib/metrics";
 import type { Place } from "@/lib/search";
@@ -24,6 +24,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
   const [metricId, setMetricId] = useState<MetricId>("indirme");
   const [view, setView] = useState<View>("kareler");
   const [areas, setAreas] = useState<Partial<Record<AreaKind, Record<string, Area>>>>({});
+  const [areaErrors, setAreaErrors] = useState<Partial<Record<AreaKind, boolean>>>({});
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [display, setDisplay] = useState<Display>("harita");
@@ -32,22 +33,30 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
 
   // Province and district values are fetched only when a view, the table or the panel needs
   // them; the table and the panel always need the provinces (names, BTK, Türkiye's values).
-  useEffect(() => {
+  const selectedKind = selection?.kind;
+  const needed = useMemo(() => {
     const needed = new Set<AreaKind>();
     if (view !== "kareler") needed.add(view);
     if (display === "tablo") needed.add("iller").add(tableKind);
-    if (selection) needed.add("iller").add(selection.kind);
+    if (selectedKind) needed.add("iller").add(selectedKind);
+    return [...needed];
+  }, [view, display, tableKind, selectedKind]);
+  useEffect(() => {
     let cancelled = false;
     for (const kind of needed) {
-      if (areas[kind]) continue;
+      // A failed kind waits for the retry button rather than retrying on every render.
+      if (areas[kind] || areaErrors[kind]) continue;
       loadAreas(kind).then((data) => {
         if (!cancelled) setAreas((loaded) => ({ ...loaded, [kind]: data }));
+      }).catch(() => {
+        if (!cancelled) setAreaErrors((errors) => ({ ...errors, [kind]: true }));
       });
     }
     return () => {
       cancelled = true;
     };
-  }, [view, display, tableKind, selection, areas]);
+  }, [needed, areas, areaErrors]);
+  const loadingFailed = needed.some((kind) => areaErrors[kind]);
 
   const period = periods[periodIndex];
   const metric = metricById(metricId);
@@ -90,6 +99,12 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
         display={display}
         onDisplay={andClearHover(setDisplay)}
       />
+      {loadingFailed && (
+        <div className={styles.loadError} role="alert">
+          <p>Bölge verileri yüklenemedi. Bağlantını kontrol edip yeniden deneyebilirsin.</p>
+          <button type="button" onClick={() => setAreaErrors({})}>Yeniden dene</button>
+        </div>
+      )}
       <div className={styles.body}>
         {/* Hidden rather than removed in table mode, so the map keeps its view. */}
         <div className={styles.mapWrap} role="region" aria-label="Hız haritası" hidden={display === "tablo"}>
@@ -118,7 +133,9 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
               onSelect={setSelection}
             />
           ) : (
-            <p className={styles.loading}>Yükleniyor…</p>
+            <p className={styles.loading}>
+              {areaErrors[tableKind] || areaErrors.iller ? "Tablo verileri yüklenemedi." : "Yükleniyor…"}
+            </p>
           )
         )}
         {selection && (
@@ -128,6 +145,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
             periods={periods}
             period={period}
             metric={metric}
+            loadingFailed={Boolean(areaErrors[selection.kind] || areaErrors.iller)}
             onClose={closePanel}
             onSelect={setSelection}
           />

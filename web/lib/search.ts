@@ -1,4 +1,4 @@
-import { DATA_DIR } from "./data";
+import { DATA_DIR, fetchJson } from "./data";
 
 /** One entry of the pipeline's arama.json: a province or district with its bounding box. */
 export type Place = {
@@ -26,7 +26,23 @@ export function normalize(text: string): string {
 let loading: Promise<Place[]> | null = null;
 
 export function loadPlaces(): Promise<Place[]> {
-  loading ??= fetch(`${DATA_DIR}/arama.json`).then((response) => response.json());
+  if (!loading) {
+    const request: Promise<Place[]> = fetchJson<Place[]>(`${DATA_DIR}/arama.json`)
+      .then((places) => {
+        if (!Array.isArray(places) || places.some((place) => !place
+          || !["il", "ilce"].includes(place.tur)
+          || typeof place.kod !== "string" || typeof place.ad !== "string" || typeof place.ara !== "string"
+          || !Array.isArray(place.bbox) || place.bbox.length !== 4 || !place.bbox.every(Number.isFinite))) {
+          throw new Error("Invalid search data");
+        }
+        return places;
+      })
+      .catch((error) => {
+        if (loading === request) loading = null;
+        throw error;
+      });
+    loading = request;
+  }
   return loading;
 }
 
