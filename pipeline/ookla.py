@@ -7,7 +7,8 @@ and 2021 Q3 are a single row group each, so they cost 80-120 MB; the others 10-3
 
     uv run python -m pipeline.ookla
 
-Quarters already on disk are skipped, so a rerun only fetches newly published ones.
+Valid quarters already on disk are skipped. Incomplete or incompatible cached files are
+downloaded again; new files are validated before atomically replacing the cache.
 
 Output:
     data/raw/ookla/fixed_YYYYqQ.parquet   tiles in a box around Türkiye (not in git); exact
@@ -17,6 +18,8 @@ from __future__ import annotations
 
 import re
 import time
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -85,17 +88,44 @@ def fetch(fs: pafs.FileSystem, path: str) -> pa.Table:
     return table.filter(pa.array(inside))
 
 
+def valid_cache(path: Path) -> bool:
+    """Check the Parquet footer and required column types without reading every tile."""
+    try:
+        with pq.ParquetFile(path) as cached:
+            schema = cached.schema_arrow
+            if cached.metadata.num_rows == 0 or any(schema.names.count(c) != 1 for c in COLUMNS):
+                return False
+            quadkey_type = schema.field("quadkey").type
+            return ((pa.types.is_string(quadkey_type) or pa.types.is_large_string(quadkey_type))
+                    and all(pa.types.is_integer(schema.field(c).type) for c in COLUMNS[1:]))
+    except (OSError, pa.ArrowException):
+        return False
+
+
+def write_cache(table: pa.Table, path: Path) -> None:
+    """Keep the final cache untouched until a complete, readable quarter is ready."""
+    with NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False) as f:
+        temporary = Path(f.name)
+    try:
+        pq.write_table(table, temporary)
+        if not valid_cache(temporary):
+            raise ValueError(f"Invalid Ookla cache written to {temporary}")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def main() -> None:
     fs = pafs.S3FileSystem(anonymous=True, region=REGION)
     quarters = published_quarters(fs)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     for (year, quarter), path in sorted(quarters.items()):
         out = output_path(year, quarter)
-        if out.exists():
+        if valid_cache(out):
             continue
         started = time.time()
         table = fetch(fs, path)
-        pq.write_table(table, out)
+        write_cache(table, out)
         print(f"{year} Q{quarter}: {table.num_rows:,} tiles, {pc.sum(table['tests']).as_py():,} tests "
               f"({time.time() - started:.0f}s)", flush=True)
     latest = max(quarters)
