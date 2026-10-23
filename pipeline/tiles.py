@@ -149,12 +149,12 @@ def search_index() -> list[dict]:
 
 
 def main() -> None:
+    quarters = available_quarters()
+    period_quarters = periods(quarters)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     print("speed cells")
     build_pmtiles(cell_features(pq.read_table(TILES_PATH)))
 
-    quarters = available_quarters()
-    period_quarters = periods(quarters)
     provinces: dict[str, dict] = {}
     for row in read_csv(PROVINCE_PATH):
         provinces.setdefault(row["il_kodu"], {"ad": row["il"], "hiz": {}, "btk": {}})["hiz"][row["donem"]] = speed_values(row)
