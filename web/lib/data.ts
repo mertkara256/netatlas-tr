@@ -39,12 +39,32 @@ export type Selection = { kind: AreaKind; code: string; point?: [number, number]
 
 const loading = new Map<AreaKind, Promise<Record<string, Area>>>();
 
-/** Province or district values; each file is fetched once, however many views ask for it. */
+/** Fetch JSON only from successful responses; error pages must not become cached data. */
+export async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Data request failed (${response.status}): ${url}`);
+  return response.json();
+}
+
+/** Province or district values; successful requests are shared, failed requests can be retried. */
 export function loadAreas(kind: AreaKind): Promise<Record<string, Area>> {
   if (!loading.has(kind)) {
-    loading.set(kind, fetch(`${DATA_DIR}/${kind}.json`)
-      .then((response) => response.json())
-      .then((data) => (kind === "iller" ? data.iller : data)));
+    const request: Promise<Record<string, Area>> = fetchJson<Record<string, unknown>>(`${DATA_DIR}/${kind}.json`)
+      .then((data) => {
+        const areas = kind === "iller" ? data?.iller : data;
+        if (!areas || typeof areas !== "object" || Array.isArray(areas)
+          || !Object.keys(areas).length
+          || Object.values(areas).some((area) => !area || typeof area.ad !== "string"
+            || !area.hiz || typeof area.hiz !== "object" || Array.isArray(area.hiz))) {
+          throw new Error(`Invalid area data: ${kind}`);
+        }
+        return areas as Record<string, Area>;
+      })
+      .catch((error) => {
+        if (loading.get(kind) === request) loading.delete(kind);
+        throw error;
+      });
+    loading.set(kind, request);
   }
   return loading.get(kind)!;
 }
