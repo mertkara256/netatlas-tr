@@ -1,10 +1,13 @@
 """Checks on the Ookla quarters (run `python -m pipeline.ookla` first)."""
 import re
+from unittest.mock import Mock
 
+import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pytest
 
+from pipeline import ookla
 from pipeline.common import lonlat_to_tile, quadkey_to_tile, tile_to_quadkey
 from pipeline.ookla import OUT_DIR, TILE_ZOOM, tile_range
 
@@ -19,6 +22,99 @@ REGION_CITIES = {
     "Güneydoğu Anadolu": (40.21, 37.91),  # Diyarbakır
 }
 CITY_ZOOM = 12
+
+
+@pytest.fixture
+def cached_quarter(tmp_path, monkeypatch):
+    """One published quarter, with all source access replaced by an in-memory table."""
+    table = pa.table({
+        "quadkey": [tile_to_quadkey(*lonlat_to_tile(29.03, 40.99, TILE_ZOOM), TILE_ZOOM)],
+        "avg_d_kbps": [100_000], "avg_u_kbps": [20_000], "avg_lat_ms": [10],
+        "tests": [3], "devices": [2],
+    })
+    monkeypatch.setattr(ookla, "OUT_DIR", tmp_path)
+    monkeypatch.setattr(ookla.pafs, "S3FileSystem", lambda **kwargs: object())
+    monkeypatch.setattr(ookla, "published_quarters", lambda fs: {(2026, 3): "source.parquet"})
+    fetch = Mock(return_value=table)
+    monkeypatch.setattr(ookla, "fetch", fetch)
+    return ookla.output_path(2026, 3), table, fetch
+
+
+def test_valid_cached_quarter_is_reused(cached_quarter):
+    path, table, fetch = cached_quarter
+    pq.write_table(table, path)
+    original = path.read_bytes()
+
+    ookla.main()
+
+    fetch.assert_not_called()
+    assert path.read_bytes() == original
+
+
+@pytest.mark.parametrize("invalid", ["truncated", "missing_columns", "wrong_types", "empty"])
+def test_invalid_cached_quarter_is_downloaded_again(cached_quarter, invalid):
+    path, table, fetch = cached_quarter
+    if invalid == "truncated":
+        path.write_bytes(b"PAR1")
+    elif invalid == "missing_columns":
+        pq.write_table(table.select(["quadkey", "tests"]), path)
+    elif invalid == "wrong_types":
+        pq.write_table(table.set_column(0, "quadkey", pa.array([123])), path)
+    else:
+        pq.write_table(table.slice(0, 0), path)
+
+    ookla.main()
+
+    fetch.assert_called_once()
+    assert pq.read_table(path).equals(table)
+    assert list(path.parent.iterdir()) == [path]
+
+
+@pytest.mark.parametrize("existing_corrupt_cache", [False, True])
+def test_interrupted_write_is_cleaned_up_and_next_run_recovers(
+        cached_quarter, monkeypatch, existing_corrupt_cache):
+    path, table, fetch = cached_quarter
+    if existing_corrupt_cache:
+        path.write_bytes(b"PAR1")
+    write_table = pq.write_table
+
+    def interrupted_write(table, output):
+        output.write_bytes(b"PAR1")
+        raise OSError("simulated interrupted write")
+
+    monkeypatch.setattr(ookla.pq, "write_table", interrupted_write)
+    with pytest.raises(OSError, match="simulated interrupted write"):
+        ookla.main()
+
+    assert sorted(path.parent.iterdir()) == ([path] if existing_corrupt_cache else [])
+    if existing_corrupt_cache:
+        assert path.read_bytes() == b"PAR1"
+
+    monkeypatch.setattr(ookla.pq, "write_table", write_table)
+    ookla.main()
+
+    assert fetch.call_count == 2
+    assert pq.read_table(path).equals(table)
+    assert list(path.parent.iterdir()) == [path]
+
+
+def test_invalid_temporary_output_does_not_replace_existing_cache(cached_quarter, monkeypatch):
+    path, table, _ = cached_quarter
+    pq.write_table(table, path)
+    original = path.read_bytes()
+    write_table = pq.write_table
+
+    def incomplete_output(table, output):
+        assert output.parent == path.parent and output != path
+        assert path.read_bytes() == original
+        write_table(table.select(["quadkey"]), output)
+
+    monkeypatch.setattr(ookla.pq, "write_table", incomplete_output)
+    with pytest.raises(ValueError, match="Invalid Ookla cache"):
+        ookla.write_cache(table, path)
+
+    assert path.read_bytes() == original
+    assert list(path.parent.iterdir()) == [path]
 
 
 @pytest.fixture(scope="module")
