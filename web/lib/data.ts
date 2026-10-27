@@ -1,5 +1,7 @@
+// The prefix of every URL on the site (see next.config.ts). Next adds it to links, not to fetches.
+export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 // Files written by the data pipeline (`uv run python -m pipeline.tiles`) into public/data/.
-export const DATA_DIR = "/data";
+export const DATA_DIR = `${BASE_PATH}/data`;
 export const PMTILES_PATH = `${DATA_DIR}/harita.pmtiles`;
 
 // A period is a calendar year ("2019") or "guncel", the latest four published quarters.
