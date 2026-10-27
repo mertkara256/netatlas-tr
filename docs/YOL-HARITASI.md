@@ -10,6 +10,7 @@ Türkiye ev interneti atlası: Ookla açık verisinden 475 m'lik karelerde hız,
 | Maliyet | Sıfır. GitHub Pages, ücretli alan adı yok. |
 | Repo | Geliştirme sırasında özel; yayından önce açılacak (ücretsiz planda GitHub Pages açık repo istiyor). |
 | Harita görünümü | Her ölçekte kare ısı haritası: yakınlaşınca Ookla'nın 475 m'lik kareleri, uzaklaştıkça daha büyük hücrelerde birleşen kareler. İl ve ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı bir seçenek. |
+| Site verisi | Git'e girmeyen dosyalar (PMTiles, il/ilçe JSON'ları, arama dizini) bir GitHub Release'te; yayın iş akışı `web/data-release.txt`'de adı yazan sürümü indirir. |
 | Repo adı | `netatlas-tr` (yayından önce değiştirilebilir) |
 | Kod lisansı | MIT. Ookla'dan türetilen veri CC BY-NC-SA 4.0. |
 | README | İki dilli: önce İngilizce, sonra Türkçe. Arayüz Türkçe. |
@@ -46,7 +47,6 @@ netatlas-tr/
 │  ├─ app/            ana sayfa, /il/[ad], /yontem
 │  ├─ components/     harita, gösterge, bölge paneli, grafikler
 │  └─ public/data/    veri hattının ürettiği dosyalar
-├─ prototype/         ilk prototip, yenisi hazır olunca silinecek
 └─ .github/workflows/ testler, yayın, çeyreklik güncelleme
 ```
 

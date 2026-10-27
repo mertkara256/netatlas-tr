@@ -5,7 +5,7 @@ import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as Ma
 import { Protocol } from "pmtiles";
 import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
-import { CELL_SIZE, PMTILES_PATH, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
+import { BASE_PATH, CELL_SIZE, PMTILES_PATH, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
@@ -13,7 +13,7 @@ import { hasPhoneSheet } from "@/lib/viewport";
 import type { HoverInfo } from "./Tooltip";
 
 // Copied into public/ by scripts/copy-maplibre-worker.mjs before dev and build.
-setWorkerUrl("/maplibre-gl-worker.mjs");
+setWorkerUrl(`${BASE_PATH}/maplibre-gl-worker.mjs`);
 // Lets MapLibre read vector tiles straight out of the single PMTiles file with range requests.
 addProtocol("pmtiles", new Protocol().tile);
 

@@ -4,9 +4,9 @@
 
 [Türkçe](#türkçe)
 
-> **Status:** early development. A working prototype lives in [`prototype/`](prototype/); the full project is being rebuilt step by step following the [roadmap](docs/YOL-HARITASI.md) (in Turkish).
+> **Site:** https://mertkara256.github.io/netatlas-tr/ · Built step by step following the [roadmap](docs/YOL-HARITASI.md) (in Turkish).
 
-## What it will show
+## What it shows
 
 - Average download, upload and latency from Ookla's open Speedtest data as a heat map: Ookla's own ~475 m squares (at Türkiye's latitude) up close, merged into larger cells as you zoom out, plus province and district summaries.
 - How reliable each value is, based on the number of tests behind it.
@@ -35,9 +35,9 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 
 **Türkiye ev interneti atlası:** Ölçülen sabit internet hızları ~475 m'lik karelerde, her karede güvenilirlik bilgisi, 2019'dan bugüne değişim ve illere göre resmi erişim istatistikleri.
 
-> **Durum:** Geliştirmenin başındayız. Çalışan bir prototip [`prototype/`](prototype/) klasöründe. Asıl proje [yol haritasına](docs/YOL-HARITASI.md) göre adım adım yeniden kuruluyor.
+> **Site:** https://mertkara256.github.io/netatlas-tr/ · Proje [yol haritasına](docs/YOL-HARITASI.md) göre adım adım geliştiriliyor.
 
-### Neler gösterecek
+### Neler gösteriyor
 
 - Ookla'nın açık Speedtest verisinden ortalama indirme, yükleme ve gecikme, ısı haritası olarak: yakınlaşınca Ookla'nın kendi ~475 m'lik kareleri, uzaklaştıkça daha büyük hücreler. Ayrıca il ve ilçe özetleri.
 - Her değerin ne kadar güvenilir olduğu (arkasındaki test sayısına göre).
