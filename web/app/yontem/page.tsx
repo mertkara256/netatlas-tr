@@ -271,7 +271,7 @@ export default async function MethodPage() {
           <li>İl ve ilçe sınırları: OCHA COD-AB Türkiye, kaynağı Harita Genel Müdürlüğü, CC BY-IGO.</li>
           <li>İlçe adları: © OpenStreetMap katkıcıları (ODbL), geoBoundaries üzerinden (Runfola ve diğ., 2020).</li>
           <li>Altlık harita: OpenFreeMap, © OpenMapTiles, © OpenStreetMap katkıcıları.</li>
-          <li>Sitenin kodu MIT lisansıyla açıktır.</li>
+          <li>Sitenin kodu <a href="https://github.com/mertkara256/netatlas-tr">GitHub&apos;da</a> MIT lisansıyla açıktır.</li>
         </ul>
         <p className={styles.footnote}>NetAtlas TR; Ookla, BTK ya da OCHA ile bağlantılı değildir.</p>
       </section>
