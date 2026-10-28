@@ -14,7 +14,6 @@ on:
 permissions:
   contents: write       # push the branch and create the release
   pull-requests: write  # open the pull request
-  actions: write        # start the site checks on the new branch
 
 concurrency:
   group: ${{ github.workflow }}
@@ -118,8 +117,5 @@ jobs:
           - \`web/data-release.txt\` points the site at it.
           - \`data/processed/\` has the new province and district tables.
 
-          The pipeline tests ran on the full data in [the update run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID). The site checks run on this branch separately; merging deploys the new data.
+          The pipeline tests ran on the full data in [the update run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID). GitHub holds the site checks on pull requests opened by Actions until a maintainer approves them: use "Approve and run" below, then merge to deploy the new data.
           EOF
-
-          # Pull requests opened with this token do not start workflows, so the site checks are started here.
-          gh workflow run site.yml --ref "$branch"
