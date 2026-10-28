@@ -57,6 +57,19 @@ function circle([lon, lat]: [number, number], radius: number): GeoJSON.Feature<G
   return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring] } };
 }
 
+// The basemaps write place names in English and the local script; this site is in Turkish. Names
+// come in Turkish where OpenStreetMap has one ("Yunanistan", "Halep"), else in Latin script, else as
+// written locally. Road numbers keep their own labels.
+const TURKISH_NAME: ExpressionSpecification = ["coalesce", ["get", "name:tr"], ["get", "name:latin"], ["get", "name"]];
+
+function showTurkishNames(map: MapLibreMap) {
+  for (const layer of map.getStyle().layers) {
+    if (layer.type !== "symbol") continue;
+    const field = map.getLayoutProperty(layer.id, "text-field");
+    if (field && JSON.stringify(field).includes("name")) map.setLayoutProperty(layer.id, "text-field", TURKISH_NAME);
+  }
+}
+
 // Our layers go above the basemap's fills and roads but below its final run of labels.
 function firstLabelLayer(map: MapLibreMap): string {
   const layers = map.getStyle().layers;
@@ -149,7 +162,10 @@ export default function MapView({ period, metric, view, theme, areas, selection,
 
   const handleLoad = useCallback(() => {
     const map = mapRef.current!.getMap();
-    const update = () => setLoaded({ theme: themeRef.current, beforeId: firstLabelLayer(map) });
+    const update = () => {
+      showTurkishNames(map);
+      setLoaded({ theme: themeRef.current, beforeId: firstLabelLayer(map) });
+    };
     update();
     map.on("style.load", update);
 
