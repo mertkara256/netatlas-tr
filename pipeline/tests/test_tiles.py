@@ -1,9 +1,12 @@
 """Checks on the map tiles, JSON files and search index (run `python -m pipeline.tiles` first)."""
 import csv
+import gzip
 import json
 from datetime import date
 import shutil
+import struct
 import subprocess
+import tempfile
 from collections import defaultdict
 
 import pyarrow.compute as pc
@@ -11,7 +14,7 @@ import pyarrow.parquet as pq
 import pytest
 
 from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, TILES_PATH
-from pipeline.common import PROVINCES, lonlat_to_tile, normalize_name, tile_to_quadkey
+from pipeline.common import PROVINCES, ROOT, lonlat_to_tile, normalize_name, tile_to_quadkey
 from pipeline.tiles import LEVELS, MAX_ZOOM, OUT_DIR, PMTILES_PATH, cell_features, tile_zooms
 
 PERIODS = [str(y) for y in range(2019, 2026)] + ["guncel"]
@@ -89,6 +92,22 @@ def test_pmtiles_stays_under_github_file_limit():
     if not PMTILES_PATH.exists():
         pytest.skip("run `python -m pipeline.tiles` to build the map tiles")
     assert PMTILES_PATH.stat().st_size < 100 * 1024 * 1024
+
+
+def test_pmtiles_metadata_names_no_local_folders():
+    """tippecanoe stores its command line in the archive, which is published."""
+    if not PMTILES_PATH.exists():
+        pytest.skip("run `python -m pipeline.tiles` to build the map tiles")
+    with PMTILES_PATH.open("rb") as f:
+        header = f.read(127)
+        offset, length = struct.unpack_from("<QQ", header, 24)  # PMTiles v3: where the JSON metadata is
+        f.seek(offset)
+        metadata = f.read(length)
+    if header[97] == 2:  # gzip-compressed
+        metadata = gzip.decompress(metadata)
+    text = json.dumps(json.loads(metadata), ensure_ascii=False)
+    # As folders (trailing slash), so a relative "data/tmpab12/" does not match Linux's /tmp.
+    assert f"{ROOT}/" not in text and f"{tempfile.gettempdir()}/" not in text
 
 
 @pytest.mark.parametrize("zoom", range(MAX_ZOOM + 1))

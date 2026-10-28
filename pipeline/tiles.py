@@ -88,21 +88,24 @@ def cell_features(tiles: pa.Table) -> list[dict]:
 
 
 def build_pmtiles(features: list[dict]) -> None:
-    with tempfile.TemporaryDirectory() as tmp:
+    # tippecanoe writes its command line into the archive, which is published, so it runs from
+    # the repo root with relative paths and no local folder name ends up in the file.
+    with tempfile.TemporaryDirectory(dir=OUT_DIR) as tmp:
         cells_path = Path(tmp) / "hucreler.geojsonl"
         with cells_path.open("w", encoding="utf-8") as f:
             for feature in features:
                 f.write(json.dumps(feature, separators=(",", ":")) + "\n")
         subprocess.run([
-            "tippecanoe", "--output", str(PMTILES_PATH), "--force", "--quiet",
+            "tippecanoe", "--output", str(PMTILES_PATH.relative_to(ROOT)), "--force", "--quiet",
+            "--name", "NetAtlas TR", "--description", "Ookla fixed-broadband speed cells, districts and provinces",
             "--minimum-zoom=0", f"--maximum-zoom={MAX_ZOOM}",
             # Every cell and shape must survive at every zoom it is meant for.
             "--no-feature-limit", "--no-tile-size-limit", "--no-tiny-polygon-reduction",
             "--detect-shared-borders",
-            "--named-layer", f"hucreler:{cells_path}",
-            "--named-layer", f"ilceler:{DISTRICTS_PATH}",
-            "--named-layer", f"iller:{PROVINCES_PATH}",
-        ], check=True)
+            "--named-layer", f"hucreler:{cells_path.relative_to(ROOT)}",
+            "--named-layer", f"ilceler:{DISTRICTS_PATH.relative_to(ROOT)}",
+            "--named-layer", f"iller:{PROVINCES_PATH.relative_to(ROOT)}",
+        ], check=True, cwd=ROOT)
 
 
 def read_csv(path: Path) -> list[dict]:

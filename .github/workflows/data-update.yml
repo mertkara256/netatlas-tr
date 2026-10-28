@@ -1,0 +1,125 @@
+name: Quarterly data update
+
+on:
+  # Ookla publishes a quarter a few weeks after it ends; looking once a week is enough.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: Rebuild and publish even if the latest quarter is already released (after a pipeline change)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write       # push the branch and create the release
+  pull-requests: write  # open the pull request
+  actions: write        # start the site checks on the new branch
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      # Each quarter's data goes out as the release veri-YYYYqQ. If that release exists, the
+      # quarter is done (or its pull request is waiting), unless a rebuild was asked for.
+      - name: Look for a new quarter
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REBUILD: ${{ inputs.rebuild }}
+        run: |
+          latest=$(uv run --locked python - <<'EOF'
+          import pyarrow.fs as fs
+          from pipeline.ookla import REGION, published_quarters
+          year, quarter = max(published_quarters(fs.S3FileSystem(anonymous=True, region=REGION)))
+          print(f"{year}q{quarter}")
+          EOF
+          )
+          tag="veri-$latest"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            if [ "$REBUILD" != true ]; then
+              echo "$tag is already released; nothing to do."
+              exit 0
+            fi
+            # A rebuild of a released quarter takes the next free suffix: veri-2026q3-2, -3, ...
+            n=2
+            while gh release view "$tag-$n" > /dev/null 2>&1; do n=$((n + 1)); done
+            tag="$tag-$n"
+          fi
+          echo "Building $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # The same version the published tiles were made with.
+      - name: Install tippecanoe
+        if: steps.check.outputs.tag
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libsqlite3-dev zlib1g-dev
+          git clone --quiet --depth 1 --branch 2.79.0 https://github.com/felt/tippecanoe.git "$RUNNER_TEMP/tippecanoe"
+          make -C "$RUNNER_TEMP/tippecanoe" -j"$(nproc)" > /dev/null
+          sudo make -C "$RUNNER_TEMP/tippecanoe" install > /dev/null
+
+      - name: Run the data pipeline
+        if: steps.check.outputs.tag
+        run: |
+          uv run --locked python -m pipeline.boundaries
+          uv run --locked python -m pipeline.ookla
+          uv run --locked python -m pipeline.build
+          uv run --locked python -m pipeline.tiles
+
+      # With the raw data and tippecanoe-decode at hand, this also runs the tests the site checks skip.
+      - name: Test the pipeline output
+        if: steps.check.outputs.tag
+        run: uv run --locked pytest
+
+      - name: Publish the release and open a pull request
+        if: steps.check.outputs.tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.check.outputs.tag }}
+        run: |
+          data=web/public/data
+          period_tr=$(jq -r '.ookla | "\(.ilk[0]) Ç\(.ilk[1]) – \(.son[0]) Ç\(.son[1])"' $data/iller.json)
+          period_en=$(jq -r '.ookla | "\(.ilk[0]) Q\(.ilk[1])–\(.son[0]) Q\(.son[1])"' $data/iller.json)
+          accessed=$(jq -r '.ookla.erisim' $data/iller.json)
+          branch="data-update/$TAG"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          echo "$TAG" > web/data-release.txt
+          git add web/data-release.txt data/processed
+          git commit -q -m "Update the site data to $TAG ($period_en)"
+          git push -q origin "$branch"
+
+          gh release create "$TAG" --target "$(git rev-parse HEAD)" --title "Site verisi · $period_tr" \
+            $data/harita.pmtiles $data/iller.json $data/ilceler.json $data/arama.json --notes-file - <<EOF
+          Sitenin git'e girmeyen veri dosyaları, \`python -m pipeline.tiles\` çıktısı:
+
+          - \`harita.pmtiles\`: hız kareleri (475 m'den ~30 km'ye birleşen hücreler), il ve ilçe sınırları
+          - \`iller.json\`, \`ilceler.json\`: il ve ilçe değerleri, BTK verisi
+          - \`arama.json\`: il/ilçe arama dizini
+
+          Ookla sabit internet verisinin $period_tr Türkiye kesitinden, çeyreklik güncelleme iş akışıyla üretildi (erişim: $accessed). Yayın iş akışı bu sürümü \`web/data-release.txt\` üzerinden indirir.
+
+          Ookla verisinden türetilen değerler CC BY-NC-SA 4.0 lisanslıdır; kaynaklar ve atıflar README'de.
+          EOF
+
+          gh pr create --base main --head "$branch" --title "Update the site data to $period_en" --body-file - <<EOF
+          The quarterly data update rebuilt the site data from the sources: Ookla's fixed-broadband quarters $period_en, accessed $accessed.
+
+          - The release [$TAG](https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG) holds the new map tiles and JSON files.
+          - \`web/data-release.txt\` points the site at it.
+          - \`data/processed/\` has the new province and district tables.
+
+          The pipeline tests ran on the full data in [the update run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID). The site checks run on this branch separately; merging deploys the new data.
+          EOF
+
+          # Pull requests opened with this token do not start workflows, so the site checks are started here.
+          gh workflow run site.yml --ref "$branch"
