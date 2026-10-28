@@ -83,3 +83,15 @@ test("a lone cell shows and a missing cell among others stays open", () => {
   const [inside, outside] = [half.coverage[3 * size + 4 * px - 1], half.coverage[3 * size + 4 * px]];
   assert.ok(inside > 0.5 && outside < 0.5 && Math.abs((inside + outside) / 2 - 0.5) < 0.01, `${inside}, ${outside}`);
 });
+
+test("a cell keeps its own value at its centre, however different its neighbours", () => {
+  // A 47 Mbps cell among 212 Mbps ones must read as 47 where it is, not as a mix of the two.
+  const n = 8, slow = Math.log(47.4), fast = Math.log(211.9);
+  const grid = (i, j) => ({ value: i === 3 && j === 3 ? slow : fast, low: 0 });
+  // With an odd number of pixels per cell, one pixel's centre sits on each cell's centre.
+  for (const perCell of [1, 5]) {
+    const size = perCell * n, p = 3 * perCell + (perCell - 1) / 2;
+    const surface = smoothSurface(n, size, tileCells(grid, n));
+    assert.ok(close(surface.value[p * size + p], slow), `${perCell} px per cell: ${Math.exp(surface.value[p * size + p]).toFixed(1)} Mbps`);
+  }
+});
