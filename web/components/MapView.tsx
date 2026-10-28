@@ -10,6 +10,7 @@ import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { hasPhoneSheet } from "@/lib/viewport";
+import MapLoading from "./MapLoading";
 import type { HoverInfo } from "./Tooltip";
 
 // Copied into public/ by scripts/copy-maplibre-worker.mjs before dev and build.
@@ -92,6 +93,19 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   useEffect(() => {
     themeRef.current = theme;
   }, [theme]);
+
+  // The basemap draws well before the speed tiles arrive, and until then Türkiye shows no colour.
+  // Our source is added in this commit, so the next idle comes once its tiles are drawn.
+  const [drawnTheme, setDrawnTheme] = useState<Theme | null>(null);
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || loaded?.theme !== theme) return;
+    const drawn = () => setDrawnTheme(theme);
+    map.once("idle", drawn);
+    return () => {
+      map.off("idle", drawn);
+    };
+  }, [loaded, theme]);
 
   // Set when the panel opens or closes, for the next resize only (see handleLoad). None comes
   // on phones, where the panel lies over the map, hence the timeout.
@@ -253,104 +267,107 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   const selectedWidth: ExpressionSpecification = ["case", ["boolean", ["feature-state", "selected"], false], 3, 0];
 
   return (
-    <Map
-      ref={mapRef}
-      initialViewState={{ bounds: TURKEY_BOUNDS, fitBoundsOptions: { padding: 12 } }}
-      mapStyle={BASEMAPS[theme]}
-      minZoom={3}
-      maxZoom={15}
-      dragRotate={false}
-      touchPitch={false}
-      attributionControl={{ compact: true, customAttribution: "Speedtest® by Ookla® Open Data · OCHA COD-AB" }}
-      locale={{
-        "Map.Title": "Hız haritası: ok tuşlarıyla kaydır, + ve − ile yakınlaş",
-        "NavigationControl.ZoomIn": "Yakınlaş",
-        "NavigationControl.ZoomOut": "Uzaklaş",
-        "AttributionControl.ToggleAttribution": "Kaynakları göster ya da gizle",
-        "AttributionControl.MapFeedback": "Harita için geri bildirim",
-      }}
-      interactiveLayerIds={view === "kareler" ? ["cells"] : [AREA_LAYERS[view]]}
-      onLoad={handleLoad}
-      onMouseMove={handlePointer}
-      onClick={handleClick}
-      onMouseLeave={clear}
-      onDragStart={clear}
-      style={{ position: "absolute", inset: 0 }}
-    >
-      <NavigationControl showCompass={false} />
-      {loaded?.theme === theme && (
-        <Source
-          key={theme}
-          id="harita"
-          type="vector"
-          url={`pmtiles://${window.location.origin}${PMTILES_PATH}`}
-          promoteId={{ ilceler: "ilce_kodu", iller: "il_kodu" }}
-        >
-          <Layer
-            id="cells"
-            type="fill"
-            source-layer="hucreler"
-            filter={["has", `t${period.id}`]}
-            layout={visible(view === "kareler")}
-            paint={{ "fill-color": cellColor(metric, period.id, theme) }}
-            beforeId={before}
-          />
-          {(["ilceler", "iller"] as const).map((layer) => (
+    <>
+      <Map
+        ref={mapRef}
+        initialViewState={{ bounds: TURKEY_BOUNDS, fitBoundsOptions: { padding: 12 } }}
+        mapStyle={BASEMAPS[theme]}
+        minZoom={3}
+        maxZoom={15}
+        dragRotate={false}
+        touchPitch={false}
+        attributionControl={{ compact: true, customAttribution: "Speedtest® by Ookla® Open Data · OCHA COD-AB" }}
+        locale={{
+          "Map.Title": "Hız haritası: ok tuşlarıyla kaydır, + ve − ile yakınlaş",
+          "NavigationControl.ZoomIn": "Yakınlaş",
+          "NavigationControl.ZoomOut": "Uzaklaş",
+          "AttributionControl.ToggleAttribution": "Kaynakları göster ya da gizle",
+          "AttributionControl.MapFeedback": "Harita için geri bildirim",
+        }}
+        interactiveLayerIds={view === "kareler" ? ["cells"] : [AREA_LAYERS[view]]}
+        onLoad={handleLoad}
+        onMouseMove={handlePointer}
+        onClick={handleClick}
+        onMouseLeave={clear}
+        onDragStart={clear}
+        style={{ position: "absolute", inset: 0 }}
+      >
+        <NavigationControl showCompass={false} />
+        {loaded?.theme === theme && (
+          <Source
+            key={theme}
+            id="harita"
+            type="vector"
+            url={`pmtiles://${window.location.origin}${PMTILES_PATH}`}
+            promoteId={{ ilceler: "ilce_kodu", iller: "il_kodu" }}
+          >
             <Layer
-              key={layer}
-              id={AREA_LAYERS[layer]}
+              id="cells"
               type="fill"
-              source-layer={layer}
-              layout={visible(view === layer && areaFill !== null)}
-              paint={{ "fill-color": view === layer && areaFill ? areaFill : RAMPS[theme].noData }}
+              source-layer="hucreler"
+              filter={["has", `t${period.id}`]}
+              layout={visible(view === "kareler")}
+              paint={{ "fill-color": cellColor(metric, period.id, theme) }}
               beforeId={before}
             />
-          ))}
-          {/* Invisible, so the cell tooltip can name the district under the pointer. */}
-          <Layer id="district-hit" type="fill" source-layer="ilceler" paint={{ "fill-opacity": 0 }} beforeId={before} />
-          <Layer
-            id="district-line"
-            type="line"
-            source-layer="ilceler"
-            minzoom={view === "kareler" ? 7 : 0}
-            paint={{ "line-color": lines.district, "line-width": 0.7 }}
-            beforeId={before}
-          />
-          <Layer
-            id="province-line"
-            type="line"
-            source-layer="iller"
-            paint={{ "line-color": lines.province, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 10, 1.6] }}
-            beforeId={before}
-          />
-          {(["ilceler", "iller"] as const).map((layer) => (
+            {(["ilceler", "iller"] as const).map((layer) => (
+              <Layer
+                key={layer}
+                id={AREA_LAYERS[layer]}
+                type="fill"
+                source-layer={layer}
+                layout={visible(view === layer && areaFill !== null)}
+                paint={{ "fill-color": view === layer && areaFill ? areaFill : RAMPS[theme].noData }}
+                beforeId={before}
+              />
+            ))}
+            {/* Invisible, so the cell tooltip can name the district under the pointer. */}
+            <Layer id="district-hit" type="fill" source-layer="ilceler" paint={{ "fill-opacity": 0 }} beforeId={before} />
             <Layer
-              key={`${layer}-hover`}
-              id={`${layer}-hover`}
+              id="district-line"
               type="line"
-              source-layer={layer}
-              paint={{ "line-color": lines.hover, "line-width": hoverWidth }}
+              source-layer="ilceler"
+              minzoom={view === "kareler" ? 7 : 0}
+              paint={{ "line-color": lines.district, "line-width": 0.7 }}
               beforeId={before}
             />
-          ))}
-          {(["ilceler", "iller"] as const).map((layer) => (
             <Layer
-              key={`${layer}-selected`}
-              id={`${layer}-selected`}
+              id="province-line"
               type="line"
-              source-layer={layer}
-              paint={{ "line-color": lines.hover, "line-width": selectedWidth }}
+              source-layer="iller"
+              paint={{ "line-color": lines.province, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 10, 1.6] }}
               beforeId={before}
             />
-          ))}
-        </Source>
-      )}
-      {/* The area the panel's "nearest 1 km" figure pools. */}
-      {loaded?.theme === theme && nearbyCircle && (
-        <Source key={`nearby-${theme}`} id="nearby" type="geojson" data={nearbyCircle}>
-          <Layer id="nearby-line" type="line" paint={{ "line-color": lines.hover, "line-width": 2 }} beforeId={before} />
-        </Source>
-      )}
-    </Map>
+            {(["ilceler", "iller"] as const).map((layer) => (
+              <Layer
+                key={`${layer}-hover`}
+                id={`${layer}-hover`}
+                type="line"
+                source-layer={layer}
+                paint={{ "line-color": lines.hover, "line-width": hoverWidth }}
+                beforeId={before}
+              />
+            ))}
+            {(["ilceler", "iller"] as const).map((layer) => (
+              <Layer
+                key={`${layer}-selected`}
+                id={`${layer}-selected`}
+                type="line"
+                source-layer={layer}
+                paint={{ "line-color": lines.hover, "line-width": selectedWidth }}
+                beforeId={before}
+              />
+            ))}
+          </Source>
+        )}
+        {/* The area the panel's "nearest 1 km" figure pools. */}
+        {loaded?.theme === theme && nearbyCircle && (
+          <Source key={`nearby-${theme}`} id="nearby" type="geojson" data={nearbyCircle}>
+            <Layer id="nearby-line" type="line" paint={{ "line-color": lines.hover, "line-width": 2 }} beforeId={before} />
+          </Source>
+        )}
+      </Map>
+      {drawnTheme !== theme && <MapLoading />}
+    </>
   );
 }

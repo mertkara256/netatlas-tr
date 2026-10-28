@@ -10,13 +10,14 @@ import { useColorScheme } from "@/lib/useColorScheme";
 import AreaTable from "./AreaTable";
 import Controls, { type Display } from "./Controls";
 import Legend from "./Legend";
+import MapLoading from "./MapLoading";
 import RegionPanel from "./RegionPanel";
 import SearchBox from "./SearchBox";
 import Tooltip, { type HoverInfo } from "./Tooltip";
 import styles from "./Atlas.module.css";
 
 // MapLibre needs the browser, so the map is left out of the prerendered HTML.
-const MapView = dynamic(() => import("./MapView"), { ssr: false });
+const MapView = dynamic(() => import("./MapView"), { ssr: false, loading: () => <MapLoading /> });
 
 export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
   const theme = useColorScheme();
