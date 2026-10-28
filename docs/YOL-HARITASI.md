@@ -8,7 +8,7 @@ Türkiye ev interneti atlası: Ookla açık verisinden 475 m'lik karelerde hız,
 |---|---|
 | Ana açı | Yoğun veriye dayanan ev interneti atlası (sabit internet). Mobil, katman olarak sonra. |
 | Maliyet | Sıfır. GitHub Pages, ücretli alan adı yok. |
-| Repo | Geliştirme sırasında özel; yayından önce açılacak (ücretsiz planda GitHub Pages açık repo istiyor). |
+| Repo | Açık. Geliştirme sırasında özeldi; ücretsiz planda GitHub Pages açık repo istediği için yayınla birlikte (27 Ekim 2026) açıldı. |
 | Harita görünümü | Her ölçekte kare ısı haritası: yakınlaşınca Ookla'nın 475 m'lik kareleri, uzaklaştıkça daha büyük hücrelerde birleşen kareler. İl ve ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı bir seçenek. |
 | Site verisi | Git'e girmeyen dosyalar (PMTiles, il/ilçe JSON'ları, arama dizini) bir GitHub Release'te; yayın iş akışı `web/data-release.txt`'de adı yazan sürümü indirir. |
 | Repo adı | `netatlas-tr` (yayından önce değiştirilebilir) |
@@ -93,7 +93,7 @@ Her adım, doğrulaması geçmeden bitmiş sayılmaz.
 - **Doğrulama:** Site github.io adresinde açık; karolar orada da parça parça yükleniyor.
 
 ### 7. Çeyreklik otomasyon
-- Yeni Ookla çeyreği çıkınca veri hattı çalışır, sonuç PR olarak gelir.
+- Her pazartesi Ookla'da yeni çeyrek var mı diye bakılır. Varsa veri hattı kaynaklardan baştan çalışır, testler tüm veriyle koşar; sonuç yeni bir Release ve `web/data-release.txt`'yi ona çeviren bir PR olarak gelir. Veri hattı değişince iş akışı elle "yeniden üret" seçeneğiyle de çalıştırılabilir.
 - **Doğrulama:** İş akışı elle tetiklenince baştan sona çalışıyor.
 
 ## Sonraki aşama (planlanmadı)
