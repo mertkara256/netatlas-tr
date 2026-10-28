@@ -109,6 +109,15 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   onSelect: (selection: Selection) => void;
 }) {
   const mapRef = useRef<MapRef>(null);
+  // The dark basemap asks for a "circle-11" dot beside city names, which its sprite calls
+  // "circle_11", and MapLibre warns about it on every load. The dot was never drawn; an empty image
+  // keeps it so, quietly. Set as soon as the map exists, before its first tiles ask for icons.
+  const setMap = useCallback((ref: MapRef | null) => {
+    mapRef.current = ref;
+    ref?.getMap().setMissingStyleImageResolver((id) => {
+      if (id === "circle-11") ref.getMap().addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
+    });
+  }, []);
   // Which basemap has finished loading, and the label layer ours must go under. The light and
   // dark basemaps end in different label layers, so our layers are added afresh after a switch.
   const [loaded, setLoaded] = useState<{ theme: Theme; beforeId: string } | null>(null);
@@ -297,7 +306,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   return (
     <>
       <Map
-        ref={mapRef}
+        ref={setMap}
         initialViewState={{ bounds: TURKEY_BOUNDS, fitBoundsOptions: { padding: 12 } }}
         mapStyle={BASEMAPS[theme]}
         minZoom={3}
