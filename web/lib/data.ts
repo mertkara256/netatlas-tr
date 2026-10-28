@@ -1,5 +1,8 @@
 // The prefix of every URL on the site (see next.config.ts). Next adds it to links, not to fetches.
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+// The site's origin, for the addresses that must be absolute (link previews, the sitemap). Only
+// read at build time; the deploy workflow sets it, local builds point at the dev server.
+export const SITE_ORIGIN = process.env.SITE_ORIGIN ?? "http://localhost:3000";
 // Files written by the data pipeline (`uv run python -m pipeline.tiles`) into public/data/.
 export const DATA_DIR = `${BASE_PATH}/data`;
 export const PMTILES_PATH = `${DATA_DIR}/harita.pmtiles`;
