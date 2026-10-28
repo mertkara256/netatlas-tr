@@ -159,7 +159,9 @@ export default async function MethodPage() {
           <li>
             <strong>Isı haritası:</strong> Yakınlaşınca Ookla&apos;nın kendi kareleri görünür. Uzaklaştıkça kareler daha büyük
             hücrelerde ({levels.slice(0, -1).reverse().join(", ")}) test ağırlıklı olarak birleşir; her yakınlıkta hücreler
-            ekranda 8–16 piksel genişliktedir.
+            ekranda 8–16 piksel genişliktedir. Harita hücreleri kare kare değil, yumuşak bir yüzey olarak çizer: bir noktanın
+            rengi, çevresindeki hücrelerin değerlerinin uzaklıkla azalan ağırlıklı ortalamasıdır (hızlar logaritmik ölçekte
+            ortalanır). Ölçüm olmayan yerler boş kalır. Üzerine gelince gösterilen değerler ise hücrenin kendi değerleridir.
           </li>
           <li>
             <strong>Çevrendeki {formatNumber(NEARBY_RADIUS / 1000)} km:</strong> Haritada tıklanan noktaya merkezi{" "}
@@ -203,7 +205,10 @@ export default async function MethodPage() {
             </li>
           ))}
         </ul>
-        <p>Renkler tek bir mavi tonunun açıklık sırasıdır; renk körlüğünde de sıra okunur.</p>
+        <p>
+          Renkler tek bir mavi tonunun açıklık sırasıdır; renk körlüğünde de sıra okunur. Isı haritasında renkler bu sınırlar
+          arasında kesintisiz geçer; il ve ilçe görünümlerinde her alan tek bir sınıfın rengini alır.
+        </p>
       </section>
 
       <section id="sinirlamalar" className={styles.prose}>
