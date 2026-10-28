@@ -106,7 +106,8 @@ def test_pmtiles_metadata_names_no_local_folders():
     if header[97] == 2:  # gzip-compressed
         metadata = gzip.decompress(metadata)
     text = json.dumps(json.loads(metadata), ensure_ascii=False)
-    assert str(ROOT) not in text and tempfile.gettempdir() not in text
+    # As folders (trailing slash), so a relative "data/tmpab12/" does not match Linux's /tmp.
+    assert f"{ROOT}/" not in text and f"{tempfile.gettempdir()}/" not in text
 
 
 @pytest.mark.parametrize("zoom", range(MAX_ZOOM + 1))
