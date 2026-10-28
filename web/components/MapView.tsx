@@ -10,14 +10,21 @@ import { formatNumber, formatValue } from "@/lib/format";
 import { heatTile } from "@/lib/heatTiles";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
+import { retryOnce } from "@/lib/retry";
 import { hasPhoneSheet } from "@/lib/viewport";
 import MapLoading from "./MapLoading";
 import type { HoverInfo } from "./Tooltip";
 
 // Copied into public/ by scripts/copy-maplibre-worker.mjs before dev and build.
 setWorkerUrl(`${BASE_PATH}/maplibre-gl-worker.mjs`);
-// Lets MapLibre read vector tiles straight out of the single PMTiles file with range requests.
-addProtocol("pmtiles", new Protocol().tile);
+// Lets MapLibre read vector tiles straight out of the single PMTiles file with range requests. A
+// failed read is tried once more (lib/retry.ts); dropping the archive clears its failed header.
+const pmtiles = new Protocol();
+addProtocol("pmtiles", (request, abortController) => retryOnce(
+  () => pmtiles.tile(request, abortController),
+  () => pmtiles.tiles.clear(),
+  abortController.signal,
+));
 // The heat map's smooth raster tiles, painted from the same speed cells (lib/heatTiles.ts).
 addProtocol("isi", heatTile);
 
