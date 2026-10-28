@@ -6,6 +6,7 @@ import { PbfReader } from "pbf";
 import { HEAT_LEVELS, HEAT_STEPS, heatTable, type Theme } from "./colors";
 import { LOW_TESTS, metricById, type Metric, type MetricId } from "./metrics";
 import { invalidateSiteArchive, siteArchive } from "./nearby";
+import { retryOnce } from "./retry";
 import { PAD, classPosition, smoothSurface } from "./surface";
 
 /** Pixels per tile side. The surface is smooth, so MapLibre can stretch it over the 512 px tile. */
@@ -18,29 +19,16 @@ const LAST_LEVEL = 16;
 // shows, and a cell without data among others stays open.
 const EDGE = [0.3, 0.55];
 const CACHED_TILES = 128;
-// Right after a deploy, GitHub Pages' CDN can answer the first range request for the archive with
-// the whole file, which PMTiles rejects; a moment later it serves ranges again. So a failed read is
-// tried once more, with a fresh archive, before the tile counts as failed.
-const RETRY_DELAY = 1000; // ms
 
 /** One tile's cells, with the ring of its neighbours' cells that its buffer repeats: grid position and every property (d2019, t2019 ...) by cell. */
 type TileCells = { n: number; i: Int16Array; j: Int16Array; columns: Map<string, Float32Array> };
 
-async function readArchive(z: number, x: number, y: number) {
-  for (let attempt = 1; ; attempt++) {
-    const archive = siteArchive();
-    try {
-      return await archive.getZxy(z, x, y);
-    } catch (error) {
-      invalidateSiteArchive(archive);
-      if (attempt === 2) throw error;
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
-    }
-  }
-}
-
 async function readTile(z: number, x: number, y: number): Promise<TileCells | null> {
-  const tile = await readArchive(z, x, y);
+  let archive: ReturnType<typeof siteArchive> | undefined;
+  const tile = await retryOnce(
+    () => (archive = siteArchive()).getZxy(z, x, y),
+    () => archive && invalidateSiteArchive(archive),
+  );
   const layer = tile && new VectorTile(new PbfReader(new Uint8Array(tile.data))).layers.hucreler;
   if (!layer) return null;
   const level = Math.min(LAST_LEVEL, Math.max(FIRST_LEVEL, z + 6));
