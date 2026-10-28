@@ -2,30 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as MapLibreMap } from "maplibre-gl";
-import { Protocol } from "pmtiles";
 import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { RAMPS, areaColor, type Theme } from "@/lib/colors";
-import { BASE_PATH, CELL_SIZE, PMTILES_PATH, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
+import { BASE_PATH, CELL_SIZE, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { heatTile } from "@/lib/heatTiles";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
-import { retryOnce } from "@/lib/retry";
+import { vectorTile } from "@/lib/siteTiles";
 import { hasPhoneSheet } from "@/lib/viewport";
 import MapLoading from "./MapLoading";
 import type { HoverInfo } from "./Tooltip";
 
 // Copied into public/ by scripts/copy-maplibre-worker.mjs before dev and build.
 setWorkerUrl(`${BASE_PATH}/maplibre-gl-worker.mjs`);
-// Lets MapLibre read vector tiles straight out of the single PMTiles file with range requests. A
-// failed read is tried once more (lib/retry.ts); dropping the archive clears its failed header.
-const pmtiles = new Protocol();
-addProtocol("pmtiles", (request, abortController) => retryOnce(
-  () => pmtiles.tile(request, abortController),
-  () => pmtiles.tiles.clear(),
-  abortController.signal,
-));
-// The heat map's smooth raster tiles, painted from the same speed cells (lib/heatTiles.ts).
+// Both of our tile sources read the single PMTiles file with range requests, through one archive
+// that fetches each tile once for both (lib/siteTiles.ts): the vector tiles as they are, and the
+// heat map's smooth raster tiles painted from their speed cells (lib/heatTiles.ts).
+addProtocol("harita", vectorTile);
 addProtocol("isi", heatTile);
 
 // OpenFreeMap: free vector basemaps, no API key.
@@ -38,8 +32,11 @@ const LINES: Record<Theme, { district: string; province: string; hover: string }
   dark: { district: "rgba(240, 239, 236, 0.22)", province: "rgba(240, 239, 236, 0.6)", hover: "#f0efec" },
 };
 const TURKEY_BOUNDS: [number, number, number, number] = [25.6, 35.8, 44.9, 42.2];
-// The box the pipeline takes Ookla's squares from; no heat tile is asked for outside it.
+// The box the pipeline takes Ookla's squares from, which holds the borders too; no tile is asked
+// for outside it.
 const CELL_BOUNDS: [number, number, number, number] = [25.5, 35.7, 45.0, 42.2];
+// The deepest tile zoom in the archive (MAX_ZOOM in pipeline/tiles.py); MapLibre overzooms beyond.
+const TILE_MAXZOOM = 12;
 const AREA_LAYERS = { ilceler: "district-fill", iller: "province-fill" } as const;
 // Share of the map the region panel covers on phones (max-height in RegionPanel.module.css).
 const PHONE_SHEET_SHARE = 0.62;
@@ -329,7 +326,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
             type="raster"
             tiles={[`isi://${period.id}/${metric.id}/${theme}/{z}/{x}/{y}`]}
             tileSize={512}
-            maxzoom={12}
+            maxzoom={TILE_MAXZOOM}
             bounds={CELL_BOUNDS}
           >
             <Layer
@@ -346,7 +343,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
             key={theme}
             id="harita"
             type="vector"
-            url={`pmtiles://${window.location.origin}${PMTILES_PATH}`}
+            tiles={["harita://{z}/{x}/{y}"]}
+            maxzoom={TILE_MAXZOOM}
+            bounds={CELL_BOUNDS}
             promoteId={{ ilceler: "ilce_kodu", iller: "il_kodu" }}
           >
             {/* The heat map draws the cells smoothly; this invisible copy gives the tooltip each cell's own values. */}

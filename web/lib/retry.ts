@@ -4,13 +4,12 @@
 
 export const RETRY_DELAY = 1000; // ms
 
-/** Run `attempt`, and once more after RETRY_DELAY if it fails; `reset` drops what cached the failure. An abort is not retried. */
-export async function retryOnce<T>(attempt: () => Promise<T>, reset: () => void, signal?: AbortSignal): Promise<T> {
+/** Run `attempt`, and once more after RETRY_DELAY if it fails; `reset` drops what cached the failure. */
+export async function retryOnce<T>(attempt: () => Promise<T>, reset: () => void): Promise<T> {
   for (let tries = 1; ; tries++) {
     try {
       return await attempt();
     } catch (error) {
-      if (signal?.aborted) throw error;
       reset();
       if (tries === 2) throw error;
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
