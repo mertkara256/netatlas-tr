@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as MapLibreMap } from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
-import { RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
+import { RAMPS, areaColor, type Theme } from "@/lib/colors";
 import { BASE_PATH, CELL_SIZE, PMTILES_PATH, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
+import { heatTile } from "@/lib/heatTiles";
 import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { hasPhoneSheet } from "@/lib/viewport";
@@ -17,6 +18,8 @@ import type { HoverInfo } from "./Tooltip";
 setWorkerUrl(`${BASE_PATH}/maplibre-gl-worker.mjs`);
 // Lets MapLibre read vector tiles straight out of the single PMTiles file with range requests.
 addProtocol("pmtiles", new Protocol().tile);
+// The heat map's smooth raster tiles, painted from the same speed cells (lib/heatTiles.ts).
+addProtocol("isi", heatTile);
 
 // OpenFreeMap: free vector basemaps, no API key.
 const BASEMAPS: Record<Theme, string> = {
@@ -28,6 +31,8 @@ const LINES: Record<Theme, { district: string; province: string; hover: string }
   dark: { district: "rgba(240, 239, 236, 0.22)", province: "rgba(240, 239, 236, 0.6)", hover: "#f0efec" },
 };
 const TURKEY_BOUNDS: [number, number, number, number] = [25.6, 35.8, 44.9, 42.2];
+// The box the pipeline takes Ookla's squares from; no heat tile is asked for outside it.
+const CELL_BOUNDS: [number, number, number, number] = [25.5, 35.7, 45.0, 42.2];
 const AREA_LAYERS = { ilceler: "district-fill", iller: "province-fill" } as const;
 // Share of the map the region panel covers on phones (max-height in RegionPanel.module.css).
 const PHONE_SHEET_SHARE = 0.62;
@@ -293,6 +298,26 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         style={{ position: "absolute", inset: 0 }}
       >
         <NavigationControl showCompass={false} />
+        {/* Added first, so it lies under the borders. Its tiles change with the period, metric and theme. */}
+        {loaded?.theme === theme && (
+          <Source
+            key={`isi-${theme}`}
+            id="isi"
+            type="raster"
+            tiles={[`isi://${period.id}/${metric.id}/${theme}/{z}/{x}/{y}`]}
+            tileSize={512}
+            maxzoom={12}
+            bounds={CELL_BOUNDS}
+          >
+            <Layer
+              id="heat"
+              type="raster"
+              layout={visible(view === "kareler")}
+              paint={{ "raster-resampling": "linear", "raster-fade-duration": 0 }}
+              beforeId={before}
+            />
+          </Source>
+        )}
         {loaded?.theme === theme && (
           <Source
             key={theme}
@@ -301,13 +326,14 @@ export default function MapView({ period, metric, view, theme, areas, selection,
             url={`pmtiles://${window.location.origin}${PMTILES_PATH}`}
             promoteId={{ ilceler: "ilce_kodu", iller: "il_kodu" }}
           >
+            {/* The heat map draws the cells smoothly; this invisible copy gives the tooltip each cell's own values. */}
             <Layer
               id="cells"
               type="fill"
               source-layer="hucreler"
               filter={["has", `t${period.id}`]}
               layout={visible(view === "kareler")}
-              paint={{ "fill-color": cellColor(metric, period.id, theme) }}
+              paint={{ "fill-opacity": 0 }}
               beforeId={before}
             />
             {(["ilceler", "iller"] as const).map((layer) => (
