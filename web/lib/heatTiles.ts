@@ -5,8 +5,7 @@ import type { AddProtocolAction } from "maplibre-gl";
 import { PbfReader } from "pbf";
 import { HEAT_LEVELS, HEAT_STEPS, heatTable, type Theme } from "./colors";
 import { LOW_TESTS, metricById, type Metric, type MetricId } from "./metrics";
-import { invalidateSiteArchive, siteArchive } from "./nearby";
-import { retryOnce } from "./retry";
+import { siteTile } from "./siteTiles";
 import { PAD, classPosition, smoothSurface } from "./surface";
 
 /** Pixels per tile side. The surface is smooth, so MapLibre can stretch it over the 512 px tile. */
@@ -24,12 +23,8 @@ const CACHED_TILES = 128;
 type TileCells = { n: number; i: Int16Array; j: Int16Array; columns: Map<string, Float32Array> };
 
 async function readTile(z: number, x: number, y: number): Promise<TileCells | null> {
-  let archive: ReturnType<typeof siteArchive> | undefined;
-  const tile = await retryOnce(
-    () => (archive = siteArchive()).getZxy(z, x, y),
-    () => archive && invalidateSiteArchive(archive),
-  );
-  const layer = tile && new VectorTile(new PbfReader(new Uint8Array(tile.data))).layers.hucreler;
+  const data = await siteTile(z, x, y);
+  const layer = data && new VectorTile(new PbfReader(new Uint8Array(data))).layers.hucreler;
   if (!layer) return null;
   const level = Math.min(LAST_LEVEL, Math.max(FIRST_LEVEL, z + 6));
   const n = 2 ** (level - z);

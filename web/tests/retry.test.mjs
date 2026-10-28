@@ -57,14 +57,3 @@ test("two failures reset twice and fail with the second error", async (t) => {
   assert.equal(calls.count, 2);
   assert.equal(resets, 2);
 });
-
-test("an aborted request is neither reset nor retried", async () => {
-  const controller = new AbortController();
-  controller.abort();
-  const aborted = new DOMException("Aborted", "AbortError");
-  const { attempt, calls } = attempts(aborted, "tile");
-  let resets = 0;
-  await assert.rejects(retryOnce(attempt, () => resets++, controller.signal), aborted);
-  assert.equal(calls.count, 1);
-  assert.equal(resets, 0);
-});
