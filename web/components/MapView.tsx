@@ -27,6 +27,9 @@ const BASEMAPS: Record<Theme, string> = {
   light: "https://tiles.openfreemap.org/styles/positron",
   dark: "https://tiles.openfreemap.org/styles/dark",
 };
+// Images the dark basemap asks for but its sprite lacks: a dot beside city names below zoom 9 (the
+// sprite has it as "circle_11") and the fill of woods from zoom 10. Neither was ever drawn.
+const MISSING_BASEMAP_IMAGES = new Set(["circle-11", "wood-pattern"]);
 const LINES: Record<Theme, { district: string; province: string; hover: string }> = {
   light: { district: "rgba(11, 11, 11, 0.22)", province: "rgba(11, 11, 11, 0.6)", hover: "#0b0b0b" },
   dark: { district: "rgba(240, 239, 236, 0.22)", province: "rgba(240, 239, 236, 0.6)", hover: "#f0efec" },
@@ -106,13 +109,12 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   onSelect: (selection: Selection) => void;
 }) {
   const mapRef = useRef<MapRef>(null);
-  // The dark basemap asks for a "circle-11" dot beside city names, which its sprite calls
-  // "circle_11", and MapLibre warns about it on every load. The dot was never drawn; an empty image
-  // keeps it so, quietly. Set as soon as the map exists, before its first tiles ask for icons.
+  // MapLibre warns about each of the dark basemap's missing images on every load; an empty image
+  // keeps them undrawn, quietly. Set as soon as the map exists, before its first tiles ask for them.
   const setMap = useCallback((ref: MapRef | null) => {
     mapRef.current = ref;
     ref?.getMap().setMissingStyleImageResolver((id) => {
-      if (id === "circle-11") ref.getMap().addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
+      if (MISSING_BASEMAP_IMAGES.has(id)) ref.getMap().addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
   }, []);
   // Which basemap has finished loading, and the label layer ours must go under. The light and
