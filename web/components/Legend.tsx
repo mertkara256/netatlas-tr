@@ -1,4 +1,4 @@
-import { RAMPS, type Theme } from "@/lib/colors";
+import { RAMPS, heatGradient, type Theme } from "@/lib/colors";
 import { periodText, type PeriodInfo, type View } from "@/lib/data";
 import { LOW_TESTS, RELIABILITY_LABELS, breakLabels, type Metric } from "@/lib/metrics";
 import styles from "./Atlas.module.css";
@@ -13,6 +13,8 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
 }) {
   const ramps = RAMPS[theme];
   const reliability = metric.id === "guvenilirlik";
+  // The heat map blends its colours continuously; areas take one class colour each.
+  const heat = view === "kareler";
   const colors = reliability ? ramps.reliability : ramps.full;
   const columns = { gridTemplateColumns: `repeat(${colors.length}, 1fr)` };
   return (
@@ -23,9 +25,13 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
         {metric.note && <span className={styles.muted}> ({metric.note})</span>}
       </div>
       <div className={styles.legendPeriod}>{periodText(period)}</div>
-      <div className={styles.swatches} style={columns}>
-        {colors.map((c) => <span key={c} style={{ background: c }} />)}
-      </div>
+      {heat ? (
+        <div className={styles.gradient} style={{ background: heatGradient(metric, theme) }} />
+      ) : (
+        <div className={styles.swatches} style={columns}>
+          {colors.map((c) => <span key={c} style={{ background: c }} />)}
+        </div>
+      )}
       {reliability ? (
         <div className={styles.classLabels} style={columns}>
           {RELIABILITY_LABELS.map((l, i) => (
@@ -42,9 +48,13 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
       )}
       {!reliability && (
         <div className={styles.legendRow}>
-          <span className={`${styles.swatches} ${styles.small}`} style={columns}>
-            {ramps.muted.map((c) => <span key={c} style={{ background: c }} />)}
-          </span>
+          {heat ? (
+            <span className={`${styles.gradient} ${styles.small}`} style={{ background: heatGradient(metric, theme, true) }} />
+          ) : (
+            <span className={`${styles.swatches} ${styles.small}`} style={columns}>
+              {ramps.muted.map((c) => <span key={c} style={{ background: c }} />)}
+            </span>
+          )}
           <span>Gri: {LOW_TESTS}&apos;dan az test (belirsiz)</span>
         </div>
       )}

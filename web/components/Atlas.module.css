@@ -289,6 +289,17 @@
   height: 8px;
 }
 
+.gradient {
+  height: 12px;
+  border-radius: 4px;
+}
+
+.gradient.small {
+  width: 84px;
+  height: 8px;
+  flex: none;
+}
+
 .breakLabels {
   position: relative;
   height: 15px;
