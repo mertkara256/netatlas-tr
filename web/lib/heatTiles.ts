@@ -15,11 +15,11 @@ const FIRST_LEVEL = 10;
 const LAST_LEVEL = 16;
 // Coverage where the surface starts to show and where it is opaque. Coverage is 0.5 on the edge
 // between a cell with data and one without, so the surface ends there, softly; a lone cell still
-// shows, and a cell without data among others stays mostly open.
+// shows, and a cell without data among others stays open.
 const EDGE = [0.3, 0.55];
-const CACHED_TILES = 192;
+const CACHED_TILES = 128;
 
-/** One tile's own cells: grid position and every property (d2019, t2019 ...) by cell. */
+/** One tile's cells, with the ring of its neighbours' cells that its buffer repeats: grid position and every property (d2019, t2019 ...) by cell. */
 type TileCells = { n: number; i: Int16Array; j: Int16Array; columns: Map<string, Float32Array> };
 
 async function readTile(z: number, x: number, y: number): Promise<TileCells | null> {
@@ -42,12 +42,13 @@ async function readTile(z: number, x: number, y: number): Promise<TileCells | nu
   for (let f = 0; f < layer.length; f++) {
     const feature = layer.feature(f);
     if (feature.properties.seviye !== level) continue;
+    // Tippecanoe repeats the neighbouring tiles' cells that touch this one, clipped at its buffer;
+    // any point of a clipped square still lies in that square, so the middle of its box gives its
+    // grid position. That ring is all the blending at the tile's edge needs.
     const [minX, minY, maxX, maxY] = feature.bbox();
     const ci = Math.floor(((minX + maxX) / 2 / layer.extent) * n);
     const cj = Math.floor(((minY + maxY) / 2 / layer.extent) * n);
-    // Tippecanoe repeats a sliver of each neighbouring tile's cells as a buffer; those are read
-    // from their own tiles instead.
-    if (ci < 0 || cj < 0 || ci >= n || cj >= n) continue;
+    if (ci < -PAD || cj < -PAD || ci >= n + PAD || cj >= n + PAD) continue;
     i[count] = ci;
     j[count] = cj;
     for (const [key, value] of Object.entries(feature.properties)) {
@@ -62,8 +63,8 @@ async function readTile(z: number, x: number, y: number): Promise<TileCells | nu
   return { n, i: i.subarray(0, count), j: j.subarray(0, count), columns };
 }
 
-// Decoding is the slow part, so tiles are kept, least recently used dropped first: each tile is
-// also read by its eight neighbours, and switching the period, metric or theme only repaints.
+// Decoding is the slow part, so tiles are kept, least recently used dropped first: switching the
+// period, metric or theme then only repaints.
 const tiles = new Map<string, Promise<TileCells | null>>();
 
 function cachedTile(z: number, x: number, y: number): Promise<TileCells | null> {
@@ -79,39 +80,18 @@ function cachedTile(z: number, x: number, y: number): Promise<TileCells | null> 
   return tile;
 }
 
-/** A tile's cells with those of its eight neighbours that lie within PAD cells of it, in its own grid. */
-async function cellsAround(z: number, x: number, y: number) {
-  const block = await Promise.all([-1, 0, 1].flatMap((dy) => [-1, 0, 1].map(async (dx) => ({
-    dx, dy, tile: await cachedTile(z, x + dx, y + dy),
-  }))));
-  const own = block[4].tile;
-  if (!own) return null;
-  const { n } = own;
-  const i: number[] = [], j: number[] = [], index: [TileCells, number][] = [];
-  for (const { dx, dy, tile } of block) {
-    if (!tile) continue;
-    for (let c = 0; c < tile.i.length; c++) {
-      const ci = tile.i[c] + dx * n;
-      const cj = tile.j[c] + dy * n;
-      if (ci < -PAD || cj < -PAD || ci >= n + PAD || cj >= n + PAD) continue;
-      i.push(ci);
-      j.push(cj);
-      index.push([tile, c]);
-    }
-  }
-  return { n, i, j, column: (key: string) => index.map(([tile, c]) => tile.columns.get(key)?.[c] ?? NaN) };
-}
-
 const smoothstep = (edge0: number, edge1: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
 };
 
 /** RGBA pixels of one tile for a metric and period, or null when nothing in it has data then. */
-function paint(cells: NonNullable<Awaited<ReturnType<typeof cellsAround>>>, metric: Metric, period: string, theme: Theme): Uint8ClampedArray<ArrayBuffer> | null {
-  const tests = cells.column(`t${period}`);
+function paint(cells: TileCells, metric: Metric, period: string, theme: Theme): Uint8ClampedArray<ArrayBuffer> | null {
+  const tests = cells.columns.get(`t${period}`);
+  const values = cells.columns.get(`${metric.tileKey}${period}`);
+  if (!tests || !values) return null;
   // A zero average (no upload measured) still needs a logarithm; NaN, no data, stays NaN.
-  const value = cells.column(`${metric.tileKey}${period}`).map((v) => Math.log(Math.max(v, 0.01)));
+  const value = values.map((v) => Math.log(Math.max(v, 0.01)));
   const low = tests.map((t) => (metric.id !== "guvenilirlik" && t < LOW_TESTS ? 1 : 0));
   const surface = smoothSurface(cells.n, SIZE, { i: cells.i, j: cells.j, value, low });
 
@@ -137,7 +117,7 @@ function paint(cells: NonNullable<Awaited<ReturnType<typeof cellsAround>>>, metr
 /** "isi://{period}/{metric}/{theme}/{z}/{x}/{y}" for a raster source. */
 export const heatTile: AddProtocolAction = async (request, abortController) => {
   const [period, metricId, theme, z, x, y] = request.url.slice("isi://".length).split("/");
-  const cells = await cellsAround(Number(z), Number(x), Number(y));
+  const cells = await cachedTile(Number(z), Number(x), Number(y));
   // An empty answer is a transparent tile.
   if (!cells || abortController.signal.aborted) return { data: new ArrayBuffer(0) };
   const pixels = paint(cells, metricById(metricId as MetricId), period, theme as Theme);
