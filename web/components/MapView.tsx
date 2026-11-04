@@ -7,7 +7,7 @@ import { RAMPS, areaColor, type Theme } from "@/lib/colors";
 import { BASE_PATH, CELL_SIZE, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { heatTile } from "@/lib/heatTiles";
-import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
+import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { vectorTile } from "@/lib/siteTiles";
 import { hasPhoneSheet } from "@/lib/viewport";
@@ -80,7 +80,7 @@ function firstLabelLayer(map: MapLibreMap): string {
 
 function describe(metric: Metric, v: Values | null): Pick<HoverInfo, "value" | "rows"> {
   if (!v) return { value: null, rows: [] };
-  const reliability = RELIABILITY_LABELS[classIndex(v.t, [LOW_TESTS, 50])];
+  const reliability = reliabilityLabel(v.t);
   const rows: [string, string][] = [
     ["İndirme", formatValue(metricById("indirme"), v.d)],
     ["Yükleme", formatValue(metricById("yukleme"), v.u)],

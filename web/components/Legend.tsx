@@ -1,6 +1,6 @@
 import { RAMPS, heatGradient, type Theme } from "@/lib/colors";
 import { periodText, type PeriodInfo, type View } from "@/lib/data";
-import { LOW_TESTS, RELIABILITY_LABELS, breakLabels, type Metric } from "@/lib/metrics";
+import { LOW_TESTS, RELIABILITY_LABELS, RELIABILITY_RANGES, breakLabels, type Metric } from "@/lib/metrics";
 import styles from "./Atlas.module.css";
 
 export default function Legend({ metric, period, view, theme, panelOpen }: {
@@ -35,7 +35,7 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
       {reliability ? (
         <div className={styles.classLabels} style={columns}>
           {RELIABILITY_LABELS.map((l, i) => (
-            <span key={l}>{l} {["<10", "10–49", "50+"][i]}</span>
+            <span key={l}>{l} {RELIABILITY_RANGES[i]}</span>
           ))}
         </div>
       ) : (
