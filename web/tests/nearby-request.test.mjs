@@ -1,25 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { setImmediate } from "node:timers/promises";
 import test from "node:test";
-import ts from "typescript";
 import { PMTiles } from "pmtiles";
-
-const require = createRequire(import.meta.url);
+import { loadLib } from "./load.mjs";
 
 function loadRequest(nearby, siteArchive = () => "archive", invalidateSiteArchive = () => {}) {
-  const source = readFileSync(new URL("../lib/nearby-request.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  });
-  const compiledModule = { exports: {} };
-  const require = (specifier) => {
-    assert.equal(specifier, "./nearby");
-    return { nearby, siteArchive, invalidateSiteArchive };
-  };
-  new Function("require", "module", "exports", outputText)(require, compiledModule, compiledModule.exports);
-  return compiledModule.exports.startNearbyRequest;
+  const stubs = { "./nearby": { nearby, siteArchive, invalidateSiteArchive } };
+  return loadLib("nearby-request", { stubs }).startNearbyRequest;
 }
 
 function deferred() {
@@ -32,20 +19,13 @@ const value = { squares: 3, tests: 20, download: 100, upload: 20, latency: 10 };
 
 // Use the real decoder and its default SharedPromiseCache with an in-memory range source.
 function loadArchive(createSource) {
-  const source = readFileSync(new URL("../lib/nearby.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  });
   class TestArchive extends PMTiles {
     constructor() { super(createSource()); }
   }
-  const compiledModule = { exports: {} };
-  const localRequire = (specifier) => specifier === "pmtiles" ? { PMTiles: TestArchive }
-    : specifier === "./data" ? { PMTILES_PATH: "/data/harita.pmtiles" } : require(specifier);
-  new Function("require", "module", "exports", "window", outputText)(localRequire, compiledModule, compiledModule.exports, {
-    location: { origin: "https://example.test" },
+  return loadLib("nearby", {
+    stubs: { pmtiles: { PMTiles: TestArchive }, "./data": { PMTILES_PATH: "/data/harita.pmtiles" } },
+    globals: { window: { location: { origin: "https://example.test" } } },
   });
-  return compiledModule.exports;
 }
 
 function emptyArchive() {

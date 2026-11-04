@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import ts from "typescript";
+import { loadLib } from "./load.mjs";
 
-const { outputText } = ts.transpileModule(readFileSync(new URL("../lib/surface.ts", import.meta.url), "utf8"), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-});
-const surfaceModule = { exports: {} };
-new Function("module", "exports", outputText)(surfaceModule, surfaceModule.exports);
-const { PAD, classPosition, smoothSurface } = surfaceModule.exports;
+const { PAD, classPosition, smoothSurface } = loadLib("surface");
 
 /** Cells of a whole grid (a function of i, j; null for no data), as one tile of n x n sees them. */
 function tileCells(grid, n, offsetI = 0, offsetJ = 0) {

@@ -1,14 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
 import test from "node:test";
 import { setImmediate } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
-import ts from "typescript";
-
-const require = createRequire(import.meta.url);
-const lib = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "lib");
+import { loadLib } from "./load.mjs";
 
 /** heatTiles.ts with the real colour, metric and surface modules, and a stand-in for the archive. */
 function loadHeatTiles(archives) {
@@ -26,19 +19,7 @@ function loadHeatTiles(archives) {
     "@mapbox/vector-tile": { VectorTile: class {} },
     pbf: { PbfReader: class {} },
   };
-  const modules = new Map();
-  const load = (name) => {
-    if (modules.has(name)) return modules.get(name).exports;
-    const compiled = { exports: {} };
-    modules.set(name, compiled);
-    const { outputText } = ts.transpileModule(readFileSync(path.join(lib, `${name}.ts`), "utf8"), {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-    });
-    const localRequire = (specifier) => stubs[specifier] ?? (specifier.startsWith("./") ? load(specifier.slice(2)) : require(specifier));
-    new Function("require", "module", "exports", outputText)(localRequire, compiled, compiled.exports);
-    return compiled.exports;
-  };
-  return { heatTile: load("heatTiles").heatTile, opened, invalidated };
+  return { heatTile: loadLib("heatTiles", { stubs }).heatTile, opened, invalidated };
 }
 
 const request = { url: "isi://guncel/indirme/light/6/37/24" };

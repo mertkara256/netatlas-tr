@@ -1,31 +1,19 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import vm from "node:vm";
-import ts from "typescript";
+import { loadLib } from "./load.mjs";
 
-const source = readFileSync(new URL("../lib/viewport.ts", import.meta.url), "utf8");
-const { outputText } = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-});
-const context = vm.createContext({ exports: {}, window: undefined });
-vm.runInContext(outputText, context);
-const { hasPhoneSheet } = context.exports;
+// The window the module sees; each case gives it the matchMedia of one viewport width.
+const window = {};
+const { hasPhoneSheet } = loadLib("viewport", { globals: { window } });
 
 test("the sheet follows the CSS viewport breakpoint, including 640 px", () => {
-  const previous = context.window;
-  try {
-    for (const [width, expected] of [[375, true], [639, true], [640, true], [641, false], [900, false], [1440, false]]) {
-      context.window = {
-        matchMedia(query) {
-          assert.equal(query, "(max-width: 640px)");
-          return { matches: width <= 640 };
-        },
-      };
-      assert.equal(hasPhoneSheet(), expected, `viewport ${width} px`);
-    }
-  } finally {
-    context.window = previous;
+  for (const [width, expected] of [[375, true], [639, true], [640, true], [641, false], [900, false], [1440, false]]) {
+    window.matchMedia = (query) => {
+      assert.equal(query, "(max-width: 640px)");
+      return { matches: width <= 640 };
+    };
+    assert.equal(hasPhoneSheet(), expected, `viewport ${width} px`);
   }
 });
 
