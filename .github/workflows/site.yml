@@ -28,6 +28,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - uses: astral-sh/setup-uv@v10.3.0
+      - name: Lint the data pipeline
+        run: uv run --locked ruff check
       - name: Test the data pipeline
         run: uv run --locked pytest
 

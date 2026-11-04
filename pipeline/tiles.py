@@ -70,10 +70,10 @@ def cell_features(tiles: pa.Table) -> list[dict]:
         grouped = (sums.append_column("hucre", pc.utf8_slice_codeunits(sums["quadkey"], 0, level))
                    .group_by(["hucre", "donem"]).aggregate([(c, "sum") for c in "tdul"]))
         cells: dict[str, dict] = defaultdict(dict)
-        for cell, period, t, d, u, l in zip(*(grouped[c].to_pylist() for c in
-                                             ["hucre", "donem", "t_sum", "d_sum", "u_sum", "l_sum"])):
+        for cell, period, t, d, u, lat in zip(*(grouped[c].to_pylist() for c in
+                                               ["hucre", "donem", "t_sum", "d_sum", "u_sum", "l_sum"]), strict=True):
             cells[cell].update({f"d{period}": round(d / t, 1), f"u{period}": round(u / t, 1),
-                                f"l{period}": round(l / t), f"t{period}": int(t)})
+                                f"l{period}": round(lat / t), f"t{period}": int(t)})
         minzoom, maxzoom = tile_zooms(level)
         for cell, props in cells.items():
             w, s, e, n = tile_bounds(*quadkey_to_tile(cell))
@@ -175,7 +175,8 @@ def main() -> None:
 
     districts: dict[str, dict] = {}
     for row in read_csv(DISTRICT_PATH):
-        districts.setdefault(row["ilce_kodu"], {"ad": row["ilce"], "il_kodu": row["il_kodu"], "hiz": {}})["hiz"][row["donem"]] = speed_values(row)
+        district = districts.setdefault(row["ilce_kodu"], {"ad": row["ilce"], "il_kodu": row["il_kodu"], "hiz": {}})
+        district["hiz"][row["donem"]] = speed_values(row)
     # Districts without a single measurement still need an entry for the panel and search.
     for f in json.loads(DISTRICTS_PATH.read_text(encoding="utf-8"))["features"]:
         p = f["properties"]
