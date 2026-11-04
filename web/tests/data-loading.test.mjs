@@ -1,36 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import ts from "typescript";
-
-const require = createRequire(import.meta.url);
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-// Transpile the existing TypeScript modules in memory, with a fresh private cache per test.
-function loadSource(name, modules = new Map()) {
-  const filename = path.join(root, "lib", `${name}.ts`);
-  if (modules.has(filename)) return modules.get(filename).exports;
-  const compiledModule = { exports: {} };
-  modules.set(filename, compiledModule);
-  const { outputText } = ts.transpileModule(readFileSync(filename, "utf8"), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  });
-  const localRequire = (specifier) => specifier.startsWith("./")
-    ? loadSource(specifier.slice(2), modules)
-    : require(specifier);
-  new Function("require", "module", "exports", outputText)(localRequire, compiledModule, compiledModule.exports);
-  return compiledModule.exports;
-}
+import { loadLib } from "./load.mjs";
 
 const area = { ad: "İstanbul", hiz: {} };
 const places = [{ tur: "il", kod: "34", ad: "İstanbul", ara: "istanbul", bbox: [28, 40, 30, 42] }];
 const fixtures = [
-  { name: "province data", load: () => loadSource("data").loadAreas.bind(null, "iller"), body: { iller: { "34": area } }, value: { "34": area }, invalid: {}, invalidEntry: { iller: { "34": {} } } },
-  { name: "district data", load: () => loadSource("data").loadAreas.bind(null, "ilceler"), body: { TR3401: area }, value: { TR3401: area }, invalid: [], invalidEntry: { TR3401: {} } },
-  { name: "search data", load: () => loadSource("search").loadPlaces, body: places, value: places, invalid: {}, invalidEntry: [{}] },
+  { name: "province data", load: () => loadLib("data").loadAreas.bind(null, "iller"), body: { iller: { "34": area } }, value: { "34": area }, invalid: {}, invalidEntry: { iller: { "34": {} } } },
+  { name: "district data", load: () => loadLib("data").loadAreas.bind(null, "ilceler"), body: { TR3401: area }, value: { TR3401: area }, invalid: [], invalidEntry: { TR3401: {} } },
+  { name: "search data", load: () => loadLib("search").loadPlaces, body: places, value: places, invalid: {}, invalidEntry: [{}] },
 ];
 
 function mockFetch(t, implementation) {
@@ -83,7 +60,7 @@ for (const fixture of fixtures) {
 }
 
 test("a failed district request does not evict successfully loaded provinces", async (t) => {
-  const { loadAreas } = loadSource("data");
+  const { loadAreas } = loadLib("data");
   const requests = [];
   mockFetch(t, async (url) => {
     requests.push(url);

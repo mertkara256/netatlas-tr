@@ -2,12 +2,12 @@
 import csv
 import gzip
 import json
-from datetime import date
 import shutil
 import struct
 import subprocess
 import tempfile
 from collections import defaultdict
+from datetime import date
 
 import pyarrow.compute as pc
 import pyarrow.parquet as pq

@@ -11,10 +11,17 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = ["pytest", "ruff"]
 
 [tool.uv]
 package = false
+
+[tool.ruff]
+line-length = 130
+
+[tool.ruff.lint]
+# Beyond the defaults: long lines, whitespace, likely bugs (bugbear), import order, outdated syntax.
+extend-select = ["E501", "W", "B", "I", "UP"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

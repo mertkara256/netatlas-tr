@@ -1,14 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
 import test from "node:test";
 import { setImmediate } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
-import ts from "typescript";
-
-const require = createRequire(import.meta.url);
-const lib = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "lib");
+import { loadLib } from "./load.mjs";
 
 /** siteTiles.ts with the real retry module and a stand-in for the archive, which counts its reads. */
 function loadSiteTiles(archives) {
@@ -20,18 +13,6 @@ function loadSiteTiles(archives) {
       invalidateSiteArchive: () => {},
     },
   };
-  const modules = new Map();
-  const load = (name) => {
-    if (modules.has(name)) return modules.get(name).exports;
-    const compiled = { exports: {} };
-    modules.set(name, compiled);
-    const { outputText } = ts.transpileModule(readFileSync(path.join(lib, `${name}.ts`), "utf8"), {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-    });
-    const localRequire = (specifier) => stubs[specifier] ?? (specifier.startsWith("./") ? load(specifier.slice(2)) : require(specifier));
-    new Function("require", "module", "exports", outputText)(localRequire, compiled, compiled.exports);
-    return compiled.exports;
-  };
   for (const archive of archives) {
     const getZxy = archive.getZxy;
     archive.getZxy = (...zxy) => {
@@ -39,7 +20,7 @@ function loadSiteTiles(archives) {
       return getZxy(...zxy);
     };
   }
-  return { ...load("siteTiles"), reads };
+  return { ...loadLib("siteTiles", { stubs }), reads };
 }
 
 const tileBytes = () => new Uint8Array([26, 4, 1, 2, 3, 4]).buffer;

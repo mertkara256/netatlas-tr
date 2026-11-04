@@ -96,12 +96,12 @@ def assign(quadkeys: list[str]) -> pa.Table:
 
     # Most tiles lie inside one district; only the rest need area maths.
     shares: dict[int, dict[int, float]] = defaultdict(dict)
-    for tile, district in zip(*tree.query(boxes, predicate="within")):
+    for tile, district in zip(*tree.query(boxes, predicate="within"), strict=True):
         shares[tile][district] = 1.0
     edge = np.array([i for i in range(len(boxes)) if i not in shares])
     tile_i, district_i = tree.query(boxes[edge], predicate="intersects")
     land = shapely.area(shapely.intersection(boxes[edge][tile_i], districts[district_i]))
-    for tile, district, area in zip(edge[tile_i], district_i, land / shapely.area(boxes[edge][tile_i])):
+    for tile, district, area in zip(edge[tile_i], district_i, land / shapely.area(boxes[edge][tile_i]), strict=True):
         shares[tile][district] = area
 
     rows = {"quadkey": [], "il_kodu": [], "ilce_kodu": []}
@@ -149,7 +149,7 @@ def area_totals(pooled: pa.Table, key: str) -> dict[str, list[float]]:
     """Tile count and summed totals per area code."""
     grouped = pooled.group_by(key).aggregate([("quadkey", "count")] + [(c, "sum") for c in SUMS])
     columns = [grouped["quadkey_count"].to_pylist()] + [grouped[f"{c}_sum"].to_pylist() for c in SUMS]
-    return {code: list(row) for code, *row in zip(grouped[key].to_pylist(), *columns)}
+    return {code: list(row) for code, *row in zip(grouped[key].to_pylist(), *columns, strict=True)}
 
 
 def main() -> None:
@@ -172,7 +172,7 @@ def main() -> None:
         tiles.append(tile_table(period, pooled))
 
         provinces = area_totals(pooled, "il_kodu")
-        provinces[NATIONAL] = [sum(col) for col in zip(*provinces.values())]
+        provinces[NATIONAL] = [sum(col) for col in zip(*provinces.values(), strict=True)]
         for code, totals in sorted(provinces.items()):
             name = "Türkiye" if code == NATIONAL else PROVINCES[code]
             province_rows.append([code, name, period] + values(*totals))

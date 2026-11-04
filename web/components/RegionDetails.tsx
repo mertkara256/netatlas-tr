@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { periodText, type Area, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
+import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { startNearbyRequest, type NearbyRequestResult } from "@/lib/nearby-request";
 import { useColorScheme } from "@/lib/useColorScheme";
@@ -15,7 +15,6 @@ const DOWNLOAD = metricById("indirme");
 const UPLOAD = metricById("yukleme");
 const LATENCY = metricById("gecikme");
 const percent = (v: number) => `%${formatNumber(v * 100)}`;
-const reliability = (tests: number) => RELIABILITY_LABELS[classIndex(tests, [LOW_TESTS, 50])];
 const shortLabel = (p: PeriodInfo) => (p.id === "guncel" ? p.ad : `'${p.id.slice(2)}`);
 
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
@@ -64,7 +63,7 @@ function NearbySection({ point, period }: { point: [number, number]; period: Per
           {formatValue(LATENCY, outcome.value.latency)} gecikme
           <br />
           <span className={styles.muted}>
-            {formatNumber(outcome.value.squares)} kare, {formatNumber(outcome.value.tests)} test ({reliability(outcome.value.tests).toLocaleLowerCase("tr-TR")} güvenilirlik)
+            {formatNumber(outcome.value.squares)} kare, {formatNumber(outcome.value.tests)} test ({reliabilityLabel(outcome.value.tests).toLocaleLowerCase("tr-TR")} güvenilirlik)
           </span>
         </p>
       )}
@@ -106,7 +105,7 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
             <Stat label="İndirme" value={formatValue(DOWNLOAD, v.indirme_mbps)} note={`Türkiye ${formatValue(DOWNLOAD, n.indirme_mbps)}`} />
             <Stat label="Yükleme" value={formatValue(UPLOAD, v.yukleme_mbps)} note={`Türkiye ${formatValue(UPLOAD, n.yukleme_mbps)}`} />
             <Stat label="Gecikme" value={formatValue(LATENCY, v.gecikme_ms)} note={`Türkiye ${formatValue(LATENCY, n.gecikme_ms)}`} />
-            <Stat label="Test" value={formatNumber(v.test)} note={`${reliability(v.test)} güvenilirlik`} />
+            <Stat label="Test" value={formatNumber(v.test)} note={`${reliabilityLabel(v.test)} güvenilirlik`} />
           </dl>
         ) : (
           <p className={styles.muted}>Bu dönemde ölçüm yok.</p>

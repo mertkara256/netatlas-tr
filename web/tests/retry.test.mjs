@@ -1,15 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import { setImmediate } from "node:timers/promises";
-import ts from "typescript";
+import { loadLib } from "./load.mjs";
 
-const { outputText } = ts.transpileModule(readFileSync(new URL("../lib/retry.ts", import.meta.url), "utf8"), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-});
-const retryModule = { exports: {} };
-new Function("module", "exports", outputText)(retryModule, retryModule.exports);
-const { RETRY_DELAY, retryOnce } = retryModule.exports;
+const { RETRY_DELAY, retryOnce } = loadLib("retry");
 
 /** An attempt that plays the given outcomes in turn: values resolve, errors reject. */
 function attempts(...outcomes) {

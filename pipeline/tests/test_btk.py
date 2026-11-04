@@ -51,11 +51,12 @@ def test_fiber_length_adds_up(rows):
 def test_fixed_gap_is_the_undistributed_other_subscriptions(rows):
     # BTK adds ISDN and satellite subscriptions to the national "other" figure only, so the
     # national fixed total exceeds the provincial sum by that amount.
+    def gap(field, year):
+        return rows[("00", year)][field] - sum(rows[(code, year)][field] for code in PROVINCES)
+
     for year in YEARS:
-        def gap(field):
-            return rows[("00", year)][field] - sum(rows[(code, year)][field] for code in PROVINCES)
-        assert gap("sabit_genisbant") == pytest.approx(gap("diger"), abs=ROUNDING), year
-        assert gap("diger") > 0, year
+        assert gap("sabit_genisbant", year) == pytest.approx(gap("diger", year), abs=ROUNDING), year
+        assert gap("diger", year) > 0, year
 
 
 def test_values_match_the_published_bulletin(rows):

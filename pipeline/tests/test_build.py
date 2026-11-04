@@ -7,8 +7,7 @@ import pyarrow.parquet as pq
 import pytest
 
 from pipeline.boundaries import DISTRICT_LIST_PATH
-from pipeline.build import (DISTRICT_PATH, NATIONAL, PROVINCE_PATH, RELIABILITY, TILES_PATH,
-                            available_quarters, periods)
+from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, RELIABILITY, TILES_PATH, available_quarters, periods
 from pipeline.common import PROVINCES, lonlat_to_tile, tile_to_quadkey
 from pipeline.ookla import output_path
 
@@ -98,7 +97,7 @@ def test_reliability_follows_the_test_count(provinces, districts):
 
 def test_each_tile_belongs_to_one_district(tiles, district_list):
     owners = defaultdict(set)
-    for quadkey, province, district in zip(*(tiles[c].to_pylist() for c in ("quadkey", "il_kodu", "ilce_kodu"))):
+    for quadkey, province, district in zip(*(tiles[c].to_pylist() for c in ("quadkey", "il_kodu", "ilce_kodu")), strict=True):
         owners[quadkey].add((province, district))
     for quadkey, owner in owners.items():
         assert len(owner) == 1, quadkey
@@ -108,7 +107,7 @@ def test_each_tile_belongs_to_one_district(tiles, district_list):
 
 def test_tiles_add_up_to_their_district(tiles, districts):
     totals = defaultdict(lambda: [0, 0])
-    for period, district, tests in zip(*(tiles[c].to_pylist() for c in ("donem", "ilce_kodu", "test"))):
+    for period, district, tests in zip(*(tiles[c].to_pylist() for c in ("donem", "ilce_kodu", "test")), strict=True):
         totals[district, period][0] += 1
         totals[district, period][1] += tests
     assert set(totals) == set(districts)

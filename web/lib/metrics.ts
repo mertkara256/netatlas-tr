@@ -18,6 +18,9 @@ export type Metric = {
 
 // Values under this many tests in a period are uncertain (see the pipeline's split-half check).
 export const LOW_TESTS = 10;
+// From this many tests on a value is reliable (the pipeline's RELIABILITY floors are the same).
+export const HIGH_TESTS = 50;
+const RELIABILITY_BREAKS = [LOW_TESTS, HIGH_TESTS];
 
 // Speeds span two orders of magnitude (2019's median square ~16 Mbps, today's ~120), so the
 // breaks are roughly log-spaced and the same in every period: a colour means the same speed
@@ -37,11 +40,13 @@ export const METRICS: Metric[] = [
   },
   {
     id: "guvenilirlik", label: "Güvenilirlik", title: "Güvenilirlik (test sayısı)", unit: "test",
-    tileKey: "t", areaKey: "test", breaks: [LOW_TESTS, 50], digits: 0,
+    tileKey: "t", areaKey: "test", breaks: RELIABILITY_BREAKS, digits: 0,
   },
 ];
 
 export const RELIABILITY_LABELS = ["Düşük", "Orta", "Yüksek"];
+/** The test counts behind each label, for the legend. */
+export const RELIABILITY_RANGES = [`<${LOW_TESTS}`, `${LOW_TESTS}–${HIGH_TESTS - 1}`, `${HIGH_TESTS}+`];
 
 export function metricById(id: MetricId): Metric {
   return METRICS.find((m) => m.id === id)!;
@@ -49,6 +54,11 @@ export function metricById(id: MetricId): Metric {
 
 export function classIndex(value: number, breaks: number[]): number {
   return breaks.filter((b) => value >= b).length;
+}
+
+/** "Düşük", "Orta" or "Yüksek" for a value from this many tests. */
+export function reliabilityLabel(tests: number): string {
+  return RELIABILITY_LABELS[classIndex(tests, RELIABILITY_BREAKS)];
 }
 
 const integer = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });

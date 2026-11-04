@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NATIONAL, periodText, type Area, type AreaKind, type PeriodInfo, type Selection } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { LOW_TESTS, RELIABILITY_LABELS, classIndex, metricById, type Metric } from "@/lib/metrics";
+import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { normalize } from "@/lib/search";
 import styles from "./AreaTable.module.css";
 
@@ -112,7 +112,7 @@ export default function AreaTable({ kind, areas, provinces, period, metric, onSe
                     <td className={styles.num}>{formatValue(LATENCY, r.values.gecikme_ms)}</td>
                     <td className={styles.num}>{formatNumber(r.values.test)}</td>
                     <td className={r.values.test < LOW_TESTS ? styles.low : undefined}>
-                      {RELIABILITY_LABELS[classIndex(r.values.test, [LOW_TESTS, 50])]}
+                      {reliabilityLabel(r.values.test)}
                     </td>
                   </>
                 ) : (

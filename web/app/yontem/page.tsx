@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CELL_SIZE, NATIONAL } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
-import { LOW_TESTS, METRICS, breakLabels } from "@/lib/metrics";
+import { HIGH_TESTS, LOW_TESTS, METRICS, breakLabels } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { readProvinces } from "@/lib/serverData";
 import styles from "../pages.module.css";
@@ -181,12 +181,12 @@ export default async function MethodPage() {
         <p>Her kare, ilçe ve il için dönemdeki test sayısına göre bir etiket verilir:</p>
         <ul>
           <li><strong>Düşük:</strong> {LOW_TESTS}&apos;dan az test</li>
-          <li><strong>Orta:</strong> {LOW_TESTS}–49 test</li>
-          <li><strong>Yüksek:</strong> 50 ve üstü test</li>
+          <li><strong>Orta:</strong> {LOW_TESTS}–{HIGH_TESTS - 1} test</li>
+          <li><strong>Yüksek:</strong> {HIGH_TESTS} ve üstü test</li>
         </ul>
         <p>
           Eşikler veriye bakılarak seçildi: aynı yılın iki yarısı (1.+3. ve 2.+4. çeyrek) karşılaştırıldığında, {LOW_TESTS}&apos;dan
-          az testli karelerin değeri tipik olarak %25–36 oynuyor, 50 ve üstü testli karelerde ise %8–14. Karelerin yarıdan
+          az testli karelerin değeri tipik olarak %25–36 oynuyor, {HIGH_TESTS} ve üstü testli karelerde ise %8–14. Karelerin yarıdan
           fazlası düşük güvenilirlikte ama bu kareler testlerin küçük bir kısmını tutar. Haritada düşük güvenilirlikteki değerler
           aynı açıklıkta ama gri gösterilir: açıklık hızı, grilik belirsizliği anlatır.
         </p>
