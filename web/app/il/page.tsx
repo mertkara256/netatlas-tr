@@ -66,7 +66,7 @@ export default async function ProvincesPage() {
         </table>
       </div>
       <p className={styles.footnote}>
-        {current.ad}: {periodText(current)}. Hız: Speedtest® by Ookla® açık verisi, test ağırlıklı ortalama. Erişim: BTK.
+        {current.ad}: {periodText(current)}. Hız: Speedtest® by Ookla® açık verisi, cihaz ağırlıklı ortalama. Erişim: BTK.
       </p>
     </main>
   );

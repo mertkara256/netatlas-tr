@@ -22,6 +22,8 @@ export type SpeedValues = {
   yukleme_mbps: number;
   gecikme_ms: number;
   guvenilirlik: "yuksek" | "orta" | "dusuk";
+  /** Provinces and districts: the share of the area's weight (devices) in its largest tile. */
+  tek_kare_payi?: number;
 };
 
 export type BtkValues = { nufus: number; sabit_genisbant: number; abone_100: number; fiber_payi: number };
