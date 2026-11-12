@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: PageProps<"/il/[slug]">): Pro
   const v = province.hiz[current.id];
   return {
     title: `${province.ad} ev interneti hızı · NetAtlas TR`,
-    description: `${province.ad}: ortalama sabit internet indirme hızı ${formatValue(DOWNLOAD, v.indirme_mbps)} `
+    description: `${province.ad}: Speedtest ile ölçülen ortalama sabit internet indirme hızı ${formatValue(DOWNLOAD, v.indirme_mbps)} `
       + `(${periodText(current)}), 2019'dan bugüne değişim, ilçeler ve BTK erişim verisi.`,
   };
 }
@@ -46,10 +46,10 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
   const { data, code, province, current } = await load((await params).slug);
   const national = data.iller[NATIONAL];
   const v = province.hiz[current.id];
-  const ranked = Object.entries(data.iller)
-    .filter(([c]) => c !== NATIONAL)
-    .sort(([, a], [, b]) => b.hiz[current.id].indirme_mbps - a.hiz[current.id].indirme_mbps);
-  const rank = ranked.findIndex(([c]) => c === code) + 1;
+  const nationalDownload = national.hiz[current.id].indirme_mbps;
+  // No exact rank among the 81: neighbouring ranks are typically under 1% apart, less than a year's
+  // values move by chance, so the rank would mostly be noise. The gap to Türkiye carries the same news.
+  const gap = Math.round((v.indirme_mbps / nationalDownload - 1) * 100);
 
   const districts = Object.entries(await readDistricts())
     .filter(([, d]) => d.il_kodu === code)
@@ -70,8 +70,9 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
       </nav>
       <h1>{province.ad}</h1>
       <p className={styles.lead}>
-        Ortalama sabit internet indirme hızı {formatValue(DOWNLOAD, v.indirme_mbps)} (Türkiye{" "}
-        {formatValue(DOWNLOAD, national.hiz[current.id].indirme_mbps)}). İndirme hızında 81 il arasında {rank}. sırada.
+        Speedtest ile ölçülen ortalama sabit internet indirme hızı {formatValue(DOWNLOAD, v.indirme_mbps)};{" "}
+        {gap === 0 ? "Türkiye ortalamasıyla" : "Türkiye ortalamasından"} ({formatValue(DOWNLOAD, nationalDownload)}){" "}
+        {gap === 0 ? "aynı" : `%${Math.abs(gap)} ${gap > 0 ? "yüksek" : "düşük"}`}.
         Dönem: {periodText(current)}.
       </p>
 
