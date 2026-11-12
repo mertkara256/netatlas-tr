@@ -1,4 +1,5 @@
 import { LOW_TESTS, classIndex, type Metric } from "./metrics";
+import { classPosition } from "./surface";
 
 export type Theme = "light" | "dark";
 
@@ -28,10 +29,18 @@ export const CHART: Record<Theme, { area: string; national: string; grid: string
   dark: { area: "#3987e5", national: "#898781", grid: "#2c2c2a", axis: "#383835", muted: "#898781", surface: "#1a1a19" },
 };
 
+const hex = (c: number) => c.toString(16).padStart(2, "0");
+
+/** A province's or district's fill. Reliability keeps its three classes; a speed takes the heat
+ *  map's continuous colour for its value (muted under LOW_TESTS tests), so neighbouring areas in
+ *  one class still differ and an area matches the heat map beneath it. */
 export function areaColor(metric: Metric, value: number, tests: number, theme: Theme): string {
-  const ramps = RAMPS[theme];
-  if (metric.id === "guvenilirlik") return ramps.reliability[classIndex(tests, metric.breaks)];
-  return (tests < LOW_TESTS ? ramps.muted : ramps.full)[classIndex(value, metric.breaks)];
+  if (metric.id === "guvenilirlik") return RAMPS[theme].reliability[classIndex(tests, metric.breaks)];
+  const position = classPosition(Math.log(Math.max(value, 0.01)), metric.breaks.map(Math.log)) / (metric.breaks.length + 1);
+  const step = Math.min(HEAT_STEPS - 1, Math.floor(position * HEAT_STEPS));
+  const t = ((tests < LOW_TESTS ? HEAT_LEVELS - 1 : 0) * HEAT_STEPS + step) * 3;
+  const table = heatTable(metric, theme);
+  return `#${hex(table[t])}${hex(table[t + 1])}${hex(table[t + 2])}`;
 }
 
 // The heat map colours continuously: each ramp colour sits at the centre of its legend segment

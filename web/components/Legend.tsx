@@ -13,8 +13,8 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
 }) {
   const ramps = RAMPS[theme];
   const reliability = metric.id === "guvenilirlik";
-  // The heat map blends its colours continuously; areas take one class colour each.
-  const heat = view === "kareler";
+  // Speeds are coloured continuously in every view; reliability keeps its three classes.
+  const continuous = !reliability;
   const colors = reliability ? ramps.reliability : ramps.full;
   const columns = { gridTemplateColumns: `repeat(${colors.length}, 1fr)` };
   return (
@@ -25,7 +25,7 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
         {metric.note && <span className={styles.muted}> ({metric.note})</span>}
       </div>
       <div className={styles.legendPeriod}>{periodText(period)}</div>
-      {heat ? (
+      {continuous ? (
         <div className={styles.gradient} style={{ background: heatGradient(metric, theme) }} />
       ) : (
         <div className={styles.swatches} style={columns}>
@@ -48,13 +48,7 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
       )}
       {!reliability && (
         <div className={styles.legendRow}>
-          {heat ? (
-            <span className={`${styles.gradient} ${styles.small}`} style={{ background: heatGradient(metric, theme, true) }} />
-          ) : (
-            <span className={`${styles.swatches} ${styles.small}`} style={columns}>
-              {ramps.muted.map((c) => <span key={c} style={{ background: c }} />)}
-            </span>
-          )}
+          <span className={`${styles.gradient} ${styles.small}`} style={{ background: heatGradient(metric, theme, true) }} />
           <span>Gri: {LOW_TESTS}&apos;dan az test (belirsiz)</span>
         </div>
       )}
