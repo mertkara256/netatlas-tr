@@ -158,8 +158,9 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
       </section>
 
       <p className={styles.source}>
-        Hız: Speedtest® by Ookla® açık verisi, test ağırlıklı ortalama. Erişim: BTK yıllık il istatistikleri.{" "}
-        <Link href="/yontem/">Yöntem, sınırlamalar ve kaynaklar</Link>
+        Hız: Speedtest ölçümlerinin test ağırlıklı ortalaması (Speedtest® by Ookla® açık verisi); abonelerin paket
+        hızları değildir. Erişim: BTK yıllık il istatistikleri.{" "}
+        <Link href="/yontem/#ne-gosteriyor">Bu sayılar neyi gösterir?</Link>
       </p>
     </div>
   );

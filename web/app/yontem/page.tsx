@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CELL_SIZE, NATIONAL } from "@/lib/data";
-import { formatNumber } from "@/lib/format";
-import { HIGH_TESTS, LOW_TESTS, METRICS, breakLabels } from "@/lib/metrics";
+import { formatNumber, formatValue } from "@/lib/format";
+import { HIGH_TESTS, LOW_TESTS, METRICS, breakLabels, metricById } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { readProvinces } from "@/lib/serverData";
 import styles from "../pages.module.css";
@@ -24,6 +24,18 @@ const SECTIONS = [
   ["lisans", "Lisans ve atıf"],
 ] as const;
 
+const DOWNLOAD = metricById("indirme");
+
+// BTK's subscribers by package speed, from the text beside Şekil 3-4 of its latest quarterly report
+// (≤50 Mbps = 100 − the share above 50; 50–100 is given rounded). Update by hand with a newer report.
+const BTK_PACKAGES = {
+  donem: "2026 Ç1",
+  kaynak: "https://www.btk.gov.tr/s3/web-btk-site/7708c26c-5161-4919-8b3d-daa31d4ac8fb/2026/06/71082aad-cfbc-47b0-9b03-8295991140a6.pdf",
+  ellialti: 55,
+  elliyuz: 30,
+  yuzustu: 15,
+};
+
 const date = (iso: string, locale: string) =>
   new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(iso));
 
@@ -34,6 +46,7 @@ export default async function MethodPage() {
   const quartersEn = `${ilk[0]} Q${ilk[1]}–${son[0]} Q${son[1]}`;
   const quartersTr = `${ilk[0]} Ç${ilk[1]} – ${son[0]} Ç${son[1]}`;
   const levels = Object.values(CELL_SIZE);
+  const current = data.donemler[data.donemler.length - 1];
 
   return (
     <main className={styles.page}>
@@ -60,6 +73,16 @@ export default async function MethodPage() {
           Bir bölgede insanların Speedtest ile <strong>gerçekten ölçtüğü</strong> ortalama indirme, yükleme ve gecikmeyi.
           Belirli bir adrese hangi altyapının ulaştığını ya da alınabilecek en yüksek hızı göstermez. Yalnızca sabit
           bağlantılar (ev ve iş yeri interneti: fiber, VDSL, kablo vb.) sayılır; mobil ölçümler dahil değildir.
+        </p>
+        <p>
+          Bu, abonelerin paket hızlarının ortalaması da değildir. Son dört çeyrekte ({current.aralik}) Speedtest
+          ölçümlerinin Türkiye ortalaması {formatValue(DOWNLOAD, national.hiz[current.id].indirme_mbps)}. BTK&apos;ya göre ise{" "}
+          {BTK_PACKAGES.donem}&apos;de sabit genişbant abonelerinin %{BTK_PACKAGES.ellialti}&apos;i 50 Mbps ve altı, yaklaşık
+          %{BTK_PACKAGES.elliyuz}&apos;u 50–100 Mbps, yaklaşık %{BTK_PACKAGES.yuzustu}&apos;i 100 Mbps üstü paket kullanıyor (
+          <a href={BTK_PACKAGES.kaynak}>BTK Üç Aylık Pazar Verileri Raporu, {BTK_PACKAGES.donem}</a>, Şekil 3-4). İkisi aynı
+          şeyi ölçmez, ama aradaki fark ortalamanın hızlı bağlantılarca yukarı çekildiğini gösterir (bkz.{" "}
+          <a href="#sinirlamalar">sınırlamalar</a>). Haritadaki değerler tipik bir evin hızı olarak değil, bölgeleri ve
+          yılları karşılaştırmak için okunmalıdır.
         </p>
       </section>
 
@@ -216,17 +239,20 @@ export default async function MethodPage() {
         <h2>Sınırlamalar</h2>
         <ul>
           <li>
-            <strong>Ortalama, tipik kullanıcıdan yüksek çıkabilir.</strong> Ookla kare başına yalnızca ortalama yayımlar.
+            <strong>Ortalama, tipik kullanıcıdan yüksek çıkar.</strong> Ookla kare başına yalnızca ortalama yayımlar.
             Türkiye&apos;de hızlar iki gruba ayrılıyor (VDSL ve fiber); birkaç gigabit bağlantı bir bölgenin ortalamasını
-            yukarı çekebilir. Değerler en çok bölgeler ve yıllar arası karşılaştırma için anlamlıdır.
+            yukarı çekebilir. Testi yapanlar da rastgele seçilmiş değildir; abonelerin tamamını temsil etmeyebilir. BTK&apos;nın paket dağılımıyla karşılaştırma için
+            bkz. <a href="#ne-gosteriyor">harita ne gösteriyor</a>. Değerler en çok bölgeler ve yıllar arası karşılaştırma
+            için anlamlıdır.
           </li>
           <li>
             <strong>Ölçülen hız, altyapı değildir.</strong> Düşük bir değer, bölgede fiber olmadığı anlamına gelmez; kullanıcılar
             düşük paket almış, Wi-Fi üzerinden ölçmüş olabilir.
           </li>
           <li>
-            <strong>Ölçümler yalnızca Speedtest uygulamasından</strong> ve konum paylaşan kullanıcılardan gelir. Turistik
-            yerlerde ziyaretçilerin testleri de sayılır.
+            <strong>Ölçümler yalnızca telefon ve tabletlerdeki Speedtest uygulamasından</strong>, Wi-Fi ya da kablo
+            üzerinden yapılan ve GPS ile konumu belli testlerden gelir. Wi-Fi ölçümü hattın hızından düşük çıkabilir.
+            Turistik yerlerde ziyaretçilerin testleri de sayılır.
           </li>
           <li><strong>2020 ve 2021</strong> için Ookla verisi seyrektir (bkz. dönemler).</li>
           <li><strong>BTK verisi yalnızca il düzeyindedir;</strong> ilçe panellerinde ilin değerleri gösterilir.</li>
