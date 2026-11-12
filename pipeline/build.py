@@ -1,9 +1,10 @@
 """Assign Ookla tiles to provinces and districts and pool them into yearly values.
 
 Periods are the calendar years with all four quarters published (2019-2025 today) and
-"guncel", the latest four published quarters. Within a period a tile's tests are summed and
-its speeds averaged weighted by tests; province and district values are the test-weighted
-averages of their tiles, i.e. of all tests in them.
+"guncel", the latest four published quarters. When the latest quarter is a Q4, that year and
+"guncel" are the same four quarters, and the year is left out until the next quarter arrives.
+Within a period a tile's tests are summed and its speeds averaged weighted by tests; province
+and district values are the test-weighted averages of their tiles, i.e. of all tests in them.
 
 A tile counts for Türkiye when at least 20% of its area is Turkish land. Coastal tiles whose
 centre is offshore stay in; tiles across a land border (e.g. Qamishli) stay out. It goes to the
@@ -51,7 +52,11 @@ def available_quarters() -> list[tuple[int, int]]:
 
 
 def periods(quarters: list[tuple[int, int]]) -> dict[str, list[tuple[int, int]]]:
-    """Complete calendar years and the four consecutive quarters ending at the latest one."""
+    """Complete calendar years and the four consecutive quarters ending at the latest one.
+
+    A year that ends at the latest quarter would repeat the current period, so it is listed
+    only as "guncel" until the following quarter is published.
+    """
     if not quarters:
         raise ValueError("No Ookla quarters found; the current period requires four consecutive quarters.")
     latest_year, latest_quarter = max(quarters)
@@ -63,7 +68,8 @@ def periods(quarters: list[tuple[int, int]]) -> dict[str, list[tuple[int, int]]]
         raise ValueError(f"The current period requires four consecutive quarters ending at "
                          f"{latest_year} Q{latest_quarter}; missing: {labels}. "
                          "Download the missing Ookla quarters before building.")
-    years = sorted({y for y, _ in quarters if all((y, q) in quarters for q in range(1, 5))})
+    years = sorted({y for y, _ in quarters if all((y, q) in quarters for q in range(1, 5))} - {
+        latest_year if latest_quarter == 4 else None})
     out = {str(y): [(y, q) for q in range(1, 5)] for y in years}
     out["guncel"] = current
     return out

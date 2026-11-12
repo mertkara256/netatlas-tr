@@ -134,7 +134,8 @@ export default async function MethodPage() {
         <p>
           Ookla veriyi çeyrek çeyrek yayımlar. Tek çeyrekte birçok yerde çok az test olduğu için çeyrekler birleştirilir:
           her takvim yılı kendi dört çeyreğiyle, <strong>Güncel</strong> ise yayımlanmış son dört çeyrekle.
-          Yeni bir çeyrek yayımlanınca Güncel bir çeyrek ileri kayar; bir yılın dört çeyreği de tamamlanınca o yıl listeye eklenir.
+          Yeni bir çeyrek yayımlanınca Güncel bir çeyrek ileri kayar. Bir yılın dört çeyreği tamamlandığında Güncel o yılla
+          aynı olur; yıl, bir sonraki çeyrek yayımlanınca ayrıca listeye eklenir.
         </p>
         <div className={styles.tableScroll}>
           <table className={styles.table}>
