@@ -1,9 +1,11 @@
 import dynamic from "next/dynamic";
 import { CHART, type Theme } from "@/lib/colors";
+import { HIGH_TESTS } from "@/lib/metrics";
 import styles from "./RegionPanel.module.css";
 
-/** One period: a short axis label, the full label for the tooltip, the area's and Türkiye's value. */
-export type TrendPoint = { kisa: string; etiket: string; alan?: number; turkiye?: number };
+/** One period: a short axis label, the full label for the tooltip, the area's and Türkiye's value,
+ *  and whether the area's value rests on fewer tests than a "Yüksek" (reliable) one. */
+export type TrendPoint = { kisa: string; etiket: string; alan?: number; turkiye?: number; azTest?: boolean };
 
 const compact = new Intl.NumberFormat("tr-TR", { notation: "compact", maximumFractionDigits: 1 });
 
@@ -22,12 +24,14 @@ export default function TrendChart({ title, data, areaName, format, axisFormat =
 }) {
   const c = CHART[theme];
   const national = data.some((d) => d.turkiye != null);
+  const fewTests = data.some((d) => d.azTest && d.alan != null);
   return (
     <figure className={styles.chart}>
       <figcaption className={styles.chartTitle}>{title}</figcaption>
       <div className={styles.chartLegend}>
         <span><i style={{ background: c.area }} />{areaName}</span>
         {national && <span><i style={{ background: c.national }} />Türkiye</span>}
+        {fewTests && <span><b className={styles.hollowDot} style={{ borderColor: c.area }} />{HIGH_TESTS}&apos;den az test</span>}
       </div>
       <TrendLines
         data={data}
@@ -53,7 +57,7 @@ export default function TrendChart({ title, data, areaName, format, axisFormat =
             {data.map((d) => (
               <tr key={d.etiket}>
                 <th scope="row">{d.etiket}</th>
-                <td>{d.alan == null ? "–" : format(d.alan)}</td>
+                <td>{d.alan == null ? "–" : `${format(d.alan)}${d.azTest ? ` (${HIGH_TESTS}'den az test)` : ""}`}</td>
                 {national && <td>{d.turkiye == null ? "–" : format(d.turkiye)}</td>}
               </tr>
             ))}

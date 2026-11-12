@@ -1,5 +1,6 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CHART, type Theme } from "@/lib/colors";
+import { HIGH_TESTS } from "@/lib/metrics";
 import type { TrendPoint } from "./TrendChart";
 import styles from "./RegionPanel.module.css";
 
@@ -42,6 +43,7 @@ export default function TrendLines({ data, areaName, format, axisFormat, theme, 
             return (
               <div className={styles.chartTooltip}>
                 <div className={styles.chartTooltipTitle}>{point.etiket}</div>
+                {point.azTest && point.alan != null && <div className={styles.chartTooltipNote}>{HIGH_TESTS}&apos;den az test</div>}
                 {[[areaName, point.alan, c.area], ["Türkiye", point.turkiye, c.national]].map(([name, value, color]) =>
                   value == null ? null : (
                     <div key={name as string} className={styles.chartTooltipRow}>
@@ -60,7 +62,18 @@ export default function TrendLines({ data, areaName, format, axisFormat, theme, 
           dataKey="alan"
           stroke={c.area}
           strokeWidth={2}
-          dot={{ r: 4, fill: c.area, stroke: c.surface, strokeWidth: 2 }}
+          // A hollow dot marks a value from fewer tests than a reliable one (TrendPoint.azTest).
+          dot={({ cx, cy, index, payload }) => (
+            <circle
+              key={index}
+              cx={cx}
+              cy={cy}
+              r={(payload as TrendPoint).azTest ? 3.5 : 4}
+              fill={(payload as TrendPoint).azTest ? c.surface : c.area}
+              stroke={(payload as TrendPoint).azTest ? c.area : c.surface}
+              strokeWidth={(payload as TrendPoint).azTest ? 1.5 : 2}
+            />
+          )}
           activeDot={{ r: 5, fill: c.area, stroke: c.surface, strokeWidth: 2 }}
           isAnimationActive={false}
         />
