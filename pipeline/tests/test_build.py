@@ -57,7 +57,14 @@ def test_periods_are_calendar_years_plus_the_latest_four_quarters():
     assert list(result) == PERIODS
     assert result["2019"] == [(2019, 1), (2019, 2), (2019, 3), (2019, 4)]
     assert result["guncel"] == [(2025, 4), (2026, 1), (2026, 2), (2026, 3)]
-    assert "2026" in periods(quarters + [(2026, 4)])
+    # 2026 Q4 makes the year complete, but it would repeat the current period: only "guncel" has it
+    # until 2027 Q1, when the year appears and "guncel" moves on.
+    with_q4 = periods(quarters + [(2026, 4)])
+    assert list(with_q4) == PERIODS
+    assert with_q4["guncel"] == [(2026, 1), (2026, 2), (2026, 3), (2026, 4)]
+    with_next = periods(quarters + [(2026, 4), (2027, 1)])
+    assert list(with_next) == [*PERIODS[:-1], "2026", "guncel"]
+    assert with_next["guncel"] == [(2026, 2), (2026, 3), (2026, 4), (2027, 1)]
 
 
 def test_every_province_has_every_period(provinces):
