@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { periodText, type Area, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
+import { HIGH_TESTS, LOW_TESTS, ONE_TILE_SHARE, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { startNearbyRequest, type NearbyRequestResult } from "@/lib/nearby-request";
 import { useColorScheme } from "@/lib/useColorScheme";
@@ -111,6 +111,12 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
           <p className={styles.muted}>Bu dönemde ölçüm yok.</p>
         )}
         {v && v.test < LOW_TESTS && <p className={styles.note}>{LOW_TESTS}&apos;dan az test var; değerler belirsiz.</p>}
+        {v && v.test >= LOW_TESTS && (v.tek_kare_payi ?? 0) >= ONE_TILE_SHARE && (
+          <p className={styles.note}>
+            Ağırlıkta tek bir 475 m&apos;lik karenin payı %{formatNumber((v.tek_kare_payi ?? 0) * 100)}: o karedeki
+            birkaç bağlantı değeri çok etkiliyor.
+          </p>
+        )}
       </section>
 
       <section>
@@ -159,7 +165,7 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
       </section>
 
       <p className={styles.source}>
-        Hız: Speedtest ölçümlerinin test ağırlıklı ortalaması (Speedtest® by Ookla® açık verisi); abonelerin paket
+        Hız: Speedtest ölçümlerinin cihaz ağırlıklı ortalaması (Speedtest® by Ookla® açık verisi); abonelerin paket
         hızları değildir. Erişim: BTK yıllık il istatistikleri.{" "}
         <Link href="/yontem/#ne-gosteriyor">Bu sayılar neyi gösterir?</Link>
       </p>

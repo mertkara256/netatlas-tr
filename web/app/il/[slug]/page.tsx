@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import RegionDetails from "@/components/RegionDetails";
 import { NATIONAL, periodText } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { LOW_TESTS, metricById } from "@/lib/metrics";
+import { HIGH_TESTS, LOW_TESTS, metricById } from "@/lib/metrics";
 import { readDistricts, readProvinces } from "@/lib/serverData";
 import { slugify } from "@/lib/slug";
 import styles from "../../pages.module.css";
@@ -132,7 +132,8 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
         </table>
       </div>
       <p className={styles.footnote}>
-        Değerler, ilçedeki Speedtest ölçümlerinin test ağırlıklı ortalamasıdır; {LOW_TESTS}&apos;dan az testli değerler belirsizdir.
+        Değerler, ilçedeki Speedtest ölçümlerinin cihaz ağırlıklı ortalamasıdır; {LOW_TESTS}&apos;dan az testli değerler
+        belirsizdir, {HIGH_TESTS}&apos;den az testli değerler orta güvenilirliktedir.
       </p>
     </main>
   );

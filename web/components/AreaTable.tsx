@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NATIONAL, periodText, type Area, type AreaKind, type PeriodInfo, type Selection } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
+import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { normalize } from "@/lib/search";
 import styles from "./AreaTable.module.css";
 
@@ -23,7 +23,8 @@ export default function AreaTable({ kind, areas, provinces, period, metric, onSe
   onSelect: (selection: Selection) => void;
 }) {
   const [query, setQuery] = useState("");
-  // Until a header is clicked, sort by the chosen metric, best first.
+  // Until a header is clicked, sort by the chosen metric, best first, with values from fewer than
+  // HIGH_TESTS tests after the reliable ones: a few tests make the extremes, which would otherwise top the list.
   const [sort, setSort] = useState<{ column: Column; dir: 1 | -1 } | null>(null);
   const order = sort ?? {
     column: (metric.id === "guvenilirlik" ? "test" : metric.areaKey) as Column,
@@ -44,6 +45,10 @@ export default function AreaTable({ kind, areas, provinces, period, metric, onSe
       const x = order.column === "ad" || order.column === "il" ? a[order.column] : a.values?.[order.column];
       const y = order.column === "ad" || order.column === "il" ? b[order.column] : b.values?.[order.column];
       if (x == null || y == null) return Number(x == null) - Number(y == null); // no data last
+      if (!sort && order.column !== "test") {
+        const reliable = (r: Row) => (r.values!.test >= HIGH_TESTS ? 0 : 1);
+        if (reliable(a) !== reliable(b)) return reliable(a) - reliable(b);
+      }
       return order.dir * (typeof x === "string" ? x.localeCompare(y as string, "tr") : (x as number) - (y as number));
     });
 
@@ -72,7 +77,7 @@ export default function AreaTable({ kind, areas, provinces, period, metric, onSe
         <table className={styles.table}>
           <caption className={styles.caption}>
             {kind === "iller" ? "İller" : "İlçeler"}, {periodText(period)}. Ada tıklayınca bölge paneli açılır.
-            Sütun başlıklarıyla sıralanır.
+            Sütun başlıklarıyla sıralanır{sort ? "" : `; ilk sıralamada ${formatNumber(HIGH_TESTS)}'den az testli değerler sonda`}.
           </caption>
           <thead>
             <tr>

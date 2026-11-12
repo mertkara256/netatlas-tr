@@ -19,7 +19,9 @@ export type Metric = {
 // Values under this many tests in a period are uncertain (see the pipeline's split-half check).
 export const LOW_TESTS = 10;
 // From this many tests on a value is reliable (the pipeline's RELIABILITY floors are the same).
-export const HIGH_TESTS = 50;
+export const HIGH_TESTS = 200;
+// An area whose largest 475 m tile holds at least this share of its weight gets a note in its panel.
+export const ONE_TILE_SHARE = 0.3;
 const RELIABILITY_BREAKS = [LOW_TESTS, HIGH_TESTS];
 
 // Speeds span two orders of magnitude (2019's median square ~16 Mbps, today's ~120), so the

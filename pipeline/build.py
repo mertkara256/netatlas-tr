@@ -3,8 +3,12 @@
 Periods are the calendar years with all four quarters published (2019-2025 today) and
 "guncel", the latest four published quarters. When the latest quarter is a Q4, that year and
 "guncel" are the same four quarters, and the year is left out until the next quarter arrives.
-Within a period a tile's tests are summed and its speeds averaged weighted by tests; province
-and district values are the test-weighted averages of their tiles, i.e. of all tests in them.
+Within a period a tile's tests are summed and its speeds averaged weighted by tests. Province,
+district and national values average every tile-quarter in them weighted by its devices instead:
+a phone that runs dozens of tests in one place then counts once, not dozens of times. Split-half
+checks (2024 and the current period) found area values more repeatable this way: districts with
+1,000-4,999 tests moved a median 9-11% between half-years instead of 13-16%, provinces under
+5,000 tests 6-20% instead of 14-25%. Within a tile, weighting by devices changes nothing.
 
 A tile counts for Türkiye when at least 20% of its area is Turkish land. Coastal tiles whose
 centre is offshore stay in; tiles across a land border (e.g. Qamishli) stay out. It goes to the
@@ -39,11 +43,13 @@ PROVINCE_PATH = PROCESSED_DIR / "iller_hiz.csv"
 DISTRICT_PATH = PROCESSED_DIR / "ilceler_hiz.csv"
 NATIONAL = "00"
 MIN_LAND_SHARE = 0.2
-# Split-half check (2021 and 2024): a tile's yearly mean download typically moves 25-36%
-# between half-years below 10 tests and 8-14% from 50 tests on. Areas use the same floors.
-RELIABILITY = [(50, "yuksek"), (10, "orta"), (0, "dusuk")]
-SUMS = ["tests", "d_sum", "u_sum", "lat_sum"]
-VALUE_COLUMNS = ["kare", "test", "indirme_mbps", "yukleme_mbps", "gecikme_ms", "guvenilirlik"]
+# Split-half check (2024 and the current period; median gap between the Q1+Q3 and Q2+Q4 means):
+# a tile's download moves about 50% between half-years below 10 tests, 22-31% at 50-199 tests and
+# 16-17% at 200-499. Areas, device-weighted, are about the same at the same test counts.
+RELIABILITY = [(200, "yuksek"), (10, "orta"), (0, "dusuk")]
+# Per tile-quarter: tests and devices, and each average times tests (for tiles) and times devices (for areas).
+SUMS = ["tests", "d_sum", "u_sum", "lat_sum", "devices", "d_dev", "u_dev", "lat_dev"]
+VALUE_COLUMNS = ["kare", "test", "cihaz", "indirme_mbps", "yukleme_mbps", "gecikme_ms", "guvenilirlik", "tek_kare_payi"]
 
 
 def available_quarters() -> list[tuple[int, int]]:
@@ -76,15 +82,17 @@ def periods(quarters: list[tuple[int, int]]) -> dict[str, list[tuple[int, int]]]
 
 
 def read_quarter(year: int, quarter: int) -> pa.Table:
-    """Tests and test-weighted speed totals per tile, so quarters can be added up."""
+    """Tests, devices and the speed totals weighted by each, per tile, so quarters can be added up."""
     t = pq.read_table(output_path(year, quarter))
     tests = pc.cast(t["tests"], pa.float64())
+    devices = pc.cast(t["devices"], pa.float64())
+    speeds = {"d": t["avg_d_kbps"], "u": t["avg_u_kbps"], "lat": t["avg_lat_ms"]}
     return pa.table({
         "quadkey": t["quadkey"],
         "tests": tests,
-        "d_sum": pc.multiply(pc.cast(t["avg_d_kbps"], pa.float64()), tests),
-        "u_sum": pc.multiply(pc.cast(t["avg_u_kbps"], pa.float64()), tests),
-        "lat_sum": pc.multiply(pc.cast(t["avg_lat_ms"], pa.float64()), tests),
+        **{f"{k}_sum": pc.multiply(pc.cast(v, pa.float64()), tests) for k, v in speeds.items()},
+        "devices": devices,
+        **{f"{k}_dev": pc.multiply(pc.cast(v, pa.float64()), devices) for k, v in speeds.items()},
     })
 
 
@@ -131,9 +139,10 @@ def reliability(tests: float) -> str:
     return next(label for floor, label in RELIABILITY if tests >= floor)
 
 
-def values(tiles: int, tests: float, d_sum: float, u_sum: float, lat_sum: float) -> list:
-    return [tiles, int(tests), round(d_sum / tests / 1000, 1), round(u_sum / tests / 1000, 1),
-            round(lat_sum / tests, 1), reliability(tests)]
+def values(tiles: int, tests: float, devices: float, d_dev: float, u_dev: float, lat_dev: float, top: float) -> list:
+    """An area's row: device-weighted speeds, and the share of the weight its largest tile holds."""
+    return [tiles, int(tests), int(devices), round(d_dev / devices / 1000, 1), round(u_dev / devices / 1000, 1),
+            round(lat_dev / devices, 1), reliability(tests), round(top / devices, 3)]
 
 
 def tile_table(period: str, pooled: pa.Table) -> pa.Table:
@@ -151,10 +160,15 @@ def tile_table(period: str, pooled: pa.Table) -> pa.Table:
     })
 
 
+AREA_SUMS = ["tests", "devices", "d_dev", "u_dev", "lat_dev"]
+
+
 def area_totals(pooled: pa.Table, key: str) -> dict[str, list[float]]:
-    """Tile count and summed totals per area code."""
-    grouped = pooled.group_by(key).aggregate([("quadkey", "count")] + [(c, "sum") for c in SUMS])
-    columns = [grouped["quadkey_count"].to_pylist()] + [grouped[f"{c}_sum"].to_pylist() for c in SUMS]
+    """Per area code: tile count, the totals values() needs, and the largest single tile's devices."""
+    grouped = pooled.group_by(key).aggregate(
+        [("quadkey", "count")] + [(c, "sum") for c in AREA_SUMS] + [("devices", "max")])
+    columns = ([grouped["quadkey_count"].to_pylist()] + [grouped[f"{c}_sum"].to_pylist() for c in AREA_SUMS]
+               + [grouped["devices_max"].to_pylist()])
     return {code: list(row) for code, *row in zip(grouped[key].to_pylist(), *columns, strict=True)}
 
 
@@ -178,7 +192,9 @@ def main() -> None:
         tiles.append(tile_table(period, pooled))
 
         provinces = area_totals(pooled, "il_kodu")
-        provinces[NATIONAL] = [sum(col) for col in zip(*provinces.values(), strict=True)]
+        # Türkiye adds up its provinces; its largest tile is the largest of theirs.
+        columns = list(zip(*provinces.values(), strict=True))
+        provinces[NATIONAL] = [sum(col) for col in columns[:-1]] + [max(columns[-1])]
         for code, totals in sorted(provinces.items()):
             name = "Türkiye" if code == NATIONAL else PROVINCES[code]
             province_rows.append([code, name, period] + values(*totals))
@@ -188,7 +204,7 @@ def main() -> None:
 
         n = provinces[NATIONAL]
         print(f"{period:>6} ({members[0][0]} Q{members[0][1]}-{members[-1][0]} Q{members[-1][1]}): "
-              f"{pooled.num_rows:,} tiles, {int(n[1]):,} tests, {n[2] / n[1] / 1000:.1f} Mbps down")
+              f"{pooled.num_rows:,} tiles, {int(n[1]):,} tests, {n[3] / n[2] / 1000:.1f} Mbps down")
 
     pq.write_table(pa.concat_tables(tiles), TILES_PATH)
     for path, header, rows in [

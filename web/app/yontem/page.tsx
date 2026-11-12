@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CELL_SIZE, NATIONAL } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { HIGH_TESTS, LOW_TESTS, METRICS, breakLabels, metricById } from "@/lib/metrics";
+import { HIGH_TESTS, LOW_TESTS, METRICS, ONE_TILE_SHARE, breakLabels, metricById } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { readProvinces } from "@/lib/serverData";
 import styles from "../pages.module.css";
@@ -178,7 +178,13 @@ export default async function MethodPage() {
             kareleri dahil olur, sınırın öbür yanındaki yerleşimler (ör. Kamışlı, İdlib) dışarıda kalır.
           </li>
           <li>
-            <strong>İl, ilçe ve Türkiye değeri:</strong> İçindeki tüm testlerin test ağırlıklı ortalamasıdır.
+            <strong>İl, ilçe ve Türkiye değeri:</strong> İçindeki karelerin her çeyrekteki ortalaması, o karede o çeyrekte
+            test yapan cihaz sayısıyla ağırlıklandırılır. Böylece aynı yerde onlarca test yapan tek bir cihaz, değeri onlarca
+            kez değil, bir kez etkiler. Aynı yılın iki yarısı karşılaştırıldığında bu yöntem ilçe ve il değerlerini daha
+            tutarlı yaptı: 1.000–4.999 testli ilçelerde iki yarı arasındaki tipik fark %13–16&apos;dan %9–11&apos;e, 5.000&apos;den
+            az testli illerde %14–25&apos;ten %6–20&apos;ye indi. Kare değerleri, ısı haritası ve çevrendeki 1 km test ağırlıklı
+            kalır; kare içinde iki yöntem neredeyse aynı sonucu verir. Bir alanın en büyük karesi ağırlığın en az
+            %{formatNumber(ONE_TILE_SHARE * 100)}&apos;unu tutuyorsa bölge panelinde bunu belirten bir not çıkar.
           </li>
           <li>
             <strong>Isı haritası:</strong> Yakınlaşınca Ookla&apos;nın kendi kareleri görünür. Uzaklaştıkça kareler daha büyük
@@ -209,9 +215,11 @@ export default async function MethodPage() {
           <li><strong>Yüksek:</strong> {HIGH_TESTS} ve üstü test</li>
         </ul>
         <p>
-          Eşikler veriye bakılarak seçildi: aynı yılın iki yarısı (1.+3. ve 2.+4. çeyrek) karşılaştırıldığında, {LOW_TESTS}&apos;dan
-          az testli karelerin değeri tipik olarak %25–36 oynuyor, {HIGH_TESTS} ve üstü testli karelerde ise %8–14. Karelerin yarıdan
-          fazlası düşük güvenilirlikte ama bu kareler testlerin küçük bir kısmını tutar. Haritada düşük güvenilirlikteki değerler
+          Eşikler veriye bakılarak seçildi. Aynı dönemin iki yarısı (1.+3. ve 2.+4. çeyrek) karşılaştırıldığında, iki yarının
+          indirme değeri arasındaki tipik fark {LOW_TESTS}&apos;dan az testli karelerde yaklaşık %50, {LOW_TESTS}–49 testte
+          %30–43, 50–{HIGH_TESTS - 1} testte %22–31, {HIGH_TESTS}–499 testte %16–18&apos;dir (2024 ve Güncel). İl ve ilçeler aynı
+          test sayısında benzer oynar. Güncel dönemde karelerin %59&apos;u düşük güvenilirlikte ama bu kareler testlerin
+          yalnızca %3&apos;ünü tutar; testlerin %62&apos;si yüksek güvenilirlikteki karelerdedir. Haritada düşük güvenilirlikteki değerler
           aynı açıklıkta ama gri gösterilir: açıklık hızı, grilik belirsizliği anlatır.
         </p>
       </section>

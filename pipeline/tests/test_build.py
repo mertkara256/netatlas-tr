@@ -42,13 +42,13 @@ def tiles():
 
 
 def add_up(rows):
-    """Tile count, tests and test-weighted mean download of several areas.
+    """Tile count, tests, devices and device-weighted mean download of several areas.
 
     Each value is rounded to 0.1, so the mean of rounded parts can differ by up to 0.1.
     """
-    tests = sum(int(r["test"]) for r in rows)
-    download = sum(float(r["indirme_mbps"]) * int(r["test"]) for r in rows) / tests
-    return sum(int(r["kare"]) for r in rows), tests, download
+    devices = sum(int(r["cihaz"]) for r in rows)
+    download = sum(float(r["indirme_mbps"]) * int(r["cihaz"]) for r in rows) / devices
+    return sum(int(r["kare"]) for r in rows), sum(int(r["test"]) for r in rows), devices, download
 
 
 def test_periods_are_calendar_years_plus_the_latest_four_quarters():
@@ -78,16 +78,16 @@ def test_districts_add_up_to_their_province(provinces, districts, district_list)
         groups[row["il_kodu"], period].append(row)
     assert set(groups) == {k for k in provinces if k[0] != NATIONAL}
     for key, rows in groups.items():
-        tiles, tests, download = add_up(rows)
-        assert (tiles, tests) == (int(provinces[key]["kare"]), int(provinces[key]["test"])), key
+        tiles, tests, devices, download = add_up(rows)
+        assert (tiles, tests, devices) == tuple(int(provinces[key][c]) for c in ("kare", "test", "cihaz")), key
         assert download == pytest.approx(float(provinces[key]["indirme_mbps"]), abs=0.1), key
 
 
 def test_provinces_add_up_to_the_country(provinces):
     for period in PERIODS:
-        tiles, tests, download = add_up([provinces[code, period] for code in PROVINCES])
+        tiles, tests, devices, download = add_up([provinces[code, period] for code in PROVINCES])
         national = provinces[NATIONAL, period]
-        assert (tiles, tests) == (int(national["kare"]), int(national["test"])), period
+        assert (tiles, tests, devices) == tuple(int(national[c]) for c in ("kare", "test", "cihaz")), period
         assert download == pytest.approx(float(national["indirme_mbps"]), abs=0.1), period
 
 
@@ -149,21 +149,25 @@ def test_places_outside_turkiye_are_left_out(tiles, place, lonlat):
 @pytest.mark.parametrize("code", ["69", "79", NATIONAL])  # Bayburt, Kilis, Türkiye
 @pytest.mark.parametrize("period", ["2020", "guncel"])
 def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, code, period):
-    """Recompute from the downloaded quarters, one test-weighted sum at a time."""
+    """Recompute from the downloaded quarters: every tile-quarter weighted by its devices."""
     members = tiles.filter(pc.equal(tiles["donem"], period))
     if code != NATIONAL:
         members = members.filter(pc.equal(members["il_kodu"], code))
     keep = set(members["quadkey"].to_pylist())
-    tests = d_sum = u_sum = lat_sum = 0
+    tests = devices = d_sum = u_sum = lat_sum = 0
+    per_tile = defaultdict(int)
     for quarter in periods(available_quarters())[period]:
         for row in pq.read_table(output_path(*quarter)).to_pylist():
             if row["quadkey"] in keep:
                 tests += row["tests"]
-                d_sum += row["avg_d_kbps"] * row["tests"]
-                u_sum += row["avg_u_kbps"] * row["tests"]
-                lat_sum += row["avg_lat_ms"] * row["tests"]
+                devices += row["devices"]
+                per_tile[row["quadkey"]] += row["devices"]
+                d_sum += row["avg_d_kbps"] * row["devices"]
+                u_sum += row["avg_u_kbps"] * row["devices"]
+                lat_sum += row["avg_lat_ms"] * row["devices"]
     row = provinces[code, period]
-    assert int(row["test"]) == tests
-    assert float(row["indirme_mbps"]) == round(d_sum / tests / 1000, 1)
-    assert float(row["yukleme_mbps"]) == round(u_sum / tests / 1000, 1)
-    assert float(row["gecikme_ms"]) == round(lat_sum / tests, 1)
+    assert (int(row["test"]), int(row["cihaz"])) == (tests, devices)
+    assert float(row["indirme_mbps"]) == round(d_sum / devices / 1000, 1)
+    assert float(row["yukleme_mbps"]) == round(u_sum / devices / 1000, 1)
+    assert float(row["gecikme_ms"]) == round(lat_sum / devices, 1)
+    assert float(row["tek_kare_payi"]) == round(max(per_tile.values()) / devices, 3)
