@@ -231,8 +231,9 @@ export default async function MethodPage() {
           ))}
         </ul>
         <p>
-          Renkler tek bir mavi tonunun açıklık sırasıdır; renk körlüğünde de sıra okunur. Isı haritasında renkler bu sınırlar
-          arasında kesintisiz geçer; il ve ilçe görünümlerinde her alan tek bir sınıfın rengini alır.
+          Renkler tek bir mavi tonunun açıklık sırasıdır; renk körlüğünde de sıra okunur. Hız göstergelerinde renkler bu
+          sınırlar arasında kesintisiz geçer: aynı sınıftaki iki il ya da ilçe de farklı tonda görünür ve bir alanın rengi
+          altındaki ısı haritasında aynı değerin rengidir. Güvenilirlik üç sınıfla gösterilir.
         </p>
       </section>
 
