@@ -193,6 +193,17 @@
   border-radius: 1px;
 }
 
+/* The trend chart's mark for a value from too few tests: a hollow dot, as on the line. */
+.hollowDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border: 1.5px solid;
+  border-radius: 50%;
+}
+
 .chartTooltip {
   min-width: 170px;
   padding: 7px 9px;
@@ -206,6 +217,11 @@
 .chartTooltipTitle {
   margin-bottom: 3px;
   font-weight: 600;
+}
+
+.chartTooltipNote {
+  margin-bottom: 3px;
+  color: var(--ink-2);
 }
 
 .chartTooltipRow {

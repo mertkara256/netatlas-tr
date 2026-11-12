@@ -27,15 +27,15 @@ const RELIABILITY_BREAKS = [LOW_TESTS, HIGH_TESTS];
 // in every year, and each year still spreads over several classes.
 export const METRICS: Metric[] = [
   {
-    id: "indirme", label: "İndirme", title: "Ortalama indirme hızı", unit: "Mbps",
+    id: "indirme", label: "İndirme", title: "Ölçülen ortalama indirme hızı", unit: "Mbps",
     tileKey: "d", areaKey: "indirme_mbps", breaks: [10, 25, 50, 100, 200, 400], digits: 1,
   },
   {
-    id: "yukleme", label: "Yükleme", title: "Ortalama yükleme hızı", unit: "Mbps",
+    id: "yukleme", label: "Yükleme", title: "Ölçülen ortalama yükleme hızı", unit: "Mbps",
     tileKey: "u", areaKey: "yukleme_mbps", breaks: [2, 5, 10, 25, 50, 100], digits: 1,
   },
   {
-    id: "gecikme", label: "Gecikme", title: "Ortalama gecikme", unit: "ms",
+    id: "gecikme", label: "Gecikme", title: "Ölçülen ortalama gecikme", unit: "ms",
     tileKey: "l", areaKey: "gecikme_ms", breaks: [10, 15, 20, 30, 50, 80], digits: 0, note: "düşük daha iyi",
   },
   {
