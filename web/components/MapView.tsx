@@ -37,13 +37,35 @@ const CELL_BOUNDS: [number, number, number, number] = [25.5, 35.7, 45.0, 42.2];
 // The deepest tile zoom in the archive (MAX_ZOOM in pipeline/tiles.py); MapLibre overzooms beyond.
 const TILE_MAXZOOM = 12;
 const AREA_LAYERS = { ilceler: "district-fill", iller: "province-fill" } as const;
-// The outline of a value from few tests (see FEW_TESTS_FILL), kept inside its own shape: a tile's
-// rings run clockwise on screen, so a positive offset is inward. Thinner zoomed out, where a
-// cell is only a few pixels wide and must still show its hollow.
+// The outline of a cell with few tests (see FEW_TESTS_FILL), kept inside the cell: a tile's rings
+// run clockwise on screen, so a positive offset is inward. Thinner zoomed out, where a cell is
+// only a few pixels wide and must still show its hollow.
 const FEW_TESTS_LINE: { "line-width": ExpressionSpecification; "line-offset": ExpressionSpecification } = {
   "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.75, 6, 1.5],
   "line-offset": ["interpolate", ["linear"], ["zoom"], 3, 0.375, 6, 0.75],
 };
+// A district or province with few tests is hatched in its colour instead. Hollow, its outline was
+// lost among neighbours of nearly the same colour and the area read as a gap, which is the slow
+// end of the ramp. Hatch images are named by their colour and drawn when the map first asks.
+const HATCH = "tarama-";
+const HATCH_SIZE = 8; // px from one stripe to the next, drawn at twice that for dense screens
+
+/** Stripes of a colour at 45 degrees, on nothing, that tile without a seam. */
+function hatch(color: string): ImageData {
+  const size = HATCH_SIZE * 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext("2d")!;
+  context.strokeStyle = color;
+  context.lineWidth = size * 0.36;
+  for (const start of [-size, 0, size]) {
+    context.beginPath();
+    context.moveTo(start - 2, size + 2);
+    context.lineTo(start + size + 2, -2);
+    context.stroke();
+  }
+  return context.getImageData(0, 0, size, size);
+}
 // Share of the map the region panel covers on phones (max-height in RegionPanel.module.css).
 const PHONE_SHEET_SHARE = 0.62;
 
@@ -118,6 +140,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     mapRef.current = ref;
     ref?.getMap().setMissingStyleImageResolver((id) => {
       if (MISSING_BASEMAP_IMAGES.has(id)) ref.getMap().addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
+      else if (id.startsWith(HATCH)) ref.getMap().addImage(id, hatch(id.slice(HATCH.length)), { pixelRatio: 2 });
     });
   }, []);
   // Which basemap has finished loading, and the label layer ours must go under. The light and
@@ -396,11 +419,11 @@ export default function MapView({ period, metric, view, theme, areas, selection,
               <Layer
                 key={`${layer}-few`}
                 id={`${layer}-few`}
-                type="line"
+                type="fill"
                 source-layer={layer}
                 filter={view === layer && areaPaint ? areaPaint.few : false}
                 layout={visible(view === layer && areaPaint !== null)}
-                paint={{ "line-color": view === layer && areaPaint ? areaPaint.color : RAMPS[theme].noData, ...FEW_TESTS_LINE }}
+                paint={view === layer && areaPaint ? { "fill-pattern": ["image", ["concat", HATCH, areaPaint.color]] } : {}}
                 beforeId={before}
               />
             ))}
