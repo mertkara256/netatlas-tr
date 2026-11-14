@@ -190,8 +190,10 @@ export default async function MethodPage() {
             <strong>Isı haritası:</strong> Yakınlaşınca Ookla&apos;nın kendi kareleri görünür. Uzaklaştıkça kareler daha büyük
             hücrelerde ({levels.slice(0, -1).reverse().join(", ")}) test ağırlıklı olarak birleşir; her yakınlıkta hücreler
             ekranda 8–16 piksel genişliktedir. Her hücre kendi değerinin renginde bir kare olarak çizilir; komşu hücrelerin
-            renkleri birbirine karışmaz. Ölçüm olmayan yerler boş kalır. Üzerine gelince gösterilen değer, karenin renginin
-            gösterdiği değerdir.
+            renkleri birbirine karışmaz. Kareler arasında yumuşak geçiş bilerek yok: geçişteki renkler hiçbir karede
+            ölçülmemiş ara değerler olurdu, bir yerin rengi üzerine gelince gösterilen değerle uyuşmazdı ve komşu kareler
+            arasında gerçekte olmayan bir eğilim görünürdü. Ölçüm olmayan yerler boş kalır. Üzerine gelince gösterilen
+            değer, karenin renginin gösterdiği değerdir.
           </li>
           <li>
             <strong>Çevrendeki {formatNumber(NEARBY_RADIUS / 1000)} km:</strong> Haritada tıklanan noktaya merkezi{" "}
