@@ -1,4 +1,4 @@
-import { RAMPS, heatGradient, type Theme } from "@/lib/colors";
+import { FEW_TESTS_FILL, RAMPS, heatGradient, type Theme } from "@/lib/colors";
 import { periodText, type PeriodInfo, type View } from "@/lib/data";
 import { LOW_TESTS, RELIABILITY_LABELS, RELIABILITY_RANGES, breakLabels, type Metric } from "@/lib/metrics";
 import styles from "./Atlas.module.css";
@@ -17,6 +17,8 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
   const continuous = !reliability;
   const colors = reliability ? ramps.reliability : ramps.full;
   const columns = { gridTemplateColumns: `repeat(${colors.length}, 1fr)` };
+  // The hollow swatch takes the ramp's middle colour; on the map it takes each value's own.
+  const few = ramps.full[Math.floor(ramps.full.length / 2)];
   return (
     <div className={`${styles.legend} ${panelOpen ? styles.besidePanel : ""}`}>
       <div className={styles.legendTitle}>
@@ -48,8 +50,8 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
       )}
       {!reliability && (
         <div className={styles.legendRow}>
-          <span className={`${styles.gradient} ${styles.small}`} style={{ background: heatGradient(theme, true) }} />
-          <span>Gri: {LOW_TESTS}&apos;dan az test (belirsiz)</span>
+          <span className={styles.fewTests} style={{ borderColor: few, background: `color-mix(in srgb, ${few} ${FEW_TESTS_FILL * 100}%, transparent)` }} />
+          <span>İçi boş: {LOW_TESTS}&apos;dan az test (belirsiz)</span>
         </div>
       )}
       {view !== "kareler" && (
