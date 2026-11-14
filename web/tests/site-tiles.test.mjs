@@ -25,14 +25,14 @@ function loadSiteTiles(archives) {
 
 const tileBytes = () => new Uint8Array([26, 4, 1, 2, 3, 4]).buffer;
 
-test("the vector source and the heat map read a tile once between them", async () => {
+test("a tile asked for twice is read once", async () => {
   const { siteTile, vectorTile, reads } = loadSiteTiles([{ getZxy: async () => ({ data: tileBytes() }) }]);
-  const [vector, heat] = await Promise.all([
+  const [vector, kept] = await Promise.all([
     vectorTile({ url: "harita://6/37/24" }, new AbortController()),
     siteTile(6, 37, 24),
   ]);
   assert.deepEqual(reads, ["6/37/24"]);
-  assert.deepEqual(new Uint8Array(vector.data), new Uint8Array(heat));
+  assert.deepEqual(new Uint8Array(vector.data), new Uint8Array(kept));
 });
 
 test("MapLibre gets a copy, so moving it to its worker leaves the kept tile whole", async () => {

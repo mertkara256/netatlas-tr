@@ -1,14 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createExpression, latest } from "@maplibre/maplibre-gl-style-spec";
 import { loadLib } from "./load.mjs";
 
-const { areaColor, RAMPS } = loadLib("colors");
+const { areaColor, cellColor, RAMPS } = loadLib("colors");
 const { metricById, LOW_TESTS } = loadLib("metrics");
 const download = metricById("indirme");
 const reliability = metricById("guvenilirlik");
 
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const near = (a, b) => rgb(a).every((c, i) => Math.abs(c - rgb(b)[i]) <= 3);
+const toHex = (color) => `#${[color.r, color.g, color.b].map((c) => Math.round(c * 255).toString(16).padStart(2, "0")).join("")}`;
+
+/** The colour MapLibre fills a heat map cell with, given the cell's properties in the tile. */
+function drawnColor(metric, period, theme, properties) {
+  const compiled = createExpression(cellColor(metric, period, theme), "layers[0].paint.fill-color", latest.paint_fill["fill-color"]);
+  assert.equal(compiled.result, "success", JSON.stringify(compiled.value));
+  return toHex(compiled.value.evaluate({ zoom: 12 }, { type: "Polygon", properties }));
+}
+
 // Relative luminance is enough to compare along a one-hue ramp.
 const luminance = (hex) => rgb(hex).reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
 
@@ -35,4 +45,29 @@ test("few tests mute the colour; reliability keeps its three classes", () => {
   assert.equal(areaColor(reliability, 0, 5, "light"), RAMPS.light.reliability[0]);
   assert.equal(areaColor(reliability, 0, 20, "light"), RAMPS.light.reliability[1]);
   assert.equal(areaColor(reliability, 0, 500, "dark"), RAMPS.dark.reliability[2]);
+});
+
+test("a heat map cell is drawn in the colour of its own value", () => {
+  // Three neighbours in Dikili: 26.8 Mbps from 1 test, 176.1 from 21 and 79.0 from 189. Blended
+  // into each other they read as one drift from grey to blue; each must show its own colour.
+  const cells = [[26.8, 1], [176.1, 21], [79, 189], [0, 3], [4.2, 9], [10, 10], [399.9, 200], [2500, 40]];
+  for (const theme of ["light", "dark"]) {
+    for (const id of ["indirme", "yukleme", "gecikme"]) {
+      const metric = metricById(id);
+      for (const [value, tests] of cells) {
+        const drawn = drawnColor(metric, "guncel", theme, { [`${metric.tileKey}guncel`]: value, tguncel: tests, d2019: 1, t2019: 999 });
+        assert.ok(near(drawn, areaColor(metric, value, tests, theme)), `${theme} ${id} ${value} from ${tests} tests: ${drawn}`);
+      }
+    }
+  }
+  const [slow, fast] = [drawnColor(download, "guncel", "dark", { dguncel: 79, tguncel: 189 }), drawnColor(download, "guncel", "dark", { dguncel: 176.1, tguncel: 21 })];
+  assert.ok(luminance(fast) > luminance(slow) + 20, `${slow} and ${fast} must be told apart`);
+});
+
+test("a heat map cell's reliability is one of the three classes", () => {
+  for (const theme of ["light", "dark"]) {
+    for (const [tests, label] of [[1, 0], [LOW_TESTS - 1, 0], [LOW_TESTS, 1], [199, 1], [200, 2], [5000, 2]]) {
+      assert.equal(drawnColor(reliability, "2024", theme, { t2024: tests }), RAMPS[theme].reliability[label], `${theme} ${tests}`);
+    }
+  }
 });
