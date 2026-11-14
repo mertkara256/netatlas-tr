@@ -11,6 +11,7 @@ Türkiye ev interneti atlası: Ookla açık verisinden 475 m'lik karelerde hız,
 | Repo | Açık. Geliştirme sırasında özeldi; ücretsiz planda GitHub Pages açık repo istediği için yayınla birlikte (27 Ekim 2026) açıldı. |
 | Harita görünümü | Her ölçekte kare ısı haritası: yakınlaşınca Ookla'nın 475 m'lik kareleri, uzaklaştıkça daha büyük hücrelerde birleşen kareler. İl ve ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı bir seçenek. |
 | Hücrelerin çizimi | Her hücre kendi değerinin renginde, keskin kenarlı bir kare; komşu hücreler arasında yumuşak geçiş yok. Yumuşak geçiş iki kez denendi (önce Gauss bulanıklığı, sonra hücre merkezleri arasında çift doğrusal geçiş) ve geri alındı. Nedenleri: (1) renk komşuların karışımı olduğu için bir yerin rengi, üzerine gelince gösterilen değerle uyuşmuyordu; (2) geçişteki renkler hiçbir hücrede ölçülmemiş ara değerlerdi ve olmayan eğilimler gösteriyordu (Dikili'de 27, 176 ve 79 Mbps'lik üç komşu kare griden maviye tek bir geçiş gibi okunuyordu); (3) uzaktan bakınca harita bulanık duruyordu. Veri kare kare ölçülüyor; harita da öyle gösterir, renk ile değer her yerde aynı şeyi söyler. |
+| Az testli değerler | 10'dan az testli kare, ilçe ve iller içi boş çizilir: çerçeve değerin kendi renginde, içi soluk. Önce aynı açıklıkta gri bir renk dizisi kullanılıyordu; koyu temada 100 Mbps üstünde mavi ile grisi arasındaki fark çok küçük kalıyordu (OKLab×100 ile 3–8; rahat ayırt etmek için 15 gerekir) ve az testli kareler hızlı karelerle karışıyordu. Renk yalnızca hızı, dolu ya da boş olması yalnızca belirsizliği anlatır. |
 | Site verisi | Git'e girmeyen dosyalar (PMTiles, il/ilçe JSON'ları, arama dizini) bir GitHub Release'te; yayın iş akışı `web/data-release.txt`'de adı yazan sürümü indirir. |
 | Repo adı | `netatlas-tr` (yayından önce değiştirilebilir) |
 | Kod lisansı | MIT. Ookla'dan türetilen veri CC BY-NC-SA 4.0. |
@@ -78,7 +79,7 @@ Her adım, doğrulaması geçmeden bitmiş sayılmaz.
 - **Doğrulama:** `npm run build` hatasız; karolar yerelde yükleniyor.
 
 ### 3. Harita
-- Yıl kaydırıcısı; gösterge seçimi (indirme, yükleme, gecikme, güvenilirlik); renk açıklaması ve bilgi kutusu; az testli kareler gri (aynı açıklıkta, değeri değiştirmeden belirsiz olduğu görünsün); her ölçekte kare ısı haritası (uzaklaştıkça birleşen hücreler, yakınlaşınca 475 m kareler), il/ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı seçenek.
+- Yıl kaydırıcısı; gösterge seçimi (indirme, yükleme, gecikme, güvenilirlik); renk açıklaması ve bilgi kutusu; az testli kareler içi boş (değerin renginde çerçeve; belirsiz olduğu rengi değiştirmeden görünsün); her ölçekte kare ısı haritası (uzaklaştıkça birleşen hücreler, yakınlaşınca 475 m kareler), il/ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı seçenek.
 - **Doğrulama:** Masaüstü, telefon ve koyu temada denenmiş; renkler doğrulayıcıdan geçmiş.
 
 ### 4. Bölge paneli ve sayfalar

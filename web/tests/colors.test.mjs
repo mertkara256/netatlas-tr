@@ -26,7 +26,6 @@ test("a speed at the middle of its class takes that class's ramp colour", () => 
   // 50-100 Mbps is class 3; its log-midpoint is about 70.7.
   for (const theme of ["light", "dark"]) {
     assert.ok(near(areaColor(download, Math.sqrt(50 * 100), 1000, theme), RAMPS[theme].full[3]), theme);
-    assert.ok(near(areaColor(download, Math.sqrt(50 * 100), 1, theme), RAMPS[theme].muted[3]), theme);
   }
 });
 
@@ -40,8 +39,9 @@ test("two speeds in one class get different colours, in order", () => {
   assert.deepEqual(dark, [...dark].sort((a, b) => a - b), "dark: faster is lighter");
 });
 
-test("few tests mute the colour; reliability keeps its three classes", () => {
-  assert.notEqual(areaColor(download, 120, LOW_TESTS - 1, "light"), areaColor(download, 120, LOW_TESTS, "light"));
+test("few tests leave a speed its colour; reliability keeps its three classes", () => {
+  // A value from few tests is drawn hollow, in the colour of the value.
+  assert.equal(areaColor(download, 120, LOW_TESTS - 1, "light"), areaColor(download, 120, LOW_TESTS, "light"));
   assert.equal(areaColor(reliability, 0, 5, "light"), RAMPS.light.reliability[0]);
   assert.equal(areaColor(reliability, 0, 20, "light"), RAMPS.light.reliability[1]);
   assert.equal(areaColor(reliability, 0, 500, "dark"), RAMPS.dark.reliability[2]);

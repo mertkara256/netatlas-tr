@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as MapLibreMap } from "maplibre-gl";
 import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
-import { RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
+import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
 import { BASE_PATH, CELL_SIZE, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
@@ -37,6 +37,13 @@ const CELL_BOUNDS: [number, number, number, number] = [25.5, 35.7, 45.0, 42.2];
 // The deepest tile zoom in the archive (MAX_ZOOM in pipeline/tiles.py); MapLibre overzooms beyond.
 const TILE_MAXZOOM = 12;
 const AREA_LAYERS = { ilceler: "district-fill", iller: "province-fill" } as const;
+// The outline of a value from few tests (see FEW_TESTS_FILL), kept inside its own shape: a tile's
+// rings run clockwise on screen, so a positive offset is inward. Thinner zoomed out, where a
+// cell is only a few pixels wide and must still show its hollow.
+const FEW_TESTS_LINE: { "line-width": ExpressionSpecification; "line-offset": ExpressionSpecification } = {
+  "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.75, 6, 1.5],
+  "line-offset": ["interpolate", ["linear"], ["zoom"], 3, 0.375, 6, 0.75],
+};
 // Share of the map the region panel covers on phones (max-height in RegionPanel.module.css).
 const PHONE_SHEET_SHARE = 0.62;
 
@@ -278,18 +285,30 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     selected.current = selection;
   }, [selection, loaded, theme]);
 
-  const areaFill = useMemo<ExpressionSpecification | null>(() => {
+  // Speeds from fewer than LOW_TESTS tests are drawn hollow; reliability shows the tests themselves.
+  const hollow = metric.id !== "guvenilirlik";
+
+  // Each area's colour, and which areas have few tests.
+  const areaPaint = useMemo<{ color: ExpressionSpecification; few: ExpressionSpecification } | null>(() => {
     if (view === "kareler" || !areas) return null;
-    const pairs = Object.entries(areas).flatMap(([code, area]) => {
+    const pairs: string[] = [];
+    const few: string[] = [];
+    for (const [code, area] of Object.entries(areas)) {
       const v = area.hiz[period.id];
-      return v ? [code, areaColor(metric, v[metric.areaKey] as number, v.test, theme)] : [];
-    });
-    const key = view === "ilceler" ? "ilce_kodu" : "il_kodu";
-    // TypeScript cannot see that the spread holds code/colour pairs, hence the cast.
-    return ["match", ["get", key], ...pairs, RAMPS[theme].noData] as unknown as ExpressionSpecification;
-  }, [view, areas, period.id, metric, theme]);
+      if (!v) continue;
+      pairs.push(code, areaColor(metric, v[metric.areaKey] as number, v.test, theme));
+      if (hollow && v.test < LOW_TESTS) few.push(code);
+    }
+    const key: ExpressionSpecification = ["get", view === "ilceler" ? "ilce_kodu" : "il_kodu"];
+    return {
+      // TypeScript cannot see that the spread holds code/colour pairs, hence the cast.
+      color: ["match", key, ...pairs, RAMPS[theme].noData] as unknown as ExpressionSpecification,
+      few: ["in", key, ["literal", few]],
+    };
+  }, [view, areas, period.id, metric, theme, hollow]);
 
   const cellFill = useMemo(() => cellColor(metric, period.id, theme), [metric, period.id, theme]);
+  const fewCellTests: ExpressionSpecification = ["<", ["get", `t${period.id}`], LOW_TESTS];
 
   const point = selection?.point;
   const nearbyCircle = useMemo(() => (point ? circle(point, NEARBY_RADIUS) : null), [point]);
@@ -348,7 +367,16 @@ export default function MapView({ period, metric, view, theme, areas, selection,
               source-layer="hucreler"
               filter={["has", `t${period.id}`]}
               layout={visible(view === "kareler")}
-              paint={{ "fill-color": cellFill, "fill-antialias": false }}
+              paint={{ "fill-color": cellFill, "fill-opacity": hollow ? ["case", fewCellTests, FEW_TESTS_FILL, 1] : 1, "fill-antialias": false }}
+              beforeId={before}
+            />
+            <Layer
+              id="cells-few"
+              type="line"
+              source-layer="hucreler"
+              filter={["all", ["has", `t${period.id}`], fewCellTests]}
+              layout={visible(view === "kareler" && hollow)}
+              paint={{ "line-color": cellFill, ...FEW_TESTS_LINE }}
               beforeId={before}
             />
             {(["ilceler", "iller"] as const).map((layer) => (
@@ -357,8 +385,22 @@ export default function MapView({ period, metric, view, theme, areas, selection,
                 id={AREA_LAYERS[layer]}
                 type="fill"
                 source-layer={layer}
-                layout={visible(view === layer && areaFill !== null)}
-                paint={{ "fill-color": view === layer && areaFill ? areaFill : RAMPS[theme].noData }}
+                layout={visible(view === layer && areaPaint !== null)}
+                paint={view === layer && areaPaint
+                  ? { "fill-color": areaPaint.color, "fill-opacity": ["case", areaPaint.few, FEW_TESTS_FILL, 1] }
+                  : { "fill-color": RAMPS[theme].noData }}
+                beforeId={before}
+              />
+            ))}
+            {(["ilceler", "iller"] as const).map((layer) => (
+              <Layer
+                key={`${layer}-few`}
+                id={`${layer}-few`}
+                type="line"
+                source-layer={layer}
+                filter={view === layer && areaPaint ? areaPaint.few : false}
+                layout={visible(view === layer && areaPaint !== null)}
+                paint={{ "line-color": view === layer && areaPaint ? areaPaint.color : RAMPS[theme].noData, ...FEW_TESTS_LINE }}
                 beforeId={before}
               />
             ))}

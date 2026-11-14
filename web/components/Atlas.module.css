@@ -294,12 +294,6 @@
   border-radius: 4px;
 }
 
-.gradient.small {
-  width: 84px;
-  height: 8px;
-  flex: none;
-}
-
 .breakLabels {
   position: relative;
   height: 15px;
@@ -327,6 +321,14 @@
   align-items: center;
   gap: 8px;
   margin-top: 7px;
+}
+
+.fewTests {
+  width: 18px;
+  height: 10px;
+  box-sizing: border-box;
+  border: 1.5px solid;
+  flex: none;
 }
 
 .noData {
