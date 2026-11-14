@@ -10,6 +10,10 @@ checks (2024 and the current period) found area values more repeatable this way:
 1,000-4,999 tests moved a median 9-11% between half-years instead of 13-16%, provinces under
 5,000 tests 6-20% instead of 14-25%. Within a tile, weighting by devices changes nothing.
 
+Each area also gets its residents (WorldPop, see population.py) and the share of them living in
+tiles with at least one test in the period: how much of the area's population the measurements
+stand for. Residents are assigned tile by tile, the same way as the tests.
+
 A tile counts for Türkiye when at least 20% of its area is Turkish land. Coastal tiles whose
 centre is offshore stay in; tiles across a land border (e.g. Qamishli) stay out. It goes to the
 province holding most of that land, then to that province's district holding most of it.
@@ -37,6 +41,7 @@ import shapely
 from .boundaries import DISTRICT_LIST_PATH, DISTRICTS_PATH
 from .common import PROCESSED_DIR, PROVINCES, quadkey_to_tile, tile_bounds
 from .ookla import OUT_DIR, output_path
+from .population import OUT_PATH as POPULATION_PATH
 
 TILES_PATH = PROCESSED_DIR / "kareler.parquet"
 PROVINCE_PATH = PROCESSED_DIR / "iller_hiz.csv"
@@ -49,7 +54,8 @@ MIN_LAND_SHARE = 0.2
 RELIABILITY = [(200, "yuksek"), (10, "orta"), (0, "dusuk")]
 # Per tile-quarter: tests and devices, and each average times tests (for tiles) and times devices (for areas).
 SUMS = ["tests", "d_sum", "u_sum", "lat_sum", "devices", "d_dev", "u_dev", "lat_dev"]
-VALUE_COLUMNS = ["kare", "test", "cihaz", "indirme_mbps", "yukleme_mbps", "gecikme_ms", "guvenilirlik", "tek_kare_payi"]
+VALUE_COLUMNS = ["kare", "test", "cihaz", "indirme_mbps", "yukleme_mbps", "gecikme_ms", "guvenilirlik", "tek_kare_payi",
+                 "nufus", "olculen_nufus_payi"]
 
 
 def available_quarters() -> list[tuple[int, int]]:
@@ -139,10 +145,13 @@ def reliability(tests: float) -> str:
     return next(label for floor, label in RELIABILITY if tests >= floor)
 
 
-def values(tiles: int, tests: float, devices: float, d_dev: float, u_dev: float, lat_dev: float, top: float) -> list:
-    """An area's row: device-weighted speeds, and the share of the weight its largest tile holds."""
+def values(tiles: int, tests: float, devices: float, d_dev: float, u_dev: float, lat_dev: float, top: float,
+           residents: float, measured: float) -> list:
+    """An area's row: device-weighted speeds, the share of the weight its largest tile holds, its
+    residents and the share of them living in the measured tiles."""
     return [tiles, int(tests), int(devices), round(d_dev / devices / 1000, 1), round(u_dev / devices / 1000, 1),
-            round(lat_dev / devices, 1), reliability(tests), round(top / devices, 3)]
+            round(lat_dev / devices, 1), reliability(tests), round(top / devices, 3),
+            round(residents), round(measured / residents, 3)]
 
 
 def tile_table(period: str, pooled: pa.Table) -> pa.Table:
@@ -172,12 +181,20 @@ def area_totals(pooled: pa.Table, key: str) -> dict[str, list[float]]:
     return {code: list(row) for code, *row in zip(grouped[key].to_pylist(), *columns, strict=True)}
 
 
+def residents_by(tiles: pa.Table, key: str) -> dict[str, float]:
+    grouped = tiles.group_by(key).aggregate([("nufus", "sum")])
+    return dict(zip(grouped[key].to_pylist(), grouped["nufus_sum"].to_pylist(), strict=True))
+
+
 def main() -> None:
     quarters = available_quarters()
     period_quarters = periods(quarters)
     data = {q: read_quarter(*q) for q in quarters}
-    quadkeys = pc.unique(pa.concat_arrays([t["quadkey"].combine_chunks() for t in data.values()]))
+    population = pq.read_table(POPULATION_PATH)
+    quadkeys = pc.unique(pa.concat_arrays([t["quadkey"].combine_chunks() for t in [*data.values(), population]]))
     assignment = assign(quadkeys.to_pylist())
+    population = population.join(assignment, "quadkey", join_type="inner")
+    residents = {key: residents_by(population, key) for key in ("il_kodu", "ilce_kodu")}
 
     with DISTRICT_LIST_PATH.open(encoding="utf-8") as f:
         district_names = {d["ilce_kodu"]: d for d in csv.DictReader(f)}
@@ -191,16 +208,22 @@ def main() -> None:
                   .sort_by("quadkey"))
         tiles.append(tile_table(period, pooled))
 
+        measured_tiles = population.join(pooled.select(["quadkey"]), "quadkey", join_type="inner")
+        measured = {key: residents_by(measured_tiles, key) for key in ("il_kodu", "ilce_kodu")}
+
         provinces = area_totals(pooled, "il_kodu")
         # Türkiye adds up its provinces; its largest tile is the largest of theirs.
         columns = list(zip(*provinces.values(), strict=True))
         provinces[NATIONAL] = [sum(col) for col in columns[:-1]] + [max(columns[-1])]
+        people = {code: (residents["il_kodu"][code], measured["il_kodu"][code]) for code in PROVINCES}
+        people[NATIONAL] = tuple(map(sum, zip(*people.values(), strict=True)))
         for code, totals in sorted(provinces.items()):
             name = "Türkiye" if code == NATIONAL else PROVINCES[code]
-            province_rows.append([code, name, period] + values(*totals))
+            province_rows.append([code, name, period] + values(*totals, *people[code]))
         for code, totals in sorted(area_totals(pooled, "ilce_kodu").items()):
             d = district_names[code]
-            district_rows.append([code, d["il_kodu"], d["il"], d["ilce"], period] + values(*totals))
+            district_rows.append([code, d["il_kodu"], d["il"], d["ilce"], period]
+                                 + values(*totals, residents["ilce_kodu"][code], measured["ilce_kodu"].get(code, 0.0)))
 
         n = provinces[NATIONAL]
         print(f"{period:>6} ({members[0][0]} Q{members[0][1]}-{members[-1][0]} Q{members[-1][1]}): "

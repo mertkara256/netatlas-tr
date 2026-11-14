@@ -4,4 +4,5 @@ __pycache__/
 node_modules/
 data/raw/
 data/processed/kareler.parquet
+data/processed/nufus_kareler.parquet
 web/public/data/

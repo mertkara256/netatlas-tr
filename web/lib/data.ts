@@ -24,6 +24,8 @@ export type SpeedValues = {
   guvenilirlik: "yuksek" | "orta" | "dusuk";
   /** Provinces and districts: the share of the area's weight (devices) in its largest tile. */
   tek_kare_payi?: number;
+  /** Provinces and districts: the share of the area's residents living in squares with a test in the period. */
+  olculen_nufus_payi?: number;
 };
 
 export type BtkValues = { nufus: number; sabit_genisbant: number; abone_100: number; fiber_payi: number };

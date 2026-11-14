@@ -12,6 +12,7 @@ Türkiye ev interneti atlası: Ookla açık verisinden 475 m'lik karelerde hız,
 | Harita görünümü | Her ölçekte kare ısı haritası: yakınlaşınca Ookla'nın 475 m'lik kareleri, uzaklaştıkça daha büyük hücrelerde birleşen kareler. İl ve ilçe sınırları çizgi olarak; il/ilçe renklendirmesi ayrı bir seçenek. |
 | Hücrelerin çizimi | Her hücre kendi değerinin renginde, keskin kenarlı bir kare; komşu hücreler arasında yumuşak geçiş yok. Yumuşak geçiş iki kez denendi (önce Gauss bulanıklığı, sonra hücre merkezleri arasında çift doğrusal geçiş) ve geri alındı. Nedenleri: (1) renk komşuların karışımı olduğu için bir yerin rengi, üzerine gelince gösterilen değerle uyuşmuyordu; (2) geçişteki renkler hiçbir hücrede ölçülmemiş ara değerlerdi ve olmayan eğilimler gösteriyordu (Dikili'de 27, 176 ve 79 Mbps'lik üç komşu kare griden maviye tek bir geçiş gibi okunuyordu); (3) uzaktan bakınca harita bulanık duruyordu. Veri kare kare ölçülüyor; harita da öyle gösterir, renk ile değer her yerde aynı şeyi söyler. |
 | Az testli değerler | 10'dan az testli kareler içi boş çizilir: çerçeve değerin kendi renginde, içi soluk. İlçe ve iller ise değerin renginde çizgilerle taranır; içi boş çizildiklerinde çerçeve, neredeyse aynı renkteki komşuların arasında kayboluyor ve alan koyu bir boşluk, yani yavaş gibi okunuyordu. Önce aynı açıklıkta gri bir renk dizisi kullanılıyordu; koyu temada 100 Mbps üstünde mavi ile grisi arasındaki fark çok küçük kalıyordu (OKLab×100 ile 3–8; rahat ayırt etmek için 15 gerekir) ve az testli kareler hızlı karelerle karışıyordu. Renk yalnızca hızı; dolu, boş ya da taralı olması yalnızca belirsizliği anlatır. |
+| Nüfus dağılımı | Nüfusun ne kadarının ölçüm yapılan karelerde yaşadığı WorldPop'un Türkiye 2021 ızgarasıyla hesaplanır: TÜİK'in ilçe nüfuslarını ~100 m'lik hücrelere dağıtır, il toplamları resmi sayılarla tutar (en büyük fark %2). Önce GHSL (GHS-POP 2025) denendi ve bırakıldı: Türkiye toplamı tutuyor ama il toplamları resmi nüfustan medyan %11 sapıyordu (Adana −%34, Hatay +%32). |
 | Site verisi | Git'e girmeyen dosyalar (PMTiles, il/ilçe JSON'ları, arama dizini) bir GitHub Release'te; yayın iş akışı `web/data-release.txt`'de adı yazan sürümü indirir. |
 | Repo adı | `netatlas-tr` (yayından önce değiştirilebilir) |
 | Kod lisansı | MIT. Ookla'dan türetilen veri CC BY-NC-SA 4.0. |
@@ -22,7 +23,7 @@ Türkiye ev interneti atlası: Ookla açık verisinden 475 m'lik karelerde hız,
 
 | Katman | Seçim | Neden |
 |---|---|---|
-| Veri işleme | Python (uv, pyarrow, shapely) | Ookla verisini çekmek, illere/ilçelere eşlemek, BTK Excel'lerini okumak |
+| Veri işleme | Python (uv, pyarrow, shapely, rasterio) | Ookla verisini çekmek, illere/ilçelere eşlemek, BTK Excel'lerini okumak, nüfus ızgarasını okumak |
 | Harita karoları | tippecanoe → PMTiles | ~120 bin kare × 8 yıl, sunucusuz ve bedava sunulabilsin |
 | Ön yüz | Next.js (React) + TypeScript, statik çıktı | İl sayfaları önceden üretilsin |
 | Harita | MapLibre + react-map-gl | Bedava, anahtarsız, PMTiles okuyor |
@@ -42,6 +43,7 @@ netatlas-tr/
 │  ├─ btk.py          BTK Excel'leri → il tablosu
 │  ├─ boundaries.py   il ve ilçe sınırları
 │  ├─ ookla.py        Ookla çeyrekleri → Türkiye kesiti
+│  ├─ population.py   WorldPop nüfus ızgarası → kare başına nüfus
 │  ├─ build.py        illere/ilçelere eşleme, yıllık toplama, güvenilirlik
 │  ├─ tiles.py        karolar → PMTiles (tippecanoe)
 │  └─ tests/          veri doğruluk testleri (pytest)

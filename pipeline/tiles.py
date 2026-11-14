@@ -116,7 +116,8 @@ def read_csv(path: Path) -> list[dict]:
 def speed_values(row: dict) -> dict:
     return {"kare": int(row["kare"]), "test": int(row["test"]), "indirme_mbps": float(row["indirme_mbps"]),
             "yukleme_mbps": float(row["yukleme_mbps"]), "gecikme_ms": float(row["gecikme_ms"]),
-            "guvenilirlik": row["guvenilirlik"], "tek_kare_payi": float(row["tek_kare_payi"])}
+            "guvenilirlik": row["guvenilirlik"], "tek_kare_payi": float(row["tek_kare_payi"]),
+            "olculen_nufus_payi": float(row["olculen_nufus_payi"])}
 
 
 def btk_values(row: dict) -> dict:

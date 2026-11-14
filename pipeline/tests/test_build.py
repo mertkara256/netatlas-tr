@@ -7,9 +7,11 @@ import pyarrow.parquet as pq
 import pytest
 
 from pipeline.boundaries import DISTRICT_LIST_PATH
+from pipeline.btk import OUT_PATH as BTK_PATH
 from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, RELIABILITY, TILES_PATH, available_quarters, periods
 from pipeline.common import PROVINCES, lonlat_to_tile, tile_to_quadkey
 from pipeline.ookla import output_path
+from pipeline.population import OUT_PATH as POPULATION_PATH
 
 PERIODS = [str(y) for y in range(2019, 2026)] + ["guncel"]
 
@@ -39,6 +41,19 @@ def tiles():
     if not TILES_PATH.exists():
         pytest.skip("run `python -m pipeline.build` to make the tile table")
     return pq.read_table(TILES_PATH)
+
+
+@pytest.fixture(scope="module")
+def population():
+    if not POPULATION_PATH.exists():
+        pytest.skip("run `python -m pipeline.population` to make the residents table")
+    table = pq.read_table(POPULATION_PATH)
+    return dict(zip(table["quadkey"].to_pylist(), table["nufus"].to_pylist(), strict=True))
+
+
+def measured(row):
+    """Residents of the area's measured tiles, as far as the rounded share tells."""
+    return int(row["nufus"]) * float(row["olculen_nufus_payi"])
 
 
 def add_up(rows):
@@ -89,6 +104,42 @@ def test_provinces_add_up_to_the_country(provinces):
         national = provinces[NATIONAL, period]
         assert (tiles, tests, devices) == tuple(int(national[c]) for c in ("kare", "test", "cihaz")), period
         assert download == pytest.approx(float(national["indirme_mbps"]), abs=0.1), period
+
+
+def test_residents_add_up(provinces, districts, district_list):
+    """A district without measurements in a period has no row, so its residents are missing from the sum."""
+    in_province = defaultdict(set)
+    for code, d in district_list.items():
+        in_province[d["il_kodu"]].add(code)
+    for period in PERIODS:
+        for province in PROVINCES:
+            rows = [districts[code, period] for code in in_province[province] if (code, period) in districts]
+            row = provinces[province, period]
+            total = sum(int(r["nufus"]) for r in rows)
+            if len(rows) == len(in_province[province]):
+                assert total == pytest.approx(int(row["nufus"]), abs=len(rows)), (province, period)
+            else:
+                assert total < int(row["nufus"]), (province, period)
+            # Each share is rounded to 0.001.
+            assert sum(map(measured, rows)) == pytest.approx(measured(row), abs=0.001 * int(row["nufus"])), (province, period)
+        national = provinces[NATIONAL, period]
+        rows = [provinces[code, period] for code in PROVINCES]
+        assert sum(int(r["nufus"]) for r in rows) == pytest.approx(int(national["nufus"]), abs=len(rows)), period
+        assert sum(map(measured, rows)) == pytest.approx(measured(national), abs=0.001 * int(national["nufus"])), period
+
+
+def test_measured_residents_are_a_share_of_the_residents(provinces, districts):
+    for key, row in [*provinces.items(), *districts.items()]:
+        assert int(row["nufus"]) > 0, key
+        assert 0 <= float(row["olculen_nufus_payi"]) <= 1, key
+
+
+def test_province_residents_are_close_to_the_official_2021_population(provinces):
+    """The grid spreads TÜİK's 2021 figures; tiles under the land share on coasts and borders drop a little."""
+    official = {r["il_kodu"]: int(r["nufus"]) for r in read_csv(BTK_PATH) if r["yil"] == "2021"}
+    for code in PROVINCES:
+        assert int(provinces[code, "guncel"]["nufus"]) == pytest.approx(official[code], rel=0.02), code
+    assert int(provinces[NATIONAL, "guncel"]["nufus"]) == pytest.approx(official[NATIONAL], rel=0.002)
 
 
 def test_almost_every_district_has_measurements(districts, district_list):
@@ -148,7 +199,7 @@ def test_places_outside_turkiye_are_left_out(tiles, place, lonlat):
 
 @pytest.mark.parametrize("code", ["69", "79", NATIONAL])  # Bayburt, Kilis, Türkiye
 @pytest.mark.parametrize("period", ["2020", "guncel"])
-def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, code, period):
+def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, population, code, period):
     """Recompute from the downloaded quarters: every tile-quarter weighted by its devices."""
     members = tiles.filter(pc.equal(tiles["donem"], period))
     if code != NATIONAL:
@@ -171,3 +222,5 @@ def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, cod
     assert float(row["yukleme_mbps"]) == round(u_sum / devices / 1000, 1)
     assert float(row["gecikme_ms"]) == round(lat_sum / devices, 1)
     assert float(row["tek_kare_payi"]) == round(max(per_tile.values()) / devices, 3)
+    residents = sum(population.get(quadkey, 0) for quadkey in keep)
+    assert float(row["olculen_nufus_payi"]) == pytest.approx(residents / int(row["nufus"]), abs=0.001)

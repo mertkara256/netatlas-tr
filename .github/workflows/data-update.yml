@@ -69,6 +69,7 @@ jobs:
         run: |
           uv run --locked python -m pipeline.boundaries
           uv run --locked python -m pipeline.ookla
+          uv run --locked python -m pipeline.population
           uv run --locked python -m pipeline.build
           uv run --locked python -m pipeline.tiles
 
