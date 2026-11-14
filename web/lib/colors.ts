@@ -18,8 +18,8 @@ export const RAMPS: Record<Theme, { full: string[]; reliability: string[]; noDat
   },
 };
 
-// A value from fewer than LOW_TESTS tests keeps its colour but is drawn hollow: an outline in that
-// colour around a fill this opaque. A grey twin of the ramp at the same lightness, as it was
+// A value from fewer than LOW_TESTS tests keeps its colour over a fill this opaque: a cell gets an
+// outline in that colour (hollow), a district or province stripes in it (hatched). A grey twin of the ramp at the same lightness, as it was
 // before, sat too close to the blue where the blue is pale: 3 to 8 apart in OKLab x100 from
 // 100 Mbps up on dark, where 15 is easy to tell apart.
 export const FEW_TESTS_FILL = 0.25;
