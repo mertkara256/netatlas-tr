@@ -107,6 +107,15 @@ export default async function MethodPage() {
                 <td>Açık lisans yok (© BTK)</td>
               </tr>
               <tr>
+                <th scope="row">Nüfusun dağılımı</th>
+                <td>
+                  <a href="https://doi.org/10.5258/SOTON/WP00758">WorldPop, Türkiye 2021</a>; ilçe nüfusları TÜİK&apos;in
+                  adrese dayalı kayıt sisteminden (OCHA COD-PS)
+                </td>
+                <td>2021 yıl sonu, ~100 m&apos;lik hücreler</td>
+                <td>CC BY 4.0</td>
+              </tr>
+              <tr>
                 <th scope="row">İl ve ilçe sınırları</th>
                 <td><a href="https://data.humdata.org/dataset/cod-ab-tur">OCHA COD-AB Türkiye</a>, kaynağı Harita Genel Müdürlüğü</td>
                 <td>81 il, 973 ilçe</td>
@@ -139,11 +148,14 @@ export default async function MethodPage() {
         </p>
         <div className={styles.tableScroll}>
           <table className={styles.table}>
-            <caption className={styles.caption}>Türkiye genelinde, ölçüm olan 475 m&apos;lik kareler ve test sayısı</caption>
+            <caption className={styles.caption}>
+              Türkiye genelinde, ölçüm olan 475 m&apos;lik kareler, test sayısı ve nüfusun bu karelerde yaşayan payı
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Dönem</th><th scope="col">Çeyrekler</th>
                 <th scope="col" className={styles.num}>Kare</th><th scope="col" className={styles.num}>Test</th>
+                <th scope="col" className={styles.num}>Nüfus payı</th>
               </tr>
             </thead>
             <tbody>
@@ -153,6 +165,7 @@ export default async function MethodPage() {
                   <td>{p.aralik}</td>
                   <td className={styles.num}>{formatNumber(national.hiz[p.id].kare)}</td>
                   <td className={styles.num}>{formatNumber(national.hiz[p.id].test)}</td>
+                  <td className={styles.num}>%{formatNumber(national.hiz[p.id].olculen_nufus_payi! * 100)}</td>
                 </tr>
               ))}
             </tbody>
@@ -185,6 +198,14 @@ export default async function MethodPage() {
             az testli illerde %14–25&apos;ten %6–20&apos;ye indi. Kare değerleri, ısı haritası ve çevrendeki 1 km test ağırlıklı
             kalır; kare içinde iki yöntem neredeyse aynı sonucu verir. Bir alanın en büyük karesi ağırlığın en az
             %{formatNumber(ONE_TILE_SHARE * 100)}&apos;unu tutuyorsa bölge panelinde bunu belirten bir not çıkar.
+          </li>
+          <li>
+            <strong>Ölçüm yapılan karelerdeki nüfus:</strong> Haritanın çoğu boştur, çünkü ölçümler insanların yaşadığı
+            yerlerde toplanır. Bir alanın nüfusunun ne kadarının, o dönemde en az bir test yapılmış karelerde yaşadığı
+            bölge panelinde ve yukarıdaki tabloda verilir. Nüfusun kareler arasındaki dağılımı WorldPop&apos;tan gelir:
+            TÜİK&apos;in 2021 ilçe nüfuslarını, uydudan görülen yapılaşmaya göre ~100 m&apos;lik hücrelere dağıtır. Her
+            hücre, merkezinin düştüğü kareye eklenir; kareler il ve ilçelere testlerle aynı kuralla atanır. Bu yolla
+            bulunan il nüfusları, TÜİK&apos;in 2021 il nüfuslarından en çok %2 ayrılır.
           </li>
           <li>
             <strong>Isı haritası:</strong> Yakınlaşınca Ookla&apos;nın kendi kareleri görünür. Uzaklaştıkça kareler daha büyük
@@ -267,6 +288,11 @@ export default async function MethodPage() {
             Turistik yerlerde ziyaretçilerin testleri de sayılır.
           </li>
           <li><strong>2020 ve 2021</strong> için Ookla verisi seyrektir (bkz. dönemler).</li>
+          <li>
+            <strong>Nüfus payı kabadır.</strong> Nüfusun dağılımı 2021&apos;e aittir ve bir modelden gelir; sonraki göçleri
+            (ör. 2023 depremleri) görmez. Bir test, evin bulunduğu karenin yanındaki kareye düşmüşse o evdekiler
+            ölçülmüş sayılmaz. Pay, o karelerdeki herkesin ölçüldüğünü de söylemez: tek bir test yapılan kare de sayılır.
+          </li>
           <li><strong>BTK verisi yalnızca il düzeyindedir;</strong> ilçe panellerinde ilin değerleri gösterilir.</li>
           <li>
             <strong>BTK 2020:</strong> dört ilde (Diyarbakır, İstanbul, Kilis, Konya) teknolojilere göre dağılım il toplamıyla
@@ -312,6 +338,11 @@ export default async function MethodPage() {
             Veriye son erişim: {date(erisim, "tr-TR")}.
           </li>
           <li>BTK verisi açık lisanslı değildir (© BTK); kaynak gösterilerek kullanılmıştır, ticari kullanım için BTK&apos;dan izin gerekir.</li>
+          <li>
+            Nüfusun dağılımı: Bondarenko M., Priyatikanto R., Sorichetta A. ve Tatem A.J. (2022), Gridded population
+            estimates for Turkey using UN COD-PS estimates 2021, version 1.0. WorldPop, University of Southampton.
+            doi:10.5258/SOTON/WP00758. CC BY 4.0.
+          </li>
           <li>İl ve ilçe sınırları: OCHA COD-AB Türkiye, kaynağı Harita Genel Müdürlüğü, CC BY-IGO.</li>
           <li>İlçe adları: © OpenStreetMap katkıcıları (ODbL), geoBoundaries üzerinden (Runfola ve diğ., 2020).</li>
           <li>Altlık harita: OpenFreeMap, © OpenMapTiles, © OpenStreetMap katkıcıları.</li>
