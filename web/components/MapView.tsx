@@ -338,7 +338,10 @@ export default function MapView({ period, metric, view, theme, areas, selection,
             promoteId={{ ilceler: "ilce_kodu", iller: "il_kodu" }}
           >
             {/* The heat map: every cell is a square in the colour of its own value, the one the tooltip
-                gives. Antialiasing would draw each square's outline half a pixel into its neighbours. */}
+                gives. The squares are not blended into each other, on purpose: a blend shows colours that
+                no cell has, so the colour under the pointer is not the tooltip's value, and neighbours
+                of 27, 176 and 79 Mbps read as one steady drift (docs/YOL-HARITASI.md, "Hücrelerin
+                çizimi"). Antialiasing would draw each square's outline half a pixel into its neighbours. */}
             <Layer
               id="cells"
               type="fill"
