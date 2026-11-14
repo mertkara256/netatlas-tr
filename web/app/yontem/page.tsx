@@ -189,10 +189,9 @@ export default async function MethodPage() {
           <li>
             <strong>Isı haritası:</strong> Yakınlaşınca Ookla&apos;nın kendi kareleri görünür. Uzaklaştıkça kareler daha büyük
             hücrelerde ({levels.slice(0, -1).reverse().join(", ")}) test ağırlıklı olarak birleşir; her yakınlıkta hücreler
-            ekranda 8–16 piksel genişliktedir. Harita hücreleri sert köşeli kareler olarak çizmez: her hücrenin ortasındaki
-            renk o hücrenin kendi değeridir, iki hücre arasındaki kenara yaklaştıkça renk komşu hücreninkine yumuşakça geçer
-            (hızlar logaritmik ölçekte karıştırılır). Ölçüm olmayan yerler boş kalır. Üzerine gelince gösterilen değerler
-            hücrenin kendi değerleridir.
+            ekranda 8–16 piksel genişliktedir. Her hücre kendi değerinin renginde bir kare olarak çizilir; komşu hücrelerin
+            renkleri birbirine karışmaz. Ölçüm olmayan yerler boş kalır. Üzerine gelince gösterilen değer, karenin renginin
+            gösterdiği değerdir.
           </li>
           <li>
             <strong>Çevrendeki {formatNumber(NEARBY_RADIUS / 1000)} km:</strong> Haritada tıklanan noktaya merkezi{" "}
