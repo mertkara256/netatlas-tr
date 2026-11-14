@@ -144,6 +144,7 @@ def test_province_json_matches_the_tables():
     for row in read_csv(PROVINCE_PATH):
         values = data["iller"][row["il_kodu"]]["hiz"][row["donem"]]
         assert values["test"] == int(row["test"]) and values["indirme_mbps"] == float(row["indirme_mbps"])
+        assert values["olculen_nufus_payi"] == float(row["olculen_nufus_payi"])
     for code, province in data["iller"].items():
         assert set(province["btk"]) == {str(y) for y in data["btk_yillari"]}, code
         for btk in province["btk"].values():
