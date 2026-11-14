@@ -1,5 +1,5 @@
+import type { ExpressionSpecification } from "maplibre-gl";
 import { LOW_TESTS, classIndex, type Metric } from "./metrics";
-import { classPosition } from "./surface";
 
 export type Theme = "light" | "dark";
 
@@ -29,21 +29,68 @@ export const CHART: Record<Theme, { area: string; national: string; grid: string
   dark: { area: "#3987e5", national: "#898781", grid: "#2c2c2a", axis: "#383835", muted: "#898781", surface: "#1a1a19" },
 };
 
-const hex = (c: number) => c.toString(16).padStart(2, "0");
-
-/** A province's or district's fill. Reliability keeps its three classes; a speed takes the heat
- *  map's continuous colour for its value (muted under LOW_TESTS tests), so neighbouring areas in
- *  one class still differ and an area matches the heat map beneath it. */
-export function areaColor(metric: Metric, value: number, tests: number, theme: Theme): string {
-  if (metric.id === "guvenilirlik") return RAMPS[theme].reliability[classIndex(tests, metric.breaks)];
-  const position = classPosition(Math.log(Math.max(value, 0.01)), metric.breaks.map(Math.log)) / (metric.breaks.length + 1);
-  const step = Math.min(HEAT_STEPS - 1, Math.floor(position * HEAT_STEPS));
-  const t = ((tests < LOW_TESTS ? HEAT_LEVELS - 1 : 0) * HEAT_STEPS + step) * 3;
-  const table = heatTable(metric, theme);
-  return `#${hex(table[t])}${hex(table[t + 1])}${hex(table[t + 2])}`;
+/** The legend's edges for a metric, as logarithms: its breaks, with the open-ended classes at both ends given their neighbour's width. */
+function legendEdges(metric: Metric): number[] {
+  const logBreaks = metric.breaks.map(Math.log);
+  const k = logBreaks.length;
+  return [2 * logBreaks[0] - logBreaks[1], ...logBreaks, 2 * logBreaks[k - 1] - logBreaks[k - 2]];
 }
 
-// The heat map colours continuously: each ramp colour sits at the centre of its legend segment
+/**
+ * Where a log value sits along the legend, from 0 to breaks + 1: class i spans [i, i + 1], with the
+ * value placed log-linearly between its breaks.
+ */
+function classPosition(logValue: number, edges: number[]): number {
+  const last = edges.length - 1;
+  if (!(logValue > edges[0])) return 0;
+  if (logValue >= edges[last]) return last;
+  let i = 0;
+  while (logValue >= edges[i + 1]) i++;
+  return i + (logValue - edges[i]) / (edges[i + 1] - edges[i]);
+}
+
+const hex = (c: number) => c.toString(16).padStart(2, "0");
+const hexColor = (rgb: number[]) => `#${rgb.map(hex).join("")}`;
+
+/** A province's or district's fill. Reliability keeps its three classes; a speed takes the
+ *  continuous colour for its value (muted under LOW_TESTS tests), so neighbouring areas in one
+ *  class still differ and an area has the colour a heat map cell of that value has. */
+export function areaColor(metric: Metric, value: number, tests: number, theme: Theme): string {
+  const ramps = RAMPS[theme];
+  if (metric.id === "guvenilirlik") return ramps.reliability[classIndex(tests, metric.breaks)];
+  const position = classPosition(Math.log(Math.max(value, 0.01)), legendEdges(metric)) / (metric.breaks.length + 1);
+  return hexColor(rampColor(tests < LOW_TESTS ? ramps.muted : ramps.full, position));
+}
+
+// Stops per class in a cell's colour expression. MapLibre blends between stops in RGB, which over
+// a quarter of a class is the same colour as the OKLab blend to the eye.
+const CELL_STOPS = 4;
+
+/** A heat map cell's fill for a metric and period, as a MapLibre expression over the cell's own
+ *  properties (d2019, t2019 ...): the colour areaColor() gives that value and test count. */
+export function cellColor(metric: Metric, period: string, theme: Theme): ExpressionSpecification {
+  const ramps = RAMPS[theme];
+  const tests: ExpressionSpecification = ["get", `t${period}`];
+  if (metric.id === "guvenilirlik") {
+    const [first, ...rest] = ramps.reliability;
+    return ["step", tests, first, ...metric.breaks.flatMap((b, i) => [b, rest[i]])] as ExpressionSpecification;
+  }
+  const edges = legendEdges(metric);
+  const classes = edges.length - 1;
+  // A zero average (no upload measured) still needs a logarithm.
+  const logValue: ExpressionSpecification = ["ln", ["max", ["get", `${metric.tileKey}${period}`], 0.01]];
+  const along = (ramp: string[]) => {
+    const stops: (number | string)[] = [];
+    for (let s = 0; s <= classes * CELL_STOPS; s++) {
+      const i = Math.min(classes - 1, Math.floor(s / CELL_STOPS));
+      stops.push(edges[i] + (s / CELL_STOPS - i) * (edges[i + 1] - edges[i]), hexColor(rampColor(ramp, s / CELL_STOPS / classes)));
+    }
+    return ["interpolate", ["linear"], logValue, ...stops] as ExpressionSpecification;
+  };
+  return ["case", ["<", tests, LOW_TESTS], along(ramps.muted), along(ramps.full)];
+}
+
+// Speeds are coloured continuously: each ramp colour sits at the centre of its legend segment
 // and the colours between are blended in OKLab, where these ramps are evenly spaced.
 type Lab = [number, number, number];
 
@@ -78,47 +125,18 @@ function toRgb([L, a, b]: Lab): [number, number, number] {
 
 const mix = (a: Lab, b: Lab, t: number): Lab => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
-/** The ramp's colour at x (0-1 along the legend), mixed toward the muted ramp by `share` (0-1). */
-function rampColor(full: string[], muted: string[] | null, x: number, share = 0): [number, number, number] {
-  const p = Math.min(full.length - 1, Math.max(0, x * full.length - 0.5));
-  const i = Math.min(full.length - 2, Math.floor(p));
-  const at = (ramp: string[]) => mix(toLab(ramp[i]), toLab(ramp[i + 1]), p - i);
-  return toRgb(muted && share > 0 ? mix(at(full), at(muted), share) : at(full));
+/** A ramp's colour at x (0-1 along the legend). */
+function rampColor(ramp: string[], x: number): [number, number, number] {
+  const p = Math.min(ramp.length - 1, Math.max(0, x * ramp.length - 0.5));
+  const i = Math.min(ramp.length - 2, Math.floor(p));
+  return toRgb(mix(toLab(ramp[i]), toLab(ramp[i + 1]), p - i));
 }
 
-/** The ramps for a metric: speeds have a muted twin for few-test values, reliability does not. */
-function heatRamps(metric: Metric, theme: Theme): [string[], string[] | null] {
-  const ramps = RAMPS[theme];
-  return metric.id === "guvenilirlik" ? [ramps.reliability, null] : [ramps.full, ramps.muted];
-}
-
-export const HEAT_STEPS = 256;
-export const HEAT_LEVELS = 9;
-const tables = new Map<string, Uint8ClampedArray>();
-
-/** RGB for HEAT_LEVELS shares of few-test cells x HEAT_STEPS positions along the legend. */
-export function heatTable(metric: Metric, theme: Theme): Uint8ClampedArray {
-  const key = `${theme}/${metric.id === "guvenilirlik"}`;
-  let table = tables.get(key);
-  if (!table) {
-    const [full, muted] = heatRamps(metric, theme);
-    table = new Uint8ClampedArray(HEAT_LEVELS * HEAT_STEPS * 3);
-    for (let level = 0; level < HEAT_LEVELS; level++) {
-      for (let step = 0; step < HEAT_STEPS; step++) {
-        const rgb = rampColor(full, muted, (step + 0.5) / HEAT_STEPS, level / (HEAT_LEVELS - 1));
-        table.set(rgb, (level * HEAT_STEPS + step) * 3);
-      }
-    }
-    tables.set(key, table);
-  }
-  return table;
-}
-
-/** The heat map's colours as a CSS gradient for the legend, full or muted. */
-export function heatGradient(metric: Metric, theme: Theme, mutedRamp = false): string {
-  const [full, muted] = heatRamps(metric, theme);
+/** The speed colours as a CSS gradient for the legend, full or muted. */
+export function heatGradient(theme: Theme, muted = false): string {
+  const ramp = RAMPS[theme][muted ? "muted" : "full"];
   const stops = Array.from({ length: 25 }, (_, i) => {
-    const [r, g, b] = rampColor(mutedRamp && muted ? muted : full, null, i / 24);
+    const [r, g, b] = rampColor(ramp, i / 24);
     return `rgb(${r} ${g} ${b}) ${(i / 24) * 100}%`;
   });
   return `linear-gradient(to right, ${stops.join(", ")})`;

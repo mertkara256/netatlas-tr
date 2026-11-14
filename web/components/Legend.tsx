@@ -26,7 +26,7 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
       </div>
       <div className={styles.legendPeriod}>{periodText(period)}</div>
       {continuous ? (
-        <div className={styles.gradient} style={{ background: heatGradient(metric, theme) }} />
+        <div className={styles.gradient} style={{ background: heatGradient(theme) }} />
       ) : (
         <div className={styles.swatches} style={columns}>
           {colors.map((c) => <span key={c} style={{ background: c }} />)}
@@ -48,7 +48,7 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
       )}
       {!reliability && (
         <div className={styles.legendRow}>
-          <span className={`${styles.gradient} ${styles.small}`} style={{ background: heatGradient(metric, theme, true) }} />
+          <span className={`${styles.gradient} ${styles.small}`} style={{ background: heatGradient(theme, true) }} />
           <span>Gri: {LOW_TESTS}&apos;dan az test (belirsiz)</span>
         </div>
       )}

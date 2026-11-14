@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as MapLibreMap } from "maplibre-gl";
 import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
-import { RAMPS, areaColor, type Theme } from "@/lib/colors";
+import { RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
 import { BASE_PATH, CELL_SIZE, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { heatTile } from "@/lib/heatTiles";
 import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { vectorTile } from "@/lib/siteTiles";
@@ -16,11 +15,8 @@ import type { HoverInfo } from "./Tooltip";
 
 // Copied into public/ by scripts/copy-maplibre-worker.mjs before dev and build.
 setWorkerUrl(`${BASE_PATH}/maplibre-gl-worker.mjs`);
-// Both of our tile sources read the single PMTiles file with range requests, through one archive
-// that fetches each tile once for both (lib/siteTiles.ts): the vector tiles as they are, and the
-// heat map's smooth raster tiles painted from their speed cells (lib/heatTiles.ts).
+// Our tiles come from the single PMTiles file, read with range requests (lib/siteTiles.ts).
 addProtocol("harita", vectorTile);
-addProtocol("isi", heatTile);
 
 // OpenFreeMap: free vector basemaps, no API key.
 const BASEMAPS: Record<Theme, string> = {
@@ -293,6 +289,8 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     return ["match", ["get", key], ...pairs, RAMPS[theme].noData] as unknown as ExpressionSpecification;
   }, [view, areas, period.id, metric, theme]);
 
+  const cellFill = useMemo(() => cellColor(metric, period.id, theme), [metric, period.id, theme]);
+
   const point = selection?.point;
   const nearbyCircle = useMemo(() => (point ? circle(point, NEARBY_RADIUS) : null), [point]);
 
@@ -329,26 +327,6 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         style={{ position: "absolute", inset: 0 }}
       >
         <NavigationControl showCompass={false} />
-        {/* Added first, so it lies under the borders. Its tiles change with the period, metric and theme. */}
-        {loaded?.theme === theme && (
-          <Source
-            key={`isi-${theme}`}
-            id="isi"
-            type="raster"
-            tiles={[`isi://${period.id}/${metric.id}/${theme}/{z}/{x}/{y}`]}
-            tileSize={512}
-            maxzoom={TILE_MAXZOOM}
-            bounds={CELL_BOUNDS}
-          >
-            <Layer
-              id="heat"
-              type="raster"
-              layout={visible(view === "kareler")}
-              paint={{ "raster-resampling": "linear", "raster-fade-duration": 0 }}
-              beforeId={before}
-            />
-          </Source>
-        )}
         {loaded?.theme === theme && (
           <Source
             key={theme}
@@ -359,14 +337,15 @@ export default function MapView({ period, metric, view, theme, areas, selection,
             bounds={CELL_BOUNDS}
             promoteId={{ ilceler: "ilce_kodu", iller: "il_kodu" }}
           >
-            {/* The heat map draws the cells smoothly; this invisible copy gives the tooltip each cell's own values. */}
+            {/* The heat map: every cell is a square in the colour of its own value, the one the tooltip
+                gives. Antialiasing would draw each square's outline half a pixel into its neighbours. */}
             <Layer
               id="cells"
               type="fill"
               source-layer="hucreler"
               filter={["has", `t${period.id}`]}
               layout={visible(view === "kareler")}
-              paint={{ "fill-opacity": 0 }}
+              paint={{ "fill-color": cellFill, "fill-antialias": false }}
               beforeId={before}
             />
             {(["ilceler", "iller"] as const).map((layer) => (

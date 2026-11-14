@@ -1,6 +1,6 @@
-// The map's vector source (borders, tooltip, clicks) and the heat map read the same tiles of the
-// site's archive, often within moments of each other or one zoom apart. Each tile is fetched once
-// for both; a failed fetch is tried once more with a fresh archive (lib/retry.ts).
+// The map's vector source reads its tiles from the site's archive. A tile is kept after its first
+// read, so a basemap switch, which adds the source afresh, does not fetch it again; a failed fetch
+// is tried once more with a fresh archive (lib/retry.ts).
 import type { AddProtocolAction } from "maplibre-gl";
 import { invalidateSiteArchive, siteArchive } from "./nearby";
 import { retryOnce } from "./retry";
