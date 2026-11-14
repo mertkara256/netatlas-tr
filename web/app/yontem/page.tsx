@@ -221,7 +221,8 @@ export default async function MethodPage() {
           %30–43, 50–{HIGH_TESTS - 1} testte %22–31, {HIGH_TESTS}–499 testte %16–18&apos;dir (2024 ve Güncel). İl ve ilçeler aynı
           test sayısında benzer oynar. Güncel dönemde karelerin %59&apos;u düşük güvenilirlikte ama bu kareler testlerin
           yalnızca %3&apos;ünü tutar; testlerin %62&apos;si yüksek güvenilirlikteki karelerdedir. Haritada düşük güvenilirlikteki değerler
-          aynı açıklıkta ama gri gösterilir: açıklık hızı, grilik belirsizliği anlatır.
+          içi boş gösterilir: çerçeve değerin kendi rengindedir, içi soluk kalır. Renk hızı, içinin boş olması belirsizliği
+          anlatır.
         </p>
       </section>
 
