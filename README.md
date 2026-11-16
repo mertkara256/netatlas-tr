@@ -12,7 +12,7 @@
 - How reliable each value is, based on the number of tests behind it.
 - Yearly views from 2019 to 2025, plus a "current" view of the latest four published quarters.
 - Fixed-broadband subscriptions per 100 people and fiber share per province, from BTK (Türkiye's telecom regulator).
-- The share of each province's and district's residents who live in squares where a test was run.
+- The share of each province's and district's residents who live in or next to a square where a test was run.
 
 It shows what people actually measured in an area, not the maximum speed available at a specific address.
 
@@ -45,7 +45,7 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 - Her değerin ne kadar güvenilir olduğu (arkasındaki test sayısına göre).
 - 2019–2025 yıllık görünümler ve yayınlanmış son dört çeyreği gösteren "Güncel" görünüm.
 - BTK'dan il bazında 100 kişiye sabit abonelik ve fiber payı.
-- Her il ve ilçede nüfusun, ölçüm yapılan karelerde yaşayan payı.
+- Her il ve ilçede nüfusun, ölçüm yapılan karelerde ya da hemen yanlarında yaşayan payı.
 
 Belirli bir adrese verilebilecek en yüksek hızı değil, bir bölgede insanların gerçekten ölçtüğü hızı gösterir.
 

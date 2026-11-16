@@ -112,7 +112,7 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
         )}
         {v?.olculen_nufus_payi != null && n?.olculen_nufus_payi != null && (
           <p className={styles.note}>
-            Nüfusun ölçüm yapılan karelerde yaşayan payı: {percent(v.olculen_nufus_payi)} (Türkiye {percent(n.olculen_nufus_payi)}).
+            Nüfusun ölçüm yapılan karelerde ya da hemen yanlarında yaşayan payı: {percent(v.olculen_nufus_payi)} (Türkiye {percent(n.olculen_nufus_payi)}).
           </p>
         )}
         {v && v.test < LOW_TESTS && <p className={styles.note}>{LOW_TESTS}&apos;dan az test var; değerler belirsiz.</p>}
