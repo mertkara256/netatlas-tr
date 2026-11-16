@@ -1,15 +1,29 @@
 """Checks on the province, district and tile values (run `python -m pipeline.build` first)."""
 import csv
+import json
 from collections import defaultdict
 
+import numpy as np
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pytest
+import shapely
 
-from pipeline.boundaries import DISTRICT_LIST_PATH
+from pipeline.boundaries import DISTRICT_LIST_PATH, PROVINCES_PATH
 from pipeline.btk import OUT_PATH as BTK_PATH
-from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, RELIABILITY, TILES_PATH, available_quarters, periods
-from pipeline.common import PROVINCES, lonlat_to_tile, tile_to_quadkey
+from pipeline.build import (
+    DISTRICT_PATH,
+    NATIONAL,
+    PROVINCE_PATH,
+    RELIABILITY,
+    TILES_PATH,
+    assign,
+    available_quarters,
+    grid_ids,
+    near_measured,
+    periods,
+)
+from pipeline.common import PROVINCES, lonlat_to_tile, quadkey_to_tile, tile_to_quadkey
 from pipeline.ookla import output_path
 from pipeline.population import OUT_PATH as POPULATION_PATH
 
@@ -80,6 +94,15 @@ def test_periods_are_calendar_years_plus_the_latest_four_quarters():
     with_next = periods(quarters + [(2026, 4), (2027, 1)])
     assert list(with_next) == [*PERIODS[:-1], "2026", "guncel"]
     assert with_next["guncel"] == [(2026, 2), (2026, 3), (2026, 4), (2027, 1)]
+
+
+def test_residents_count_as_measured_in_or_next_to_a_measured_tile():
+    measured = grid_ids([tile_to_quadkey(100, 100, 16)])
+    around = [(100, 100), (99, 99), (101, 99), (99, 101), (101, 101), (100, 101)]
+    further = [(102, 100), (100, 98), (98, 102)]
+    tiles = grid_ids([tile_to_quadkey(x, y, 16) for x, y in around + further])
+    assert near_measured(tiles, measured).tolist() == [True] * len(around) + [False] * len(further)
+    assert not near_measured(tiles, np.array([], dtype=np.int64)).any()
 
 
 def test_every_province_has_every_period(provinces):
@@ -199,7 +222,7 @@ def test_places_outside_turkiye_are_left_out(tiles, place, lonlat):
 
 @pytest.mark.parametrize("code", ["69", "79", NATIONAL])  # Bayburt, Kilis, Türkiye
 @pytest.mark.parametrize("period", ["2020", "guncel"])
-def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, population, code, period):
+def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, code, period):
     """Recompute from the downloaded quarters: every tile-quarter weighted by its devices."""
     members = tiles.filter(pc.equal(tiles["donem"], period))
     if code != NATIONAL:
@@ -222,5 +245,37 @@ def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, pop
     assert float(row["yukleme_mbps"]) == round(u_sum / devices / 1000, 1)
     assert float(row["gecikme_ms"]) == round(lat_sum / devices, 1)
     assert float(row["tek_kare_payi"]) == round(max(per_tile.values()) / devices, 3)
-    residents = sum(population.get(quadkey, 0) for quadkey in keep)
-    assert float(row["olculen_nufus_payi"]) == pytest.approx(residents / int(row["nufus"]), abs=0.001)
+
+
+@pytest.mark.parametrize("code", ["69", "79"])  # Bayburt, Kilis (on the Syrian border)
+@pytest.mark.parametrize("period", ["2020", "guncel"])
+def test_measured_residents_match_a_hand_calculation(tiles, provinces, population, code, period):
+    """Tile by tile: a resident counts as measured when a test was run in their tile or one of the
+    eight around it, whichever province that tile belongs to."""
+    features = json.loads(PROVINCES_PATH.read_text(encoding="utf-8"))["features"]
+    shape = next(shapely.geometry.shape(f["geometry"]) for f in features if f["properties"]["il_kodu"] == code)
+    west, south, east, north = shape.bounds
+    (x0, y0), (x1, y1) = lonlat_to_tile(west, north, 16), lonlat_to_tile(east, south, 16)
+    nearby = [q for q in population if x0 <= quadkey_to_tile(q)[0] <= x1 and y0 <= quadkey_to_tile(q)[1] <= y1]
+    owners = assign(nearby)
+    mine = [q for q, owner in zip(owners["quadkey"].to_pylist(), owners["il_kodu"].to_pylist(), strict=True) if owner == code]
+    in_period = tiles.filter(pc.equal(tiles["donem"], period))
+    measured = {quadkey_to_tile(q)[:2] for q in in_period["quadkey"].to_pylist()}
+
+    def near(quadkey):
+        x, y, _ = quadkey_to_tile(quadkey)
+        return any((x + dx, y + dy) in measured for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+
+    residents = sum(population[q] for q in mine)
+    row = provinces[code, period]
+    assert int(row["nufus"]) == pytest.approx(residents, abs=1)
+    assert float(row["olculen_nufus_payi"]) == pytest.approx(sum(population[q] for q in mine if near(q)) / residents, abs=0.001)
+
+
+@pytest.mark.parametrize("province, district", [("Rize", "Hemşin"), ("Aksaray", "Güzelyurt")])
+def test_towns_with_many_tests_count_as_measured(districts, district_list, province, district):
+    """Their tests fall one tile off the most populated tiles: with the same tile only, 12% and 35%."""
+    code = next(c for c, d in district_list.items() if (d["il"], d["ilce"]) == (province, district))
+    row = districts[code, "guncel"]
+    assert int(row["test"]) >= 200
+    assert float(row["olculen_nufus_payi"]) > 0.8

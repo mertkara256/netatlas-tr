@@ -149,7 +149,7 @@ export default async function MethodPage() {
         <div className={styles.tableScroll}>
           <table className={styles.table}>
             <caption className={styles.caption}>
-              Türkiye genelinde, ölçüm olan 475 m&apos;lik kareler, test sayısı ve nüfusun bu karelerde yaşayan payı
+              Türkiye genelinde, ölçüm olan 475 m&apos;lik kareler, test sayısı ve nüfusun bu karelerde ya da hemen yanlarında yaşayan payı
             </caption>
             <thead>
               <tr>
@@ -201,8 +201,11 @@ export default async function MethodPage() {
           </li>
           <li>
             <strong>Ölçüm yapılan karelerdeki nüfus:</strong> Haritanın çoğu boştur, çünkü ölçümler insanların yaşadığı
-            yerlerde toplanır. Bir alanın nüfusunun ne kadarının, o dönemde en az bir test yapılmış karelerde yaşadığı
-            bölge panelinde ve yukarıdaki tabloda verilir. Nüfusun kareler arasındaki dağılımı WorldPop&apos;tan gelir:
+            yerlerde toplanır. Bir alanın nüfusunun ne kadarının, o dönemde en az bir test yapılmış bir karede ya da onun
+            hemen yanındaki sekiz kareden birinde yaşadığı bölge panelinde ve yukarıdaki tabloda verilir. Yandaki kareler
+            de sayılır, çünkü küçük bir yerleşimin testleri çoğu zaman en kalabalık karesinin bir yanına düşer: yalnızca
+            aynı kare sayıldığında 264 testli Hemşin&apos;de nüfusun %12&apos;si ölçülmüş görünüyordu, yandakilerle %96&apos;sı.
+            Nüfusun kareler arasındaki dağılımı WorldPop&apos;tan gelir:
             TÜİK&apos;in 2021 ilçe nüfuslarını, uydudan görülen yapılaşmaya göre ~100 m&apos;lik hücrelere dağıtır. Her
             hücre, merkezinin düştüğü kareye eklenir; kareler il ve ilçelere testlerle aynı kuralla atanır. Bu yolla
             bulunan il nüfusları, TÜİK&apos;in 2021 il nüfuslarından en çok %2 ayrılır.
@@ -290,8 +293,9 @@ export default async function MethodPage() {
           <li><strong>2020 ve 2021</strong> için Ookla verisi seyrektir (bkz. dönemler).</li>
           <li>
             <strong>Nüfus payı kabadır.</strong> Nüfusun dağılımı 2021&apos;e aittir ve bir modelden gelir; sonraki göçleri
-            (ör. 2023 depremleri) görmez. Bir test, evin bulunduğu karenin yanındaki kareye düşmüşse o evdekiler
-            ölçülmüş sayılmaz. Pay, o karelerdeki herkesin ölçüldüğünü de söylemez: tek bir test yapılan kare de sayılır.
+            (ör. 2023 depremleri) görmez. Testler bir yerleşimin merkezinden iki kare ya da daha uzakta toplanmışsa pay
+            düşük çıkar (ör. Hazro). Pay, bu karelerdeki herkesin ölçüldüğünü de söylemez: tek bir test yapılan kare ve
+            yanındaki kareler de sayılır.
           </li>
           <li><strong>BTK verisi yalnızca il düzeyindedir;</strong> ilçe panellerinde ilin değerleri gösterilir.</li>
           <li>
