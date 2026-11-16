@@ -175,6 +175,19 @@ export default async function MethodPage() {
           2020 ve 2021&apos;in çoğu çeyreğinde kare ve test sayısı belirgin şekilde az. Bu bir hata değil, Ookla&apos;nın
           o dönemki dosyalarından geliyor (dünya genelinde de daha az kare var); bu yıllar daha az güvenilirdir.
         </p>
+        <p>
+          <strong>2025&apos;in son çeyreğinde ölçülen hızlar bir anda yükseldi ve bunun nedenini bilmiyoruz.</strong> Aynı
+          karelerde ortalama indirme hızı bir çeyrekte %22 arttı; 2022&apos;den bu yana çoğu çeyrekte artış %4–12 arasındaydı.
+          Artış Ookla&apos;nın verisinde var ve Türkiye&apos;ye özgü: aynı çeyrekte Yunanistan ve Bulgaristan&apos;da %7–11, Berlin ve
+          Madrid&apos;de %4–6. Yeterli ölçümü olan illerin onda dokuzunda %16&apos;nın üstünde ve en çok yavaş bağlantılarda.
+          Testleri yapan cihazlar ve test sıklığı değişmeyen yerlerde de neredeyse aynı büyüklükte. Abonelerin paketleri ise ani bir
+          değişim göstermiyor: BTK&apos;ya göre 50 Mbps üstü paket kullananların payı o çeyrekte %37,9&apos;dan %41,6&apos;ya, bir sonraki
+          çeyrekte %44,6&apos;ya çıktı (
+          <a href="https://www.btk.gov.tr/s3/web-btk-site/7708c26c-5161-4919-8b3d-daa31d4ac8fb/2026/08/f092061c-9663-495b-8881-9900b1724e25.pdf">
+            BTK Üç Aylık Pazar Verileri Raporu, 2025 Ç4
+          </a>
+          , Şekil 3-4). 2025 ve Güncel değerlerinin önceki yıllardan bu kadar yüksek çıkmasının bir kısmı bu çeyrekten gelir.
+        </p>
       </section>
 
       <section id="hesaplama" className={styles.prose}>
