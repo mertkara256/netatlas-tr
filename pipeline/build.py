@@ -11,8 +11,8 @@ checks (2024 and the current period) found area values more repeatable this way:
 5,000 tests 6-20% instead of 14-25%. Within a tile, weighting by devices changes nothing.
 
 Each area also gets its residents (WorldPop, see population.py) and the share of them living in
-tiles with at least one test in the period: how much of the area's population the measurements
-stand for. Residents are assigned tile by tile, the same way as the tests.
+or next to a tile with at least one test in the period: how much of the area's population the
+measurements stand for. Residents are assigned tile by tile, the same way as the tests.
 
 A tile counts for Türkiye when at least 20% of its area is Turkish land. Coastal tiles whose
 centre is offshore stay in; tiles across a land border (e.g. Qamishli) stay out. It goes to the
@@ -54,6 +54,13 @@ MIN_LAND_SHARE = 0.2
 RELIABILITY = [(200, "yuksek"), (10, "orta"), (0, "dusuk")]
 # Per tile-quarter: tests and devices, and each average times tests (for tiles) and times devices (for areas).
 SUMS = ["tests", "d_sum", "u_sum", "lat_sum", "devices", "d_dev", "u_dev", "lat_dev"]
+# A resident counts as measured when a test was run in their tile or one of the eight around it.
+# The two grids line up (tests and residents coincide most in the same tile, falling off evenly in
+# every direction), but a small town's tests often land one tile off its most populated tiles. With
+# the same tile only, 14-40 districts per period had 50+ tests and under 20% of residents measured
+# (Hemşin, current period: 264 tests, 12%); with the tiles around, 0-3 (Hemşin 96%). Two tiles out
+# (~1 km) removes at most two more per period and raises Türkiye's current share from 93% to 95%.
+NEIGHBOURS = 1
 VALUE_COLUMNS = ["kare", "test", "cihaz", "indirme_mbps", "yukleme_mbps", "gecikme_ms", "guvenilirlik", "tek_kare_payi",
                  "nufus", "olculen_nufus_payi"]
 
@@ -148,7 +155,7 @@ def reliability(tests: float) -> str:
 def values(tiles: int, tests: float, devices: float, d_dev: float, u_dev: float, lat_dev: float, top: float,
            residents: float, measured: float) -> list:
     """An area's row: device-weighted speeds, the share of the weight its largest tile holds, its
-    residents and the share of them living in the measured tiles."""
+    residents and the share of them living in or next to a measured tile."""
     return [tiles, int(tests), int(devices), round(d_dev / devices / 1000, 1), round(u_dev / devices / 1000, 1),
             round(lat_dev / devices, 1), reliability(tests), round(top / devices, 3),
             round(residents), round(measured / residents, 3)]
@@ -181,6 +188,19 @@ def area_totals(pooled: pa.Table, key: str) -> dict[str, list[float]]:
     return {code: list(row) for code, *row in zip(grouped[key].to_pylist(), *columns, strict=True)}
 
 
+def grid_ids(quadkeys: list[str]) -> np.ndarray:
+    """y * 2^16 + x of each zoom-16 quadkey, so neighbouring tiles are a fixed number apart."""
+    xy = np.array([quadkey_to_tile(q)[:2] for q in quadkeys], dtype=np.int64)
+    return xy[:, 1] * 2 ** 16 + xy[:, 0]
+
+
+def near_measured(tiles: np.ndarray, measured: np.ndarray) -> np.ndarray:
+    """For each tile (grid_ids), whether a measured tile lies within NEIGHBOURS tiles of it, itself included."""
+    steps = range(-NEIGHBOURS, NEIGHBOURS + 1)
+    offsets = np.array([dy * 2 ** 16 + dx for dy in steps for dx in steps])
+    return np.isin(tiles[:, None] + offsets, measured).any(axis=1)
+
+
 def residents_by(tiles: pa.Table, key: str) -> dict[str, float]:
     grouped = tiles.group_by(key).aggregate([("nufus", "sum")])
     return dict(zip(grouped[key].to_pylist(), grouped["nufus_sum"].to_pylist(), strict=True))
@@ -194,6 +214,7 @@ def main() -> None:
     quadkeys = pc.unique(pa.concat_arrays([t["quadkey"].combine_chunks() for t in [*data.values(), population]]))
     assignment = assign(quadkeys.to_pylist())
     population = population.join(assignment, "quadkey", join_type="inner")
+    population_ids = grid_ids(population["quadkey"].to_pylist())
     residents = {key: residents_by(population, key) for key in ("il_kodu", "ilce_kodu")}
 
     with DISTRICT_LIST_PATH.open(encoding="utf-8") as f:
@@ -208,7 +229,7 @@ def main() -> None:
                   .sort_by("quadkey"))
         tiles.append(tile_table(period, pooled))
 
-        measured_tiles = population.join(pooled.select(["quadkey"]), "quadkey", join_type="inner")
+        measured_tiles = population.filter(near_measured(population_ids, grid_ids(pooled["quadkey"].to_pylist())))
         measured = {key: residents_by(measured_tiles, key) for key in ("il_kodu", "ilce_kodu")}
 
         provinces = area_totals(pooled, "il_kodu")
