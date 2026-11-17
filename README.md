@@ -6,6 +6,16 @@
 
 > **Site:** https://mertkara256.github.io/netatlas-tr/ · Built step by step following the [roadmap](docs/YOL-HARITASI.md) (in Turkish).
 
+[![The NetAtlas TR map: measured download speeds across Türkiye, lighter squares faster](docs/gorseller/harita.png)](https://mertkara256.github.io/netatlas-tr/)
+
+## At a glance
+
+- Türkiye's average measured home download speed rose from **20.9 Mbps in 2019 to 143.0 Mbps in 2025**, almost seven times as fast. Upload went from 5.2 to 45.4 Mbps, latency from 26 to 14 ms.
+- In 2025 alone: 5.0 million Speedtest results from 1.6 million devices, on about 99,000 squares of 475 m.
+- 93% of residents live in or next to a square where someone ran a test.
+
+![The map from 2019 to the latest four quarters: the squares grow lighter, that is faster, year by year](docs/gorseller/donemler.gif)
+
 ## What it shows
 
 - Average download, upload and latency from Ookla's open Speedtest data as a heat map: Ookla's own ~475 m squares (at Türkiye's latitude) up close, merged into larger cells as you zoom out, plus province and district summaries.
@@ -14,7 +24,9 @@
 - Fixed-broadband subscriptions per 100 people and fiber share per province, from BTK (Türkiye's telecom regulator).
 - The share of each province's and district's residents who live in or next to a square where a test was run.
 
-It shows what people actually measured in an area, not the maximum speed available at a specific address.
+![Zoomed in on Kadıköy, İstanbul: 475 m squares, and the district's panel with its speeds, tests and trend since 2019](docs/gorseller/kadikoy.png)
+
+It shows what people actually measured in an area, not the maximum speed available at a specific address. How the values are computed, what to keep in mind and all sources are on the [methodology page](https://mertkara256.github.io/netatlas-tr/yontem/) (in Turkish).
 
 ## Data sources
 
@@ -39,6 +51,14 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 
 > **Site:** https://mertkara256.github.io/netatlas-tr/ · Proje [yol haritasına](docs/YOL-HARITASI.md) göre adım adım geliştiriliyor.
 
+### Bir bakışta
+
+- Türkiye'de evlerde ölçülen ortalama indirme hızı **2019'da 20,9 Mbps'ten 2025'te 143,0 Mbps'e** çıktı, yaklaşık yedi kat. Yükleme 5,2'den 45,4 Mbps'e çıktı, gecikme 26'dan 14 ms'ye indi.
+- Yalnızca 2025'te: 1,6 milyon cihazdan 5,0 milyon Speedtest ölçümü, 475 m'lik yaklaşık 99.000 karede.
+- Nüfusun %93'ü, ölçüm yapılmış bir karede ya da hemen yanında yaşıyor.
+
+![2019'dan son dört çeyreğe harita: kareler yıldan yıla açılıyor, yani hızlanıyor](docs/gorseller/donemler.gif)
+
 ### Neler gösteriyor
 
 - Ookla'nın açık Speedtest verisinden ortalama indirme, yükleme ve gecikme, ısı haritası olarak: yakınlaşınca Ookla'nın kendi ~475 m'lik kareleri, uzaklaştıkça daha büyük hücreler. Ayrıca il ve ilçe özetleri.
@@ -47,7 +67,9 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 - BTK'dan il bazında 100 kişiye sabit abonelik ve fiber payı.
 - Her il ve ilçede nüfusun, ölçüm yapılan karelerde ya da hemen yanlarında yaşayan payı.
 
-Belirli bir adrese verilebilecek en yüksek hızı değil, bir bölgede insanların gerçekten ölçtüğü hızı gösterir.
+![Kadıköy'e yakından: 475 m'lik kareler ve ilçenin hızlarını, test sayısını ve 2019'dan bu yana değişimini gösteren panel](docs/gorseller/kadikoy.png)
+
+Belirli bir adrese verilebilecek en yüksek hızı değil, bir bölgede insanların gerçekten ölçtüğü hızı gösterir. Değerlerin nasıl hesaplandığı, nelere dikkat etmek gerektiği ve tüm kaynaklar [yöntem sayfasında](https://mertkara256.github.io/netatlas-tr/yontem/).
 
 ### Veri kaynakları ve lisans
 

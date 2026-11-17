@@ -46,11 +46,13 @@ netatlas-tr/
 │  ├─ population.py   WorldPop nüfus ızgarası → kare başına nüfus
 │  ├─ build.py        illere/ilçelere eşleme, yıllık toplama, güvenilirlik
 │  ├─ tiles.py        karolar → PMTiles (tippecanoe)
+│  ├─ preview.py      bağlantı önizleme resmi (son dönemin ısı haritası)
 │  └─ tests/          veri doğruluk testleri (pytest)
 ├─ web/               Next.js + TypeScript, statik çıktı
 │  ├─ app/            ana sayfa, /il/[ad], /yontem
 │  ├─ components/     harita, gösterge, bölge paneli, grafikler
 │  └─ public/data/    veri hattının ürettiği dosyalar
+├─ docs/gorseller/    README'deki ekran görüntüleri
 └─ .github/workflows/ testler, yayın, çeyreklik güncelleme
 ```
 
