@@ -1,3 +1,4 @@
+import { cellsArchive } from "./data";
 import { invalidateSiteArchive, nearby, siteArchive, type Nearby } from "./nearby";
 
 export type NearbyRequestResult = { status: "ready"; value: Nearby | null } | { status: "error" };
@@ -8,7 +9,7 @@ export function startNearbyRequest(lon: number, lat: number, period: string, onR
   let archive: ReturnType<typeof siteArchive> | undefined;
   // The promise also catches synchronous archive initialization failures.
   Promise.resolve().then(() => {
-    archive = siteArchive();
+    archive = siteArchive(cellsArchive(period));
     return nearby(archive, lon, lat, period);
   }).then(
     (value) => { if (!cancelled) onResult({ status: "ready", value }); },

@@ -5,7 +5,11 @@ export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 export const SITE_ORIGIN = process.env.SITE_ORIGIN ?? "http://localhost:3000";
 // Files written by the data pipeline (`uv run python -m pipeline.tiles`) into public/data/.
 export const DATA_DIR = `${BASE_PATH}/data`;
-export const PMTILES_PATH = `${DATA_DIR}/harita.pmtiles`;
+// The tile archives: district and province shapes in one, each period's heat map cells in their own,
+// so a view downloads only the period on screen (pipeline/tiles.py).
+export const BORDERS_ARCHIVE = "sinirlar";
+export const cellsArchive = (period: string) => `kareler-${period}`;
+export const archivePath = (name: string) => `${DATA_DIR}/${name}.pmtiles`;
 
 // A period is a calendar year ("2019") or "guncel", the latest four published quarters.
 export type PeriodInfo = { id: string; ad: string; aralik: string };
