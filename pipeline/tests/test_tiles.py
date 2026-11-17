@@ -12,10 +12,11 @@ from datetime import date
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pytest
+import shapely
 
 from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, TILES_PATH
-from pipeline.common import PROVINCES, ROOT, lonlat_to_tile, normalize_name, tile_to_quadkey
-from pipeline.tiles import LEVELS, MAX_ZOOM, OUT_DIR, PMTILES_PATH, cell_features, tile_zooms
+from pipeline.common import PROVINCES, ROOT, lonlat_to_tile, normalize_name, quadkey_to_tile, tile_bounds, tile_to_quadkey
+from pipeline.tiles import FOOTPRINT_DEPTH, LEVELS, MAX_ZOOM, OUT_DIR, PMTILES_PATH, cell_features, tile_zooms
 
 PERIODS = [str(y) for y in range(2019, 2026)] + ["guncel"]
 
@@ -56,21 +57,41 @@ def test_every_tile_zoom_shows_exactly_one_level():
 
 
 def quadkey_of(feature):
-    """The cell a feature draws, found from its centre (tippecanoe may move ring starts)."""
-    ring = feature["geometry"]["coordinates"][0]
-    lon = (min(c[0] for c in ring) + max(c[0] for c in ring)) / 2
-    lat = (min(c[1] for c in ring) + max(c[1] for c in ring)) / 2
+    """The cell a feature belongs to, found from a point inside its shape (a cell is drawn only where
+    its measured parts are, so its shape need not be centred)."""
+    point = shapely.geometry.shape(feature["geometry"]).representative_point()
     level = feature["properties"]["seviye"]
-    return tile_to_quadkey(*lonlat_to_tile(lon, lat, level), level)
+    return tile_to_quadkey(*lonlat_to_tile(point.x, point.y, level), level)
+
+
+def period_of(feature):
+    """Each feature carries one period's values."""
+    (key,) = [k for k in feature["properties"] if k.startswith("t")]
+    return key[1:]
 
 
 def test_level_16_cells_are_the_tiles(bayburt):
     tiles, features = bayburt
-    squares = {quadkey_of(f): f["properties"] for f in features if f["properties"]["seviye"] == 16}
+    squares = {(quadkey_of(f), period_of(f)): f["properties"] for f in features if f["properties"]["seviye"] == 16}
     for row in tiles.to_pylist():
-        cell = squares[row["quadkey"]]
+        cell = squares[row["quadkey"], row["donem"]]
         assert (cell[f"t{row['donem']}"], cell[f"d{row['donem']}"]) == (row["test"], row["indirme_mbps"])
-    assert len(squares) == len(set(tiles["quadkey"].to_pylist()))
+    assert len(squares) == tiles.num_rows
+
+
+def test_each_cell_is_drawn_where_its_squares_were_measured(bayburt):
+    """A cell's shape is the tiles FOOTPRINT_DEPTH levels down that hold a square measured in that
+    period (built here from tile_bounds, independently of the pipeline's grid maths), inside the cell."""
+    tiles, features = bayburt
+    rows = tiles.to_pylist()
+    for f in features:
+        level, period, cell = f["properties"]["seviye"], period_of(f), quadkey_of(f)
+        part_level = min(level + FOOTPRINT_DEPTH, 16)
+        parts = {r["quadkey"][:part_level] for r in rows if r["donem"] == period and r["quadkey"].startswith(cell)}
+        expected = shapely.union_all([shapely.box(*tile_bounds(*quadkey_to_tile(q))) for q in parts])
+        shape = shapely.geometry.shape(f["geometry"])
+        assert shape.symmetric_difference(expected).area < 1e-9 * expected.area, (cell, period)
+        assert shapely.box(*tile_bounds(*quadkey_to_tile(cell))).buffer(1e-9).contains(shape), (cell, period)
 
 
 def test_every_level_holds_all_tests_and_the_same_average(bayburt):
@@ -128,8 +149,8 @@ def test_a_square_keeps_its_values_in_the_tiles():
     assert len(rows) == len(PERIODS)
     found = [f["properties"] for f in decode(MAX_ZOOM, *lonlat_to_tile(29.03, 40.99, MAX_ZOOM))["hucreler"]
              if quadkey_of(f) == quadkey]
-    assert len(found) == 1
-    assert {k: found[0][k] for k in expected} == expected
+    assert len(found) == len(PERIODS)  # one feature per period
+    assert {k: v for props in found for k, v in props.items() if k in expected} == expected
 
 
 def test_province_json_matches_the_tables():
