@@ -66,6 +66,10 @@ function hatch(color: string): ImageData {
   }
   return context.getImageData(0, 0, size, size);
 }
+// Zoomed out, a cell is drawn only where it was measured, in parts 1-2 px wide (FOOTPRINT_DEPTH in
+// pipeline/tiles.py). Over the gaps between them the tooltip takes a part this many px away, so a
+// value can be read without aiming at a single pixel.
+const HIT_SLOP = 4;
 // Share of the map the region panel covers on phones (max-height in RegionPanel.module.css).
 const PHONE_SHEET_SHARE = 0.62;
 
@@ -242,7 +246,10 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   }, [highlight, onHover]);
 
   const handlePointer = useCallback((e: MapLayerMouseEvent) => {
-    const feature = e.features?.[0];
+    const { x, y } = e.point;
+    const feature = e.features?.[0] ?? (view === "kareler" && e.target.getLayer("cells")
+      ? e.target.queryRenderedFeatures([[x - HIT_SLOP, y - HIT_SLOP], [x + HIT_SLOP, y + HIT_SLOP]], { layers: ["cells"] })[0]
+      : undefined);
     if (!feature) return clear();
     const container = e.target.getContainer();
     const base = { x: e.point.x, y: e.point.y, width: container.clientWidth, height: container.clientHeight };
@@ -379,11 +386,13 @@ export default function MapView({ period, metric, view, theme, areas, selection,
             bounds={CELL_BOUNDS}
             promoteId={{ ilceler: "ilce_kodu", iller: "il_kodu" }}
           >
-            {/* The heat map: every cell is a square in the colour of its own value, the one the tooltip
-                gives. The squares are not blended into each other, on purpose: a blend shows colours that
-                no cell has, so the colour under the pointer is not the tooltip's value, and neighbours
-                of 27, 176 and 79 Mbps read as one steady drift (docs/YOL-HARITASI.md, "Hücrelerin
-                çizimi"). Antialiasing would draw each square's outline half a pixel into its neighbours. */}
+            {/* The heat map: every cell is drawn in the colour of its own value, the one the tooltip
+                gives, and only on its measured parts: zoomed out, filling whole cells painted up to 37
+                times the measured area. Each period is its own feature, as its parts differ. Cells are
+                not blended into each other, on purpose: a blend shows colours that no cell has, so the
+                colour under the pointer is not the tooltip's value, and neighbours of 27, 176 and 79
+                Mbps read as one steady drift (docs/YOL-HARITASI.md, "Hücrelerin çizimi"). Antialiasing
+                would draw each part's outline half a pixel into its neighbours. */}
             <Layer
               id="cells"
               type="fill"

@@ -60,7 +60,12 @@ export default function Legend({ metric, period, view, theme, panelOpen }: {
           <span>{view === "kareler" ? "İçi boş" : "Taralı"}: {LOW_TESTS}&apos;dan az test (belirsiz)</span>
         </div>
       )}
-      {view !== "kareler" && (
+      {view === "kareler" ? (
+        <div className={styles.legendRow}>
+          <span className={`${styles.noData} ${styles.empty}`} />
+          <span>Boş yerler: ölçüm yok</span>
+        </div>
+      ) : (
         <div className={styles.legendRow}>
           <span className={styles.noData} style={{ background: ramps.noData }} />
           <span>Ölçüm yok</span>

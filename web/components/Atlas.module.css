@@ -337,6 +337,13 @@
   border-radius: 3px;
 }
 
+/* The heat map leaves unmeasured places unpainted; the swatch shows the map through a dashed edge. */
+.empty {
+  box-sizing: border-box;
+  border: 1px dashed currentColor;
+  opacity: 0.6;
+}
+
 .mapLoading {
   position: absolute;
   z-index: 1;
