@@ -3,12 +3,13 @@
 The speed layer is a heat map at every zoom: each cell is a Web Mercator tile at some level,
 from Ookla's own 475 m squares (level 16) up close to ~30 km cells (level 10) when zoomed out,
 pooled from the squares inside it with test weights. Each level is shown at the map zooms where
-its cells are 8-16 px wide.
+its cells are 8-16 px wide. A cell is drawn only where it holds measured squares (see footprint()),
+so it is one feature per period: its shape changes as squares are measured or not.
 
     uv run python -m pipeline.tiles      (needs tippecanoe)
 
 Outputs (web/public/data/, not in git):
-    harita.pmtiles   layers "hucreler" (speed cells, every period), "ilceler" and "iller" (shapes)
+    harita.pmtiles   layers "hucreler" (speed cells, one feature per period), "ilceler" and "iller" (shapes)
     iller.json       periods, Ookla's access date and quarters (for its attribution), then Türkiye
                      and the 81 provinces: speeds per period, BTK per year
     ilceler.json     the 973 districts: speeds per period
@@ -20,10 +21,10 @@ import csv
 import json
 import subprocess
 import tempfile
-from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
@@ -32,13 +33,19 @@ import shapely
 from .boundaries import DISTRICTS_PATH, PROVINCES_PATH
 from .btk import OUT_PATH as BTK_PATH
 from .build import DISTRICT_PATH, PROVINCE_PATH, TILES_PATH, available_quarters, periods
-from .common import ROOT, normalize_name, quadkey_to_tile, tile_bounds
+from .common import ROOT, normalize_name, quadkey_to_tile
 from .ookla import output_path
 
 OUT_DIR = ROOT / "web" / "public" / "data"
 PMTILES_PATH = OUT_DIR / "harita.pmtiles"
 LEVELS = range(10, 17)
 MAX_ZOOM = 12  # level-16 squares are 256 units wide in a 4096-unit tile here; the map overzooms beyond
+# A cell is drawn as the tiles this many levels below it that hold a measured square: shown at its
+# zoom, those parts are 1-2 px, the finest a screen draws. Filling the whole cell painted 37 times
+# the measured area at level 10 and 21 times at level 12, because most of Türkiye's land has no
+# measured square (docs/YOL-HARITASI.md, "Hücrelerin çizimi").
+FOOTPRINT_DEPTH = 3
+SQUARE_LEVEL = 16
 SPEED_COLUMNS = ["kare", "test", "indirme_mbps", "yukleme_mbps", "gecikme_ms", "guvenilirlik"]
 
 
@@ -53,9 +60,25 @@ def period_label(period: str, quarters: list[tuple[int, int]]) -> str:
     return f"{y0} Ç{q0} – Ç{q1}" if y0 == y1 else f"{y0} Ç{q0} – {y1} Ç{q1}"
 
 
+def footprint(parts: list[str]) -> dict:
+    """The tiles named by quadkeys of one level, merged into one GeoJSON shape in degrees."""
+    level = len(parts[0])
+    xy = np.array([quadkey_to_tile(q)[:2] for q in parts], dtype=float)
+    boxes = shapely.box(xy[:, 0], xy[:, 1], xy[:, 0] + 1, xy[:, 1] + 1)
+    shape = boxes[0] if len(boxes) == 1 else shapely.coverage_union_all(boxes)
+    n = 2 ** level
+
+    def to_degrees(points: np.ndarray) -> np.ndarray:
+        lon = points[:, 0] / n * 360.0 - 180.0
+        lat = np.degrees(np.arctan(np.sinh(np.pi * (1 - 2 * points[:, 1] / n))))
+        return np.column_stack([lon, lat])
+
+    return shapely.geometry.mapping(shapely.transform(shape, to_degrees))
+
+
 def cell_features(tiles: pa.Table) -> list[dict]:
-    """One GeoJSON feature per cell at every level, carrying d/u/l/t (download, upload, latency,
-    tests) for each period with measurements."""
+    """One GeoJSON feature per cell and period at every level, carrying d/u/l/t (download, upload,
+    latency, tests) for that period, in the shape of the cell's measured parts (footprint())."""
     tests = pc.cast(tiles["test"], pa.float64())
     sums = pa.table({
         "donem": tiles["donem"],
@@ -67,23 +90,22 @@ def cell_features(tiles: pa.Table) -> list[dict]:
     })
     features = []
     for level in LEVELS:
+        part_level = min(level + FOOTPRINT_DEPTH, SQUARE_LEVEL)
         grouped = (sums.append_column("hucre", pc.utf8_slice_codeunits(sums["quadkey"], 0, level))
-                   .group_by(["hucre", "donem"]).aggregate([(c, "sum") for c in "tdul"]))
-        cells: dict[str, dict] = defaultdict(dict)
-        for cell, period, t, d, u, lat in zip(*(grouped[c].to_pylist() for c in
-                                               ["hucre", "donem", "t_sum", "d_sum", "u_sum", "l_sum"]), strict=True):
-            cells[cell].update({f"d{period}": round(d / t, 1), f"u{period}": round(u / t, 1),
-                                f"l{period}": round(lat / t), f"t{period}": int(t)})
+                   .append_column("parca", pc.utf8_slice_codeunits(sums["quadkey"], 0, part_level))
+                   .group_by(["hucre", "donem"]).aggregate([(c, "sum") for c in "tdul"] + [("parca", "distinct")]))
         minzoom, maxzoom = tile_zooms(level)
-        for cell, props in cells.items():
-            w, s, e, n = tile_bounds(*quadkey_to_tile(cell))
+        for period, t, d, u, lat, parts in zip(*(grouped[c].to_pylist() for c in
+                                                ["donem", "t_sum", "d_sum", "u_sum", "l_sum", "parca_distinct"]), strict=True):
             features.append({
                 "type": "Feature",
                 "tippecanoe": {"minzoom": minzoom, "maxzoom": maxzoom},
-                "properties": {"seviye": level, **props},
-                "geometry": {"type": "Polygon", "coordinates": [[[w, s], [e, s], [e, n], [w, n], [w, s]]]},
+                "properties": {"seviye": level, f"d{period}": round(d / t, 1), f"u{period}": round(u / t, 1),
+                               f"l{period}": round(lat / t), f"t{period}": int(t)},
+                "geometry": footprint(parts),
             })
-        print(f"  level {level}: {len(cells):,} cells, tile zoom {minzoom}-{maxzoom}")
+        print(f"  level {level}: {grouped.num_rows:,} cells over all periods, drawn as level {part_level} parts, "
+              f"tile zoom {minzoom}-{maxzoom}")
     return features
 
 

@@ -226,11 +226,17 @@ export default async function MethodPage() {
           <li>
             <strong>Isı haritası:</strong> Yakınlaşınca Ookla&apos;nın kendi kareleri görünür. Uzaklaştıkça kareler daha büyük
             hücrelerde ({levels.slice(0, -1).reverse().join(", ")}) test ağırlıklı olarak birleşir; her yakınlıkta hücreler
-            ekranda 8–16 piksel genişliktedir. Her hücre kendi değerinin renginde bir kare olarak çizilir; komşu hücrelerin
-            renkleri birbirine karışmaz. Kareler arasında yumuşak geçiş bilerek yok: geçişteki renkler hiçbir karede
-            ölçülmemiş ara değerler olurdu, bir yerin rengi üzerine gelince gösterilen değerle uyuşmazdı ve komşu kareler
-            arasında gerçekte olmayan bir eğilim görünürdü. Ölçüm olmayan yerler boş kalır. Üzerine gelince gösterilen
-            değer, karenin renginin gösterdiği değerdir.
+            ekranda 8–16 piksel genişliktedir. Bir hücre yalnızca içinde ölçüm olan yerlerde boyanır: en çok 8 × 8
+            parçaya bölünür ve içinde ölçülmüş bir 475 m&apos;lik kare olan parçalar hücrenin renginde çizilir. Uzaktan
+            bakınca bu parçalar 1–2 piksel olur; yakınlaştıkça Ookla&apos;nın karelerine iner. Hücreler eskiden tamamen
+            boyanıyordu; Türkiye karasının çoğunda ölçüm olmadığı için uzaktan bakınca boyalı alan ölçülen alanın 37
+            katına çıkıyor, ölçülmemiş kırsal alanlar ölçülmüş gibi görünüyordu. Her hücre kendi değerinin renginde
+            çizilir; komşu hücrelerin renkleri birbirine karışmaz. Kareler arasında yumuşak geçiş bilerek yok:
+            geçişteki renkler hiçbir karede ölçülmemiş ara değerler olurdu, bir yerin rengi üzerine gelince gösterilen
+            değerle uyuşmazdı ve komşu kareler arasında gerçekte olmayan bir eğilim görünürdü. Ölçüm olmayan yerler boş
+            kalır. Üzerine gelince gösterilen değer, parçanın renginin gösterdiği değerdir; parçaların arasındaki
+            boşlukta birkaç piksel yakındaki parçanınki gösterilir. Uzaktan parçalar içi boş çizilemeyecek kadar küçük
+            olduğundan, az testli değerler yakınlaşınca ayırt edilir.
           </li>
           <li>
             <strong>Çevrendeki {formatNumber(NEARBY_RADIUS / 1000)} km:</strong> Haritada tıklanan noktaya merkezi{" "}
