@@ -16,7 +16,7 @@ import shapely
 
 from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, TILES_PATH
 from pipeline.common import PROVINCES, ROOT, lonlat_to_tile, normalize_name, quadkey_to_tile, tile_bounds, tile_to_quadkey
-from pipeline.tiles import FOOTPRINT_DEPTH, LEVELS, MAX_ZOOM, OUT_DIR, PMTILES_PATH, cell_features, tile_zooms
+from pipeline.tiles import BORDERS_PATH, FOOTPRINT_DEPTH, LEVELS, MAX_ZOOM, OUT_DIR, cell_features, cells_path, tile_zooms
 
 PERIODS = [str(y) for y in range(2019, 2026)] + ["guncel"]
 
@@ -33,12 +33,23 @@ def read_csv(path):
         return list(csv.DictReader(f))
 
 
-def decode(z, x, y):
-    if not PMTILES_PATH.exists() or not shutil.which("tippecanoe-decode"):
-        pytest.skip("needs harita.pmtiles and tippecanoe-decode")
-    out = subprocess.run(["tippecanoe-decode", str(PMTILES_PATH), str(z), str(x), str(y)],
+def decode(path, z, x, y):
+    if not path.exists() or not shutil.which("tippecanoe-decode"):
+        pytest.skip(f"needs {path.name} and tippecanoe-decode")
+    out = subprocess.run(["tippecanoe-decode", str(path), str(z), str(x), str(y)],
                          capture_output=True, text=True, check=True).stdout
     return {layer["properties"]["layer"]: layer["features"] for layer in json.loads(out)["features"]}
+
+
+def archives():
+    found = sorted(OUT_DIR.glob("*.pmtiles"))
+    if not found:
+        pytest.skip("run `python -m pipeline.tiles` to build the map tiles")
+    return found
+
+
+def test_there_is_one_cell_archive_per_period_and_one_for_borders():
+    assert {path.name for path in archives()} == {BORDERS_PATH.name, *(cells_path(p).name for p in PERIODS)}
 
 
 @pytest.fixture(scope="module")
@@ -110,33 +121,36 @@ def test_every_level_holds_all_tests_and_the_same_average(bayburt):
 
 
 def test_pmtiles_stays_under_github_file_limit():
-    if not PMTILES_PATH.exists():
-        pytest.skip("run `python -m pipeline.tiles` to build the map tiles")
-    assert PMTILES_PATH.stat().st_size < 100 * 1024 * 1024
+    for path in archives():
+        assert path.stat().st_size < 100 * 1024 * 1024, path.name
 
 
 def test_pmtiles_metadata_names_no_local_folders():
     """tippecanoe stores its command line in the archive, which is published."""
-    if not PMTILES_PATH.exists():
-        pytest.skip("run `python -m pipeline.tiles` to build the map tiles")
-    with PMTILES_PATH.open("rb") as f:
-        header = f.read(127)
-        offset, length = struct.unpack_from("<QQ", header, 24)  # PMTiles v3: where the JSON metadata is
-        f.seek(offset)
-        metadata = f.read(length)
-    if header[97] == 2:  # gzip-compressed
-        metadata = gzip.decompress(metadata)
-    text = json.dumps(json.loads(metadata), ensure_ascii=False)
-    # As folders (trailing slash), so a relative "data/tmpab12/" does not match Linux's /tmp.
-    assert f"{ROOT}/" not in text and f"{tempfile.gettempdir()}/" not in text
+    for path in archives():
+        with path.open("rb") as f:
+            header = f.read(127)
+            offset, length = struct.unpack_from("<QQ", header, 24)  # PMTiles v3: where the JSON metadata is
+            f.seek(offset)
+            metadata = f.read(length)
+        if header[97] == 2:  # gzip-compressed
+            metadata = gzip.decompress(metadata)
+        text = json.dumps(json.loads(metadata), ensure_ascii=False)
+        # As folders (trailing slash), so a relative "data/tmpab12/" does not match Linux's /tmp.
+        assert f"{ROOT}/" not in text and f"{tempfile.gettempdir()}/" not in text, path.name
 
 
 @pytest.mark.parametrize("zoom", range(MAX_ZOOM + 1))
 def test_each_zoom_carries_its_level_and_the_borders(zoom):
-    layers = decode(zoom, *lonlat_to_tile(32.85, 39.92, zoom))  # Ankara, Kızılay
-    levels = {f["properties"]["seviye"] for f in layers["hucreler"]}
-    assert levels == {next(level for level in LEVELS if tile_zooms(level)[0] <= zoom <= tile_zooms(level)[1])}
-    assert layers["iller"] and layers["ilceler"]
+    tile = lonlat_to_tile(32.85, 39.92, zoom)  # Ankara, Kızılay
+    cells = decode(cells_path("guncel"), zoom, *tile)
+    assert set(cells) == {"hucreler"}
+    assert {f["properties"]["seviye"] for f in cells["hucreler"]} == {
+        next(level for level in LEVELS if tile_zooms(level)[0] <= zoom <= tile_zooms(level)[1])}
+    # Only the archive's own period, so a view downloads no other.
+    assert {k for f in cells["hucreler"] for k in f["properties"]} == {"seviye", "dguncel", "uguncel", "lguncel", "tguncel"}
+    borders = decode(BORDERS_PATH, zoom, *tile)
+    assert set(borders) == {"iller", "ilceler"} and borders["iller"] and borders["ilceler"]
 
 
 def test_a_square_keeps_its_values_in_the_tiles():
@@ -147,9 +161,10 @@ def test_a_square_keeps_its_values_in_the_tiles():
     rows = tiles.filter(pc.equal(tiles["quadkey"], quadkey)).to_pylist()
     expected = {k: v for r in rows for k, v in [(f"t{r['donem']}", r["test"]), (f"d{r['donem']}", r["indirme_mbps"])]}
     assert len(rows) == len(PERIODS)
-    found = [f["properties"] for f in decode(MAX_ZOOM, *lonlat_to_tile(29.03, 40.99, MAX_ZOOM))["hucreler"]
+    found = [f["properties"] for period in PERIODS
+             for f in decode(cells_path(period), MAX_ZOOM, *lonlat_to_tile(29.03, 40.99, MAX_ZOOM))["hucreler"]
              if quadkey_of(f) == quadkey]
-    assert len(found) == len(PERIODS)  # one feature per period
+    assert len(found) == len(PERIODS)  # once in each period's archive
     assert {k: v for props in found for k, v in props.items() if k in expected} == expected
 
 
