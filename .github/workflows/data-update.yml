@@ -99,10 +99,11 @@ jobs:
           git push -q origin "$branch"
 
           gh release create "$TAG" --target "$(git rev-parse HEAD)" --title "Site verisi · $period_tr" \
-            $data/harita.pmtiles $data/iller.json $data/ilceler.json $data/arama.json --notes-file - <<EOF
+            $data/*.pmtiles $data/iller.json $data/ilceler.json $data/arama.json --notes-file - <<EOF
           Sitenin git'e girmeyen veri dosyaları, \`python -m pipeline.tiles\` çıktısı:
 
-          - \`harita.pmtiles\`: hız kareleri (475 m'den ~30 km'ye birleşen hücreler), il ve ilçe sınırları
+          - \`kareler-<dönem>.pmtiles\`: her dönemin hız kareleri (475 m'den ~30 km'ye birleşen hücreler)
+          - \`sinirlar.pmtiles\`: il ve ilçe sınırları
           - \`iller.json\`, \`ilceler.json\`: il ve ilçe değerleri, BTK verisi
           - \`arama.json\`: il/ilçe arama dizini
 

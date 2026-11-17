@@ -5,7 +5,10 @@ import { PMTiles } from "pmtiles";
 import { loadLib } from "./load.mjs";
 
 function loadRequest(nearby, siteArchive = () => "archive", invalidateSiteArchive = () => {}) {
-  const stubs = { "./nearby": { nearby, siteArchive, invalidateSiteArchive } };
+  const stubs = {
+    "./nearby": { nearby, siteArchive, invalidateSiteArchive },
+    "./data": { cellsArchive: (period) => `kareler-${period}` },
+  };
   return loadLib("nearby-request", { stubs }).startNearbyRequest;
 }
 
@@ -23,7 +26,7 @@ function loadArchive(createSource) {
     constructor() { super(createSource()); }
   }
   return loadLib("nearby", {
-    stubs: { pmtiles: { PMTiles: TestArchive }, "./data": { PMTILES_PATH: "/data/harita.pmtiles" } },
+    stubs: { pmtiles: { PMTiles: TestArchive }, "./data": { archivePath: (name) => `/data/${name}.pmtiles` } },
     globals: { window: { location: { origin: "https://example.test" } } },
   });
 }
@@ -64,6 +67,15 @@ test("a failed nearby query waits for an explicit retry, which can succeed", asy
   second.resolve(value);
   await setImmediate();
   assert.deepEqual(results, [{ status: "error" }, { status: "ready", value }]);
+});
+
+test("the query reads the cells of the period it was asked for", async () => {
+  const opened = [];
+  const start = loadRequest(async () => value, (name) => { opened.push(name); return name; });
+  start(29, 41, "2019", () => {});
+  start(29, 41, "guncel", () => {});
+  await setImmediate();
+  assert.deepEqual(opened, ["kareler-2019", "kareler-guncel"]);
 });
 
 test("an empty measurement result stays distinct from a failed request", async () => {
@@ -127,7 +139,7 @@ test("retry recovers from a rejected header cached by the real PMTiles reader", 
       return { data: emptyArchive() };
     },
   }));
-  const firstArchive = archiveModule.siteArchive();
+  const firstArchive = archiveModule.siteArchive("kareler-guncel");
   await assert.rejects(firstArchive.getHeader());
   await assert.rejects(firstArchive.getHeader());
   assert.equal(reads, 1, "the failed header is still cached by this reader");
@@ -136,7 +148,7 @@ test("retry recovers from a rejected header cached by the real PMTiles reader", 
   start(29, 41, "guncel", (result) => results.push(result));
   await setImmediate();
   assert.deepEqual(results, [{ status: "error" }]);
-  assert.notEqual(archiveModule.siteArchive(), firstArchive);
+  assert.notEqual(archiveModule.siteArchive("kareler-guncel"), firstArchive);
   start(29, 41, "guncel", (result) => results.push(result));
   await setImmediate();
   assert.equal(reads, 2);
@@ -145,9 +157,20 @@ test("retry recovers from a rejected header cached by the real PMTiles reader", 
 
 test("an obsolete failure cannot invalidate the replacement archive", () => {
   const archiveModule = loadArchive(() => ({ getKey: () => "test", getBytes: async () => ({ data: emptyArchive() }) }));
-  const old = archiveModule.siteArchive();
+  const old = archiveModule.siteArchive("kareler-guncel");
   archiveModule.invalidateSiteArchive(old);
-  const replacement = archiveModule.siteArchive();
+  const replacement = archiveModule.siteArchive("kareler-guncel");
   archiveModule.invalidateSiteArchive(old);
-  assert.equal(archiveModule.siteArchive(), replacement);
+  assert.equal(archiveModule.siteArchive("kareler-guncel"), replacement);
+});
+
+test("archives are opened once per name, and a failure replaces only its own", () => {
+  const archiveModule = loadArchive(() => ({ getKey: () => "test", getBytes: async () => ({ data: emptyArchive() }) }));
+  const borders = archiveModule.siteArchive("sinirlar");
+  const cells = archiveModule.siteArchive("kareler-guncel");
+  assert.notEqual(borders, cells);
+  assert.equal(archiveModule.siteArchive("sinirlar"), borders);
+  archiveModule.invalidateSiteArchive(cells);
+  assert.equal(archiveModule.siteArchive("sinirlar"), borders);
+  assert.notEqual(archiveModule.siteArchive("kareler-guncel"), cells);
 });

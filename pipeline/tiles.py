@@ -4,12 +4,14 @@ The speed layer is a heat map at every zoom: each cell is a Web Mercator tile at
 from Ookla's own 475 m squares (level 16) up close to ~30 km cells (level 10) when zoomed out,
 pooled from the squares inside it with test weights. Each level is shown at the map zooms where
 its cells are 8-16 px wide. A cell is drawn only where it holds measured squares (see footprint()),
-so it is one feature per period: its shape changes as squares are measured or not.
+so it is one feature per period: its shape changes as squares are measured or not. Each period's
+cells go in their own archive, so a view downloads only the period on screen.
 
     uv run python -m pipeline.tiles      (needs tippecanoe)
 
 Outputs (web/public/data/, not in git):
-    harita.pmtiles   layers "hucreler" (speed cells, one feature per period), "ilceler" and "iller" (shapes)
+    sinirlar.pmtiles          layers "ilceler" and "iller": district and province shapes
+    kareler-<period>.pmtiles  layer "hucreler": one period's speed cells (kareler-2019 ... kareler-guncel)
     iller.json       periods, Ookla's access date and quarters (for its attribution), then Türkiye
                      and the 81 provinces: speeds per period, BTK per year
     ilceler.json     the 973 districts: speeds per period
@@ -37,7 +39,7 @@ from .common import ROOT, normalize_name, quadkey_to_tile
 from .ookla import output_path
 
 OUT_DIR = ROOT / "web" / "public" / "data"
-PMTILES_PATH = OUT_DIR / "harita.pmtiles"
+BORDERS_PATH = OUT_DIR / "sinirlar.pmtiles"
 LEVELS = range(10, 17)
 MAX_ZOOM = 12  # level-16 squares are 256 units wide in a 4096-unit tile here; the map overzooms beyond
 # A cell is drawn as the tiles this many levels below it that hold a measured square: shown at its
@@ -109,25 +111,24 @@ def cell_features(tiles: pa.Table) -> list[dict]:
     return features
 
 
-def build_pmtiles(features: list[dict]) -> None:
+def cells_path(period: str) -> Path:
+    """One period's cells. Holding all eight in every tile made a zoomed-out view download 2-3 times
+    the data, as each period's cells have their own shapes."""
+    return OUT_DIR / f"kareler-{period}.pmtiles"
+
+
+def build_pmtiles(path: Path, description: str, layers: dict[str, Path]) -> None:
     # tippecanoe writes its command line into the archive, which is published, so it runs from
     # the repo root with relative paths and no local folder name ends up in the file.
-    with tempfile.TemporaryDirectory(dir=OUT_DIR) as tmp:
-        cells_path = Path(tmp) / "hucreler.geojsonl"
-        with cells_path.open("w", encoding="utf-8") as f:
-            for feature in features:
-                f.write(json.dumps(feature, separators=(",", ":")) + "\n")
-        subprocess.run([
-            "tippecanoe", "--output", str(PMTILES_PATH.relative_to(ROOT)), "--force", "--quiet",
-            "--name", "NetAtlas TR", "--description", "Ookla fixed-broadband speed cells, districts and provinces",
-            "--minimum-zoom=0", f"--maximum-zoom={MAX_ZOOM}",
-            # Every cell and shape must survive at every zoom it is meant for.
-            "--no-feature-limit", "--no-tile-size-limit", "--no-tiny-polygon-reduction",
-            "--detect-shared-borders",
-            "--named-layer", f"hucreler:{cells_path.relative_to(ROOT)}",
-            "--named-layer", f"ilceler:{DISTRICTS_PATH.relative_to(ROOT)}",
-            "--named-layer", f"iller:{PROVINCES_PATH.relative_to(ROOT)}",
-        ], check=True, cwd=ROOT)
+    subprocess.run([
+        "tippecanoe", "--output", str(path.relative_to(ROOT)), "--force", "--quiet",
+        "--name", "NetAtlas TR", "--description", description,
+        "--minimum-zoom=0", f"--maximum-zoom={MAX_ZOOM}",
+        # Every cell and shape must survive at every zoom it is meant for.
+        "--no-feature-limit", "--no-tile-size-limit", "--no-tiny-polygon-reduction",
+        "--detect-shared-borders",
+        *(arg for name, source in layers.items() for arg in ["--named-layer", f"{name}:{source.relative_to(ROOT)}"]),
+    ], check=True, cwd=ROOT)
 
 
 def read_csv(path: Path) -> list[dict]:
@@ -178,8 +179,19 @@ def main() -> None:
     quarters = available_quarters()
     period_quarters = periods(quarters)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    print("speed cells")
-    build_pmtiles(cell_features(pq.read_table(TILES_PATH)))
+    # Archives of an earlier layout or of periods that have moved on would be published with the rest.
+    for old in OUT_DIR.glob("*.pmtiles"):
+        old.unlink()
+    tiles = pq.read_table(TILES_PATH)
+    with tempfile.TemporaryDirectory(dir=OUT_DIR) as tmp:
+        for period in period_quarters:
+            print(f"speed cells, {period}")
+            source = Path(tmp) / f"hucreler-{period}.geojsonl"
+            with source.open("w", encoding="utf-8") as f:
+                for feature in cell_features(tiles.filter(pc.equal(tiles["donem"], period))):
+                    f.write(json.dumps(feature, separators=(",", ":")) + "\n")
+            build_pmtiles(cells_path(period), f"Ookla fixed-broadband speed cells, {period}", {"hucreler": source})
+    build_pmtiles(BORDERS_PATH, "Districts and provinces of Türkiye", {"ilceler": DISTRICTS_PATH, "iller": PROVINCES_PATH})
 
     provinces: dict[str, dict] = {}
     for row in read_csv(PROVINCE_PATH):
@@ -207,8 +219,8 @@ def main() -> None:
     write_json("ilceler.json", dict(sorted(districts.items())))
     write_json("arama.json", search_index())
 
-    for name in ["harita.pmtiles", "iller.json", "ilceler.json", "arama.json"]:
-        print(f"  web/public/data/{name}: {(OUT_DIR / name).stat().st_size / 1e6:.1f} MB")
+    for path in [*sorted(OUT_DIR.glob("*.pmtiles")), *(OUT_DIR / name for name in ["iller.json", "ilceler.json", "arama.json"])]:
+        print(f"  web/public/data/{path.name}: {path.stat().st_size / 1e6:.1f} MB")
 
 
 if __name__ == "__main__":

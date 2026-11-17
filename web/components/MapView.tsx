@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as MapLibreMap } from "maplibre-gl";
 import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
-import { BASE_PATH, CELL_SIZE, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
+import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
@@ -15,7 +15,7 @@ import type { HoverInfo } from "./Tooltip";
 
 // Copied into public/ by scripts/copy-maplibre-worker.mjs before dev and build.
 setWorkerUrl(`${BASE_PATH}/maplibre-gl-worker.mjs`);
-// Our tiles come from the single PMTiles file, read with range requests (lib/siteTiles.ts).
+// Our tiles come from the site's PMTiles archives, read with range requests (lib/siteTiles.ts).
 addProtocol("harita", vectorTile);
 
 // OpenFreeMap: free vector basemaps, no API key.
@@ -381,36 +381,11 @@ export default function MapView({ period, metric, view, theme, areas, selection,
             key={theme}
             id="harita"
             type="vector"
-            tiles={["harita://{z}/{x}/{y}"]}
+            tiles={[`harita://${BORDERS_ARCHIVE}/{z}/{x}/{y}`]}
             maxzoom={TILE_MAXZOOM}
             bounds={CELL_BOUNDS}
             promoteId={{ ilceler: "ilce_kodu", iller: "il_kodu" }}
           >
-            {/* The heat map: every cell is drawn in the colour of its own value, the one the tooltip
-                gives, and only on its measured parts: zoomed out, filling whole cells painted up to 37
-                times the measured area. Each period is its own feature, as its parts differ. Cells are
-                not blended into each other, on purpose: a blend shows colours that no cell has, so the
-                colour under the pointer is not the tooltip's value, and neighbours of 27, 176 and 79
-                Mbps read as one steady drift (docs/YOL-HARITASI.md, "Hücrelerin çizimi"). Antialiasing
-                would draw each part's outline half a pixel into its neighbours. */}
-            <Layer
-              id="cells"
-              type="fill"
-              source-layer="hucreler"
-              filter={["has", `t${period.id}`]}
-              layout={visible(view === "kareler")}
-              paint={{ "fill-color": cellFill, "fill-opacity": hollow ? ["case", fewCellTests, FEW_TESTS_FILL, 1] : 1, "fill-antialias": false }}
-              beforeId={before}
-            />
-            <Layer
-              id="cells-few"
-              type="line"
-              source-layer="hucreler"
-              filter={["all", ["has", `t${period.id}`], fewCellTests]}
-              layout={visible(view === "kareler" && hollow)}
-              paint={{ "line-color": cellFill, ...FEW_TESTS_LINE }}
-              beforeId={before}
-            />
             {(["ilceler", "iller"] as const).map((layer) => (
               <Layer
                 key={layer}
@@ -473,6 +448,44 @@ export default function MapView({ period, metric, view, theme, areas, selection,
                 beforeId={before}
               />
             ))}
+          </Source>
+        )}
+        {/* The selected period's cells, from that period's archive. A new period adds the source
+            afresh; its layers go under the districts and provinces, as before the split. */}
+        {loaded?.theme === theme && (
+          <Source
+            key={`${theme}-${period.id}`}
+            id="kareler"
+            type="vector"
+            tiles={[`harita://${cellsArchive(period.id)}/{z}/{x}/{y}`]}
+            maxzoom={TILE_MAXZOOM}
+            bounds={CELL_BOUNDS}
+          >
+            {/* The heat map: every cell is drawn in the colour of its own value, the one the tooltip
+                gives, and only on its measured parts: zoomed out, filling whole cells painted up to 37
+                times the measured area. Each period has its own archive, as its parts differ. Cells are
+                not blended into each other, on purpose: a blend shows colours that no cell has, so the
+                colour under the pointer is not the tooltip's value, and neighbours of 27, 176 and 79
+                Mbps read as one steady drift (docs/YOL-HARITASI.md, "Hücrelerin çizimi"). Antialiasing
+                would draw each part's outline half a pixel into its neighbours. */}
+            <Layer
+              id="cells"
+              type="fill"
+              source-layer="hucreler"
+              filter={["has", `t${period.id}`]}
+              layout={visible(view === "kareler")}
+              paint={{ "fill-color": cellFill, "fill-opacity": hollow ? ["case", fewCellTests, FEW_TESTS_FILL, 1] : 1, "fill-antialias": false }}
+              beforeId={AREA_LAYERS.ilceler}
+            />
+            <Layer
+              id="cells-few"
+              type="line"
+              source-layer="hucreler"
+              filter={["all", ["has", `t${period.id}`], fewCellTests]}
+              layout={visible(view === "kareler" && hollow)}
+              paint={{ "line-color": cellFill, ...FEW_TESTS_LINE }}
+              beforeId={AREA_LAYERS.ilceler}
+            />
           </Source>
         )}
         {/* The area the panel's "nearest 1 km" figure pools. */}

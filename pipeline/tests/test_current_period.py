@@ -69,8 +69,9 @@ def test_invalid_current_period_preserves_outputs_before_any_heavy_work(
         monkeypatch.setattr(tiles.pq, "read_table", read)
         monkeypatch.setattr(tiles, "build_pmtiles", process)
         monkeypatch.setattr(tiles, "OUT_DIR", tmp_path)
-        monkeypatch.setattr(tiles, "PMTILES_PATH", tmp_path / "harita.pmtiles")
-        outputs = [tmp_path / name for name in ["harita.pmtiles", "iller.json", "ilceler.json", "arama.json"]]
+        monkeypatch.setattr(tiles, "BORDERS_PATH", tmp_path / "sinirlar.pmtiles")
+        outputs = [tmp_path / name for name in
+                   ["sinirlar.pmtiles", "kareler-guncel.pmtiles", "iller.json", "ilceler.json", "arama.json"]]
     for path in outputs:
         path.write_bytes(f"existing {path.name}".encode())
     before = {path: path.read_bytes() for path in outputs}
