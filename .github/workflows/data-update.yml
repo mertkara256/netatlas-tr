@@ -54,12 +54,12 @@ jobs:
           echo "Building $tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      # The same version the published tiles were made with.
+      # The same version the published tiles were made with. DejaVu is the font of the link-preview image.
       - name: Install tippecanoe
         if: steps.check.outputs.tag
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q libsqlite3-dev zlib1g-dev
+          sudo apt-get install -y -q libsqlite3-dev zlib1g-dev fonts-dejavu-core
           git clone --quiet --depth 1 --branch 2.79.0 https://github.com/felt/tippecanoe.git "$RUNNER_TEMP/tippecanoe"
           make -C "$RUNNER_TEMP/tippecanoe" -j"$(nproc)" > /dev/null
           sudo make -C "$RUNNER_TEMP/tippecanoe" install > /dev/null
@@ -72,6 +72,7 @@ jobs:
           uv run --locked python -m pipeline.population
           uv run --locked python -m pipeline.build
           uv run --locked python -m pipeline.tiles
+          uv run --locked python -m pipeline.preview
 
       # With the raw data and tippecanoe-decode at hand, this also runs the tests the site checks skip.
       - name: Test the pipeline output
@@ -94,7 +95,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
           echo "$TAG" > web/data-release.txt
-          git add web/data-release.txt data/processed
+          git add web/data-release.txt data/processed web/app/opengraph-image.png
           git commit -q -m "Update the site data to $TAG ($period_en)"
           git push -q origin "$branch"
 
@@ -118,6 +119,7 @@ jobs:
           - The release [$TAG](https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG) holds the new map tiles and JSON files.
           - \`web/data-release.txt\` points the site at it.
           - \`data/processed/\` has the new province and district tables.
+          - \`web/app/opengraph-image.png\`, the link-preview image, shows the new latest period.
 
           The pipeline tests ran on the full data in [the update run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID). GitHub holds the site checks on pull requests opened by Actions until a maintainer approves them: use "Approve and run" below, then merge to deploy the new data.
           EOF
