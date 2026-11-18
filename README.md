@@ -11,7 +11,7 @@
 ## At a glance
 
 - Türkiye's average measured home download speed rose from **20.9 Mbps in 2019 to 143.0 Mbps in 2025**, almost seven times as fast. Upload went from 5.2 to 45.4 Mbps, latency from 26 to 14 ms.
-- In 2025 alone: 5.0 million Speedtest results from 1.6 million devices, on about 99,000 squares of 475 m.
+- In 2025 alone: 5.0 million Speedtest results, on about 99,000 squares of 475 m.
 - 93% of residents live in or next to a square where someone ran a test.
 
 ![The map from 2019 to the latest four quarters: the squares grow lighter, that is faster, year by year](docs/gorseller/donemler.gif)
@@ -54,7 +54,7 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 ### Bir bakışta
 
 - Türkiye'de evlerde ölçülen ortalama indirme hızı **2019'da 20,9 Mbps'ten 2025'te 143,0 Mbps'e** çıktı, yaklaşık yedi kat. Yükleme 5,2'den 45,4 Mbps'e çıktı, gecikme 26'dan 14 ms'ye indi.
-- Yalnızca 2025'te: 1,6 milyon cihazdan 5,0 milyon Speedtest ölçümü, 475 m'lik yaklaşık 99.000 karede.
+- Yalnızca 2025'te: 5,0 milyon Speedtest ölçümü, 475 m'lik yaklaşık 99.000 karede.
 - Nüfusun %93'ü, ölçüm yapılmış bir karede ya da hemen yanında yaşıyor.
 
 ![2019'dan son dört çeyreğe harita: kareler yıldan yıla açılıyor, yani hızlanıyor](docs/gorseller/donemler.gif)
