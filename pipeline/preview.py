@@ -190,7 +190,7 @@ def draw(period: dict) -> Image.Image:
     # Title, subtitle, and a legend with the period and the source along the bottom.
     text = ImageDraw.Draw(image)
     text.text((64, 52), "NetAtlas TR", font=fonts(68, bold=True), fill=INK)
-    text.text((66, 132), "Türkiye'de ölçülen sabit internet hızları, 475 m'lik karelere kadar", font=fonts(30), fill=INK_2)
+    text.text((66, 132), "Türkiye'nin ev interneti, milyonlarca hız testiyle", font=fonts(30), fill=INK_2)
 
     bar_left, bar_top, bar_width, bar_height = 66, HEIGHT - 50, 260, 10
     for i in range(bar_width):
