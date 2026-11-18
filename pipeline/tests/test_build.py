@@ -1,15 +1,14 @@
-"""Checks on the province, district and tile values (run `python -m pipeline.build` first)."""
+"""Checks on the province, district and tile values (run `python -m pipeline.build` first). The hand
+calculations run on the sample in fixture/, so they need no downloaded data."""
 import csv
-import json
 from collections import defaultdict
 
 import numpy as np
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pytest
-import shapely
 
-from pipeline.boundaries import DISTRICT_LIST_PATH, PROVINCES_PATH
+from pipeline.boundaries import DISTRICT_LIST_PATH
 from pipeline.btk import OUT_PATH as BTK_PATH
 from pipeline.build import (
     DISTRICT_PATH,
@@ -18,14 +17,11 @@ from pipeline.build import (
     RELIABILITY,
     TILES_PATH,
     assign,
-    available_quarters,
     grid_ids,
     near_measured,
     periods,
 )
 from pipeline.common import PROVINCES, lonlat_to_tile, quadkey_to_tile, tile_to_quadkey
-from pipeline.ookla import output_path
-from pipeline.population import OUT_PATH as POPULATION_PATH
 
 PERIODS = [str(y) for y in range(2019, 2026)] + ["guncel"]
 
@@ -55,14 +51,6 @@ def tiles():
     if not TILES_PATH.exists():
         pytest.skip("run `python -m pipeline.build` to make the tile table")
     return pq.read_table(TILES_PATH)
-
-
-@pytest.fixture(scope="module")
-def population():
-    if not POPULATION_PATH.exists():
-        pytest.skip("run `python -m pipeline.population` to make the residents table")
-    table = pq.read_table(POPULATION_PATH)
-    return dict(zip(table["quadkey"].to_pylist(), table["nufus"].to_pylist(), strict=True))
 
 
 def measured(row):
@@ -220,18 +208,19 @@ def test_places_outside_turkiye_are_left_out(tiles, place, lonlat):
     assert not pc.any(pc.equal(tiles["quadkey"], quadkey)).as_py(), place
 
 
-@pytest.mark.parametrize("code", ["69", "79", NATIONAL])  # Bayburt, Kilis, Türkiye
-@pytest.mark.parametrize("period", ["2020", "guncel"])
-def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, code, period):
-    """Recompute from the downloaded quarters: every tile-quarter weighted by its devices."""
-    members = tiles.filter(pc.equal(tiles["donem"], period))
+# The sample's provinces: İstanbul, Kocaeli, Mardin (on the Syrian border) and Sakarya.
+@pytest.mark.parametrize("code", ["34", "41", "47", "54", NATIONAL])
+@pytest.mark.parametrize("period", ["2025", "guncel"])
+def test_values_match_a_hand_calculation_from_the_quarters(sample, code, period):
+    """Recompute from the sample's quarters: every tile-quarter weighted by its devices."""
+    members = sample.tiles.filter(pc.equal(sample.tiles["donem"], period))
     if code != NATIONAL:
         members = members.filter(pc.equal(members["il_kodu"], code))
     keep = set(members["quadkey"].to_pylist())
     tests = devices = d_sum = u_sum = lat_sum = 0
     per_tile = defaultdict(int)
-    for quarter in periods(available_quarters())[period]:
-        for row in pq.read_table(output_path(*quarter)).to_pylist():
+    for quarter in sample.periods[period]:
+        for row in sample.quarters[quarter].to_pylist():
             if row["quadkey"] in keep:
                 tests += row["tests"]
                 devices += row["devices"]
@@ -239,7 +228,7 @@ def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, cod
                 d_sum += row["avg_d_kbps"] * row["devices"]
                 u_sum += row["avg_u_kbps"] * row["devices"]
                 lat_sum += row["avg_lat_ms"] * row["devices"]
-    row = provinces[code, period]
+    row = sample.provinces[code, period]
     assert (int(row["test"]), int(row["cihaz"])) == (tests, devices)
     assert float(row["indirme_mbps"]) == round(d_sum / devices / 1000, 1)
     assert float(row["yukleme_mbps"]) == round(u_sum / devices / 1000, 1)
@@ -247,19 +236,16 @@ def test_values_match_a_hand_calculation_from_the_quarters(tiles, provinces, cod
     assert float(row["tek_kare_payi"]) == round(max(per_tile.values()) / devices, 3)
 
 
-@pytest.mark.parametrize("code", ["69", "79"])  # Bayburt, Kilis (on the Syrian border)
-@pytest.mark.parametrize("period", ["2020", "guncel"])
-def test_measured_residents_match_a_hand_calculation(tiles, provinces, population, code, period):
+@pytest.mark.parametrize("code", ["34", "41", "47", "54"])  # the sample's provinces
+@pytest.mark.parametrize("period", ["2025", "guncel"])
+def test_measured_residents_match_a_hand_calculation(sample, monkeypatch, code, period):
     """Tile by tile: a resident counts as measured when a test was run in their tile or one of the
     eight around it, whichever province that tile belongs to."""
-    features = json.loads(PROVINCES_PATH.read_text(encoding="utf-8"))["features"]
-    shape = next(shapely.geometry.shape(f["geometry"]) for f in features if f["properties"]["il_kodu"] == code)
-    west, south, east, north = shape.bounds
-    (x0, y0), (x1, y1) = lonlat_to_tile(west, north, 16), lonlat_to_tile(east, south, 16)
-    nearby = [q for q in population if x0 <= quadkey_to_tile(q)[0] <= x1 and y0 <= quadkey_to_tile(q)[1] <= y1]
-    owners = assign(nearby)
+    monkeypatch.setattr("pipeline.build.DISTRICTS_PATH", sample.districts_path)
+    population = sample.population
+    owners = assign(list(population))
     mine = [q for q, owner in zip(owners["quadkey"].to_pylist(), owners["il_kodu"].to_pylist(), strict=True) if owner == code]
-    in_period = tiles.filter(pc.equal(tiles["donem"], period))
+    in_period = sample.tiles.filter(pc.equal(sample.tiles["donem"], period))
     measured = {quadkey_to_tile(q)[:2] for q in in_period["quadkey"].to_pylist()}
 
     def near(quadkey):
@@ -267,7 +253,7 @@ def test_measured_residents_match_a_hand_calculation(tiles, provinces, populatio
         return any((x + dx, y + dy) in measured for dx in (-1, 0, 1) for dy in (-1, 0, 1))
 
     residents = sum(population[q] for q in mine)
-    row = provinces[code, period]
+    row = sample.provinces[code, period]
     assert int(row["nufus"]) == pytest.approx(residents, abs=1)
     assert float(row["olculen_nufus_payi"]) == pytest.approx(sum(population[q] for q in mine if near(q)) / residents, abs=0.001)
 
