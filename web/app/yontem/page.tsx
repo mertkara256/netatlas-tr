@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CELL_SIZE, NATIONAL } from "@/lib/data";
+import { BASE_PATH, CELL_SIZE, NATIONAL, REPO_URL, SITE_ORIGIN } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, METRICS, ONE_TILE_SHARE, breakLabels, metricById } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
@@ -36,6 +36,45 @@ const BTK_PACKAGES = {
   yuzustu: 15,
 };
 
+/** The province and district tables as a schema.org Dataset, so dataset search engines can list them. */
+function datasetMarkup([firstYear, firstQuarter]: number[], [lastYear, lastQuarter]: number[]) {
+  const month = (quarter: number, offset: number) => String((quarter - 1) * 3 + offset).padStart(2, "0");
+  const table = (file: string, name: string) => ({
+    "@type": "DataDownload",
+    name,
+    encodingFormat: "text/csv",
+    contentUrl: `${REPO_URL.replace("github.com", "raw.githubusercontent.com")}/main/data/processed/${file}`,
+  });
+  return {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    name: "NetAtlas TR: Türkiye'de ölçülen sabit internet hızları, il ve ilçelere göre",
+    description:
+      "Türkiye'nin 81 ili ve 973 ilçesinde Speedtest ile ölçülen ortalama sabit internet indirme ve yükleme hızı ile "
+      + "gecikme; 2019'dan bugüne her takvim yılı ve yayınlanmış son dört çeyrek için. Değerler cihaz ağırlıklıdır; "
+      + "test ve cihaz sayıları, güvenilirlik etiketi ve nüfusun ölçüm yapılan karelerde yaşayan payı da verilir. "
+      + "Ookla'nın açık Speedtest verisinden türetilmiştir.",
+    url: `${SITE_ORIGIN}${BASE_PATH}/yontem/`,
+    sameAs: REPO_URL,
+    inLanguage: "tr",
+    isAccessibleForFree: true,
+    license: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    keywords: ["internet hızı", "sabit genişbant", "Speedtest", "Ookla", "Türkiye", "il", "ilçe"],
+    temporalCoverage: `${firstYear}-${month(firstQuarter, 1)}/${lastYear}-${month(lastQuarter, 3)}`,
+    spatialCoverage: { "@type": "Place", name: "Türkiye" },
+    variableMeasured: [
+      "Ortalama indirme hızı (Mbps)",
+      "Ortalama yükleme hızı (Mbps)",
+      "Ortalama gecikme (ms)",
+      "Test sayısı",
+      "Cihaz sayısı",
+      "Nüfusun ölçüm yapılan karelerde ya da hemen yanlarında yaşayan payı",
+    ],
+    isBasedOn: ["https://github.com/teamookla/ookla-open-data", "https://doi.org/10.5258/SOTON/WP00758"],
+    distribution: [table("iller_hiz.csv", "İllere göre hızlar"), table("ilceler_hiz.csv", "İlçelere göre hızlar")],
+  };
+}
+
 const date = (iso: string, locale: string) =>
   new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(iso));
 
@@ -50,6 +89,11 @@ export default async function MethodPage() {
 
   return (
     <main className={styles.page}>
+      <script
+        type="application/ld+json"
+        // "<" escaped so no value can close the script element.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(datasetMarkup(ilk, son)).replace(/</g, "\\u003c") }}
+      />
       <nav className={styles.nav} aria-label="Gezinme">
         <Link href="/">← Harita</Link>
         <Link href="/il/">Tüm iller</Link>
@@ -369,7 +413,7 @@ export default async function MethodPage() {
           <li>İl ve ilçe sınırları: OCHA COD-AB Türkiye, kaynağı Harita Genel Müdürlüğü, CC BY-IGO.</li>
           <li>İlçe adları: © OpenStreetMap katkıcıları (ODbL), geoBoundaries üzerinden (Runfola ve diğ., 2020).</li>
           <li>Altlık harita: OpenFreeMap, © OpenMapTiles, © OpenStreetMap katkıcıları.</li>
-          <li>Sitenin kodu <a href="https://github.com/mertkara256/netatlas-tr">GitHub&apos;da</a> MIT lisansıyla açıktır.</li>
+          <li>Sitenin kodu <a href={REPO_URL}>GitHub&apos;da</a> MIT lisansıyla açıktır.</li>
         </ul>
         <p className={styles.footnote}>NetAtlas TR; Ookla, BTK ya da OCHA ile bağlantılı değildir.</p>
       </section>
