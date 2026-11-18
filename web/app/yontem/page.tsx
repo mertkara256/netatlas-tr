@@ -52,7 +52,8 @@ function datasetMarkup([firstYear, firstQuarter]: number[], [lastYear, lastQuart
     description:
       "Türkiye'nin 81 ili ve 973 ilçesinde Speedtest ile ölçülen ortalama sabit internet indirme ve yükleme hızı ile "
       + "gecikme; 2019'dan bugüne her takvim yılı ve yayınlanmış son dört çeyrek için. Değerler cihaz ağırlıklıdır; "
-      + "test ve cihaz sayıları, güvenilirlik etiketi ve nüfusun ölçüm yapılan karelerde yaşayan payı da verilir. "
+      + "test sayısı, kare ve çeyrek başına cihaz sayılarının toplamı, güvenilirlik etiketi ve nüfusun ölçüm yapılan "
+      + "karelerde yaşayan payı da verilir. "
       + "Ookla'nın açık Speedtest verisinden türetilmiştir.",
     url: `${SITE_ORIGIN}${BASE_PATH}/yontem/`,
     sameAs: REPO_URL,
@@ -67,7 +68,7 @@ function datasetMarkup([firstYear, firstQuarter]: number[], [lastYear, lastQuart
       "Ortalama yükleme hızı (Mbps)",
       "Ortalama gecikme (ms)",
       "Test sayısı",
-      "Cihaz sayısı",
+      "Kare ve çeyrek başına cihaz sayılarının toplamı (aynı cihaz birden çok kez sayılabilir)",
       "Nüfusun ölçüm yapılan karelerde ya da hemen yanlarında yaşayan payı",
     ],
     isBasedOn: ["https://github.com/teamookla/ookla-open-data", "https://doi.org/10.5258/SOTON/WP00758"],
