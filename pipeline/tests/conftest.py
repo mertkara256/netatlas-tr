@@ -20,8 +20,8 @@ from pipeline.common import PROVINCES, tile_to_quadkey
 
 FIXTURE_DIR = Path(__file__).with_name("fixture")
 QUARTER_COLUMNS = ["avg_d_kbps", "avg_u_kbps", "avg_lat_ms", "tests", "devices"]
-# İstanbul, Kocaeli, Mardin and Sakarya. build.main() needs residents, some of them measured, in every
-# province it lists, so it lists only these.
+# İstanbul, Kocaeli, Mardin and Sakarya. build.main() needs residents in every province it lists, so it
+# lists only these.
 SAMPLE_PROVINCES = ["34", "41", "47", "54"]
 
 
@@ -42,8 +42,9 @@ def read_csv(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def run_build(directory: Path, latest: tuple[int, int]) -> Sample:
-    """Write the sample's quarters up to `latest` and its residents, then run build.main() on them."""
+def run_build(directory: Path, latest: tuple[int, int], leave_out: frozenset[str] = frozenset()) -> Sample:
+    """Write the sample's quarters up to `latest` and its residents, without the squares in `leave_out`,
+    then run build.main() on them."""
     squares: dict[str, str] = {}
 
     def quadkey(row: dict) -> str:
@@ -55,14 +56,14 @@ def run_build(directory: Path, latest: tuple[int, int]) -> Sample:
     quarter_dir.mkdir()
     by_quarter = defaultdict(list)
     for row in read_csv(FIXTURE_DIR / "ookla.csv"):
-        if (int(row["year"]), int(row["quarter"])) <= latest:
+        if (int(row["year"]), int(row["quarter"])) <= latest and row["square"] not in leave_out:
             by_quarter[int(row["year"]), int(row["quarter"])].append(row)
     quarters = {}
     for (year, quarter), rows in sorted(by_quarter.items()):
         quarters[year, quarter] = pa.table({"quadkey": [quadkey(r) for r in rows],
                                             **{c: [int(r[c]) for r in rows] for c in QUARTER_COLUMNS}})
         pq.write_table(quarters[year, quarter], quarter_dir / f"fixed_{year}q{quarter}.parquet")
-    residents = read_csv(FIXTURE_DIR / "nufus.csv")
+    residents = [r for r in read_csv(FIXTURE_DIR / "nufus.csv") if r["square"] not in leave_out]
     population = pa.table({"quadkey": [quadkey(r) for r in residents], "nufus": [float(r["nufus"]) for r in residents]})
     pq.write_table(population, directory / "nufus_kareler.parquet")
 
@@ -99,3 +100,10 @@ def sample(tmp_path_factory) -> Sample:
 def sample_ending_in_q4(tmp_path_factory) -> Sample:
     """Without 2026 Q1: "guncel" is 2025 Q1-Q4, and 2025 is not listed on its own."""
     return run_build(tmp_path_factory.mktemp("sample_ending_in_q4"), (2025, 4))
+
+
+@pytest.fixture(scope="session")
+def sample_without_measured_residents_in_mardin(tmp_path_factory) -> Sample:
+    """Without nusaybin_next: Mardin keeps its measured square and 20 residents, none of them next to it."""
+    return run_build(tmp_path_factory.mktemp("sample_without_measured_residents_in_mardin"), (2026, 1),
+                     leave_out=frozenset({"nusaybin_next"}))

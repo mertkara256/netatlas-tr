@@ -236,7 +236,7 @@ def main() -> None:
         # Türkiye adds up its provinces; its largest tile is the largest of theirs.
         columns = list(zip(*provinces.values(), strict=True))
         provinces[NATIONAL] = [sum(col) for col in columns[:-1]] + [max(columns[-1])]
-        people = {code: (residents["il_kodu"][code], measured["il_kodu"][code]) for code in PROVINCES}
+        people = {code: (residents["il_kodu"][code], measured["il_kodu"].get(code, 0.0)) for code in PROVINCES}
         people[NATIONAL] = tuple(map(sum, zip(*people.values(), strict=True)))
         for code, totals in sorted(provinces.items()):
             name = "Türkiye" if code == NATIONAL else PROVINCES[code]

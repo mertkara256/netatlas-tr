@@ -142,3 +142,14 @@ def test_the_single_tile_share_is_the_largest_tile_over_the_period(sample):
 def test_residents_count_as_measured_in_or_next_to_a_measured_tile(sample, table, code, residents, share):
     row = getattr(sample, table)[code, "guncel"]
     assert (int(row["nufus"]), float(row["olculen_nufus_payi"])) == (residents, share)
+
+
+def test_a_province_with_no_measured_residents_gets_a_share_of_zero(sample_without_measured_residents_in_mardin):
+    """Mardin's tests stay, but its only residents (20, nusaybin_by_syria) live away from them. Districts
+    already got a share of 0 this way; a province used to stop the whole build."""
+    run = sample_without_measured_residents_in_mardin
+    for period in run.periods:
+        for row in (run.provinces["47", period], run.districts[NUSAYBIN, period]):
+            assert (int(row["test"]) > 0, int(row["nufus"]), float(row["olculen_nufus_payi"])) == (True, 20, 0.0)
+        national = run.provinces[NATIONAL, period]
+        assert (int(national["nufus"]), float(national["olculen_nufus_payi"])) == (480, round(400 / 480, 3))
