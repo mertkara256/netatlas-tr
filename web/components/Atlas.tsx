@@ -81,7 +81,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
       <header className={styles.header}>
         <div className={styles.brand}>
           <h1 className={styles.title}>NetAtlas TR</h1>
-          <p className={styles.subtitle}>Türkiye&apos;de ölçülen sabit internet hızları, 475 m&apos;lik karelere kadar</p>
+          <p className={styles.subtitle}>Türkiye&apos;nin ev interneti, milyonlarca hız testiyle</p>
         </div>
         <SearchBox onPick={pickPlace} />
         <nav className={styles.nav} aria-label="Sayfalar">
