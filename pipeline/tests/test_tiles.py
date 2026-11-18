@@ -1,4 +1,5 @@
-"""Checks on the map tiles, JSON files and search index (run `python -m pipeline.tiles` first)."""
+"""Checks on the map tiles, JSON files and search index (run `python -m pipeline.tiles` first). The cell
+checks run on the sample in fixture/, so they need no downloaded data."""
 import csv
 import gzip
 import json
@@ -53,13 +54,10 @@ def test_there_is_one_cell_archive_per_period_and_one_for_borders():
 
 
 @pytest.fixture(scope="module")
-def bayburt():
-    """Bayburt's tiles and the cells made from them: small enough to check cell by cell."""
-    if not TILES_PATH.exists():
-        pytest.skip("run `python -m pipeline.build` to make the tile table")
-    tiles = pq.read_table(TILES_PATH)
-    tiles = tiles.filter(pc.equal(tiles["il_kodu"], "69"))
-    return tiles, cell_features(tiles)
+def sample_cells(sample):
+    """The tiles of the sample in fixture/ and the cells made from them: small enough to check cell by cell,
+    and there without downloaded data."""
+    return sample.tiles, cell_features(sample.tiles)
 
 
 def test_every_tile_zoom_shows_exactly_one_level():
@@ -81,8 +79,8 @@ def period_of(feature):
     return key[1:]
 
 
-def test_level_16_cells_are_the_tiles(bayburt):
-    tiles, features = bayburt
+def test_level_16_cells_are_the_tiles(sample_cells):
+    tiles, features = sample_cells
     squares = {(quadkey_of(f), period_of(f)): f["properties"] for f in features if f["properties"]["seviye"] == 16}
     for row in tiles.to_pylist():
         cell = squares[row["quadkey"], row["donem"]]
@@ -90,10 +88,10 @@ def test_level_16_cells_are_the_tiles(bayburt):
     assert len(squares) == tiles.num_rows
 
 
-def test_each_cell_is_drawn_where_its_squares_were_measured(bayburt):
+def test_each_cell_is_drawn_where_its_squares_were_measured(sample_cells):
     """A cell's shape is the tiles FOOTPRINT_DEPTH levels down that hold a square measured in that
     period (built here from tile_bounds, independently of the pipeline's grid maths), inside the cell."""
-    tiles, features = bayburt
+    tiles, features = sample_cells
     rows = tiles.to_pylist()
     for f in features:
         level, period, cell = f["properties"]["seviye"], period_of(f), quadkey_of(f)
@@ -105,9 +103,9 @@ def test_each_cell_is_drawn_where_its_squares_were_measured(bayburt):
         assert shapely.box(*tile_bounds(*quadkey_to_tile(cell))).buffer(1e-9).contains(shape), (cell, period)
 
 
-def test_every_level_holds_all_tests_and_the_same_average(bayburt):
-    tiles, features = bayburt
-    for period in PERIODS:
+def test_every_level_holds_all_tests_and_the_same_average(sample, sample_cells):
+    tiles, features = sample_cells
+    for period in sample.periods:
         rows = tiles.filter(pc.equal(tiles["donem"], period)).to_pylist()
         tests = sum(r["test"] for r in rows)
         download = sum(r["indirme_mbps"] * r["test"] for r in rows) / tests
