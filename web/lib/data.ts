@@ -3,6 +3,8 @@ export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 // The site's origin, for the addresses that must be absolute (link previews, the sitemap). Only
 // read at build time; the deploy workflow sets it, local builds point at the dev server.
 export const SITE_ORIGIN = process.env.SITE_ORIGIN ?? "http://localhost:3000";
+// The site's code and its province and district tables (data/processed/).
+export const REPO_URL = "https://github.com/mertkara256/netatlas-tr";
 // Files written by the data pipeline (`uv run python -m pipeline.tiles`) into public/data/.
 export const DATA_DIR = `${BASE_PATH}/data`;
 // The tile archives: district and province shapes in one, each period's heat map cells in their own,
