@@ -4,8 +4,11 @@ Periods are the calendar years with all four quarters published (2019-2025 today
 "guncel", the latest four published quarters. When the latest quarter is a Q4, that year and
 "guncel" are the same four quarters, and the year is left out until the next quarter arrives.
 Within a period a tile's tests are summed and its speeds averaged weighted by tests. Province,
-district and national values average every tile-quarter in them weighted by its devices instead:
-a phone that runs dozens of tests in one place then counts once, not dozens of times. Split-half
+district and national values average every tile-quarter in them weighted by its devices instead.
+The unit is the tile-quarter's mean, which Ookla takes over all its tests: devices set how much
+that mean counts in the area, not the mean itself. A phone testing dozens of times alone in a
+tile counts once, but next to other devices in the same tile it still dominates the tile's mean
+(9 tests at 10 Mbps and 1 at 100 average 19 Mbps, where equal devices would give 55). Split-half
 checks (2024 and the current period) found area values more repeatable this way: districts with
 1,000-4,999 tests moved a median 9-11% between half-years instead of 13-16%, provinces under
 5,000 tests 6-20% instead of 14-25%. Within a tile, weighting by devices changes nothing.
