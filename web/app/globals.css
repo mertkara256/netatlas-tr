@@ -7,7 +7,8 @@
   --muted: #6f6e69;
   --border: rgba(11, 11, 11, 0.1);
   --wash: rgba(11, 11, 11, 0.04);
-  --accent: #2a78d6;
+  /* Link text: 5.1:1 on --surface, 5.0:1 on --page (WCAG AA asks 4.5:1). */
+  --accent: #256cc0;
   --shadow: 0 8px 24px rgba(11, 11, 11, 0.1);
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
