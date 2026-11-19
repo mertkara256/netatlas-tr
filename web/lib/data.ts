@@ -49,6 +49,9 @@ export const CELL_SIZE: Record<number, string> = {
   10: "~30 km", 11: "~15 km", 12: "~7,6 km", 13: "~3,8 km", 14: "~1,9 km", 15: "~950 m", 16: "~475 m",
 };
 
+/** A heat-map cell's download, upload, latency and tests in one period (d, u, l, t in the tiles). */
+export type CellValues = { d: number; u: number; l: number; t: number };
+
 /** The area whose panel is open, and the point clicked on the map to open it, if any. */
 export type Selection = { kind: AreaKind; code: string; point?: [number, number] };
 

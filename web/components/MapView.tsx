@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as MapLibreMap } from "maplibre-gl";
+import { addProtocol, setWorkerUrl, type ExpressionSpecification, type MapGeoJSONFeature, type Map as MapLibreMap } from "maplibre-gl";
 import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
-import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
+import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type CellValues, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
@@ -73,7 +73,18 @@ const HIT_SLOP = 4;
 // Share of the map the region panel covers on phones (max-height in RegionPanel.module.css).
 const PHONE_SHEET_SHARE = 0.62;
 
-type Values = { d: number; u: number; l: number; t: number };
+/** The cell the tooltip reads at a point: the one drawn there, else, over the gaps between the parts
+ *  drawn zoomed out, one within HIT_SLOP. */
+function cellAt(map: MapLibreMap, { x, y }: { x: number; y: number }): MapGeoJSONFeature | undefined {
+  if (!map.getLayer("cells")) return undefined;
+  return map.queryRenderedFeatures([x, y], { layers: ["cells"] })[0]
+    ?? map.queryRenderedFeatures([[x - HIT_SLOP, y - HIT_SLOP], [x + HIT_SLOP, y + HIT_SLOP]], { layers: ["cells"] })[0];
+}
+
+/** A cell's values in one period, or null if it has none. */
+function cellValues(p: MapGeoJSONFeature["properties"], period: string): CellValues | null {
+  return p[`t${period}`] == null ? null : { d: p[`d${period}`], u: p[`u${period}`], l: p[`l${period}`], t: p[`t${period}`] };
+}
 
 /** A circle of `radius` metres around a point, as a GeoJSON polygon of 64 sides. */
 function circle([lon, lat]: [number, number], radius: number): GeoJSON.Feature<GeoJSON.Polygon> {
@@ -107,7 +118,7 @@ function firstLabelLayer(map: MapLibreMap): string {
   return layers[first]?.id ?? "";
 }
 
-function describe(metric: Metric, v: Values | null): Pick<HoverInfo, "value" | "rows"> {
+function describe(metric: Metric, v: CellValues | null): Pick<HoverInfo, "value" | "rows"> {
   if (!v) return { value: null, rows: [] };
   const reliability = reliabilityLabel(v.t);
   const rows: [string, string][] = [
@@ -123,7 +134,7 @@ function describe(metric: Metric, v: Values | null): Pick<HoverInfo, "value" | "
   return { value: formatValue(metric, v[metric.tileKey]), rows: rows.filter(([k]) => k !== metric.label) };
 }
 
-const lowNote = (v: Values | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
+const lowNote = (v: CellValues | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
 
 export default function MapView({ period, metric, view, theme, areas, selection, focus, onHover, onSelect }: {
   period: PeriodInfo;
@@ -246,18 +257,13 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   }, [highlight, onHover]);
 
   const handlePointer = useCallback((e: MapLayerMouseEvent) => {
-    const { x, y } = e.point;
-    const feature = e.features?.[0] ?? (view === "kareler" && e.target.getLayer("cells")
-      ? e.target.queryRenderedFeatures([[x - HIT_SLOP, y - HIT_SLOP], [x + HIT_SLOP, y + HIT_SLOP]], { layers: ["cells"] })[0]
-      : undefined);
+    const feature = view === "kareler" ? cellAt(e.target, e.point) : e.features?.[0];
     if (!feature) return clear();
     const container = e.target.getContainer();
     const base = { x: e.point.x, y: e.point.y, width: container.clientWidth, height: container.clientHeight };
     const p = feature.properties;
     if (view === "kareler") {
-      const values = p[`t${period.id}`] == null ? null : {
-        d: p[`d${period.id}`], u: p[`u${period.id}`], l: p[`l${period.id}`], t: p[`t${period.id}`],
-      };
+      const values = cellValues(p, period.id);
       const district = e.target.queryRenderedFeatures(e.point, { layers: ["district-hit"] })[0]?.properties;
       highlight(null);
       onHover({
