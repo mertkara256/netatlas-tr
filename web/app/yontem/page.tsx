@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BASE_PATH, CELL_SIZE, NATIONAL, REPO_URL, SITE_ORIGIN } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { HIGH_TESTS, LOW_TESTS, METRICS, ONE_TILE_SHARE, breakLabels, metricById } from "@/lib/metrics";
+import { HIGH_TESTS, LOW_TESTS, MEASURED_RESIDENTS_SHARE, METRICS, ONE_TILE_SHARE, breakLabels, metricById } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { readProvinces } from "@/lib/serverData";
 import styles from "../pages.module.css";
@@ -255,7 +255,10 @@ export default async function MethodPage() {
             tutarlı yaptı: 1.000–4.999 testli ilçelerde iki yarı arasındaki tipik fark %13–16&apos;dan %9–11&apos;e, 5.000&apos;den
             az testli illerde %14–25&apos;ten %6–20&apos;ye indi. Kare değerleri, ısı haritası ve çevrendeki 1 km test ağırlıklı
             kalır; kare içinde iki yöntem neredeyse aynı sonucu verir. Bir alanın en büyük karesi ağırlığın en az
-            %{formatNumber(ONE_TILE_SHARE * 100)}&apos;unu tutuyorsa bölge panelinde bunu belirten bir not çıkar.
+            %{formatNumber(ONE_TILE_SHARE * 100)}&apos;unu tutuyorsa ya da nüfusunun
+            %{formatNumber(MEASURED_RESIDENTS_SHARE * 100)}&apos;den azı ölçüm yapılan karelerde ya da hemen
+            yanlarında yaşıyorsa (aşağıda), bölge panelinde değerin alanın tamamını değil ölçüm yapılan yerleri
+            gösterdiğini belirten bir uyarı çıkar (bkz. <a href="#guvenilirlik">Güvenilirlik</a>).
           </li>
           <li>
             <strong>Ölçüm yapılan karelerdeki nüfus:</strong> Haritanın çoğu boştur, çünkü ölçümler insanların yaşadığı
@@ -311,6 +314,20 @@ export default async function MethodPage() {
           yalnızca %3&apos;ünü tutar; testlerin %62&apos;si yüksek güvenilirlikteki karelerdedir. Haritada düşük güvenilirlikteki değerler
           içi boş gösterilir: çerçeve değerin kendi rengindedir, içi soluk kalır. İl ve ilçe görünümünde ise alan, değerin
           renginde çizgilerle taranır. Renk hızı, içinin boş ya da taralı olması belirsizliği anlatır.
+        </p>
+        <p>
+          Etiket, değerin yeniden ölçülse ne kadar oynayacağını anlatır; bu hızın kimin hızı olduğunu anlatmaz. Bunu
+          bölge panelindeki temsil uyarısı anlatır: bir alanın en büyük karesi ağırlığın en az
+          %{formatNumber(ONE_TILE_SHARE * 100)}&apos;unu tutuyorsa ya da nüfusunun
+          %{formatNumber(MEASURED_RESIDENTS_SHARE * 100)}&apos;den azı ölçüm yapılan karelerde ya da hemen yanlarında
+          yaşıyorsa, değer alanın tamamını değil, ölçüm yapılan yerleri gösterir. Bu iki pay etikete katılmadı. Tek bir
+          karede yoğunlaşma değeri daha oynak yapmıyor: en büyük karesi ağırlığın en az
+          %{formatNumber(ONE_TILE_SHARE * 100)}&apos;unu tutan yüksek güvenilirlikteki ilçelerde iki yarı arasındaki fark,
+          test sayısı benzer ilçelerinkinden tipik olarak yalnızca 1 puan fazla (2019–Güncel, 50 ilçe ve dönem; ör.
+          Aybastı, Güncel: 216 test, tek karenin payı %36, fark %10; 200–499 testli ilçelerde tipik fark %18). Nüfus
+          için %{formatNumber(MEASURED_RESIDENTS_SHARE * 100)} veriden türetilmedi; &quot;nüfusun yarısından çoğu
+          ölçümlerden uzakta&quot; anlamına gelen bir tercih. İki yarı karşılaştırması yalnızca oynaklığı ölçer; ölçülmeyen
+          yerlerde hızın farklı olup olmadığını, yani değerin yanlı olup olmadığını gösteremez.
         </p>
       </section>
 
