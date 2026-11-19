@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { periodText, type Area, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { HIGH_TESTS, LOW_TESTS, ONE_TILE_SHARE, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
+import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, representationConditions, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { startNearbyRequest, type NearbyRequestResult } from "@/lib/nearby-request";
 import { useColorScheme } from "@/lib/useColorScheme";
@@ -89,6 +89,7 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
   const v = area.hiz[period.id];
   const n = national.hiz[period.id];
   const tests = metric.id === "guvenilirlik";
+  const representation = v ? representationConditions(v) : [];
   const btk = province.btk!;
   const nationalBtk = national.btk!;
   const btkYears = Object.keys(btk).sort();
@@ -116,10 +117,12 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
           </p>
         )}
         {v && v.test < LOW_TESTS && <p className={styles.note}>{LOW_TESTS}&apos;dan az test var; değerler belirsiz.</p>}
-        {v && v.test >= LOW_TESTS && (v.tek_kare_payi ?? 0) >= ONE_TILE_SHARE && (
+        {representation.length > 0 && (
           <p className={styles.note}>
-            Ağırlıkta tek bir 475 m&apos;lik karenin payı %{formatNumber((v.tek_kare_payi ?? 0) * 100)}: o karedeki
-            birkaç bağlantı değeri çok etkiliyor.
+            Bu değer {isDistrict ? "ilçenin" : "ilin"} tamamını değil, ölçüm yapılan yerleri gösterir:{" "}
+            {representation.map((condition) => (condition === "oneTile"
+              ? `ağırlıkta tek bir 475 m'lik karenin payı ${percent(v!.tek_kare_payi!)}`
+              : `ölçüme yakın yaşayan nüfusun payı ${percent(v!.olculen_nufus_payi!)}`)).join(", ")}.
           </p>
         )}
       </section>

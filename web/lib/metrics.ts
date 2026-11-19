@@ -20,8 +20,12 @@ export type Metric = {
 export const LOW_TESTS = 10;
 // From this many tests on a value is reliable (the pipeline's RELIABILITY floors are the same).
 export const HIGH_TESTS = 200;
-// An area whose largest 475 m tile holds at least this share of its weight gets a note in its panel.
+// An area whose largest 475 m tile holds at least this share of its weight gets a representation
+// note in its panel.
 export const ONE_TILE_SHARE = 0.3;
+// So does an area where fewer than this share of its residents live in or next to a measured tile.
+// Not derived from the data: a choice, meaning most residents live away from the measurements.
+export const MEASURED_RESIDENTS_SHARE = 0.5;
 const RELIABILITY_BREAKS = [LOW_TESTS, HIGH_TESTS];
 
 // Speeds span two orders of magnitude (2019's median square ~16 Mbps, today's ~120), so the
@@ -61,6 +65,20 @@ export function classIndex(value: number, breaks: number[]): number {
 /** "Düşük", "Orta" or "Yüksek" for a value from this many tests. */
 export function reliabilityLabel(tests: number): string {
   return RELIABILITY_LABELS[classIndex(tests, RELIABILITY_BREAKS)];
+}
+
+/** Why an area's value stands for the places measured rather than the whole area: its largest tile
+ *  holds much of the weight ("oneTile"), most residents live away from the measurements
+ *  ("residents"), or both. The reliability label says how much the value would move if measured
+ *  again; this says whose speed it is. None under LOW_TESTS, which has its own note. */
+export function representationConditions(
+  v: Pick<SpeedValues, "test" | "tek_kare_payi" | "olculen_nufus_payi">,
+): ("oneTile" | "residents")[] {
+  if (v.test < LOW_TESTS) return [];
+  const conditions: ("oneTile" | "residents")[] = [];
+  if (v.tek_kare_payi != null && v.tek_kare_payi >= ONE_TILE_SHARE) conditions.push("oneTile");
+  if (v.olculen_nufus_payi != null && v.olculen_nufus_payi < MEASURED_RESIDENTS_SHARE) conditions.push("residents");
+  return conditions;
 }
 
 const integer = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });
