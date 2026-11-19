@@ -23,8 +23,6 @@ from pipeline.build import (
 )
 from pipeline.common import PROVINCES, lonlat_to_tile, quadkey_to_tile, tile_to_quadkey
 
-PERIODS = [str(y) for y in range(2019, 2026)] + ["guncel"]
-
 
 def read_csv(path):
     with path.open(encoding="utf-8") as f:
@@ -70,17 +68,18 @@ def add_up(rows):
 
 def test_periods_are_calendar_years_plus_the_latest_four_quarters():
     quarters = [(y, q) for y in range(2019, 2027) for q in range(1, 5)][:-1]  # up to 2026 Q3
+    years = [str(y) for y in range(2019, 2026)]
     result = periods(quarters)
-    assert list(result) == PERIODS
+    assert list(result) == [*years, "guncel"]
     assert result["2019"] == [(2019, 1), (2019, 2), (2019, 3), (2019, 4)]
     assert result["guncel"] == [(2025, 4), (2026, 1), (2026, 2), (2026, 3)]
     # 2026 Q4 makes the year complete, but it would repeat the current period: only "guncel" has it
     # until 2027 Q1, when the year appears and "guncel" moves on.
     with_q4 = periods(quarters + [(2026, 4)])
-    assert list(with_q4) == PERIODS
+    assert list(with_q4) == [*years, "guncel"]
     assert with_q4["guncel"] == [(2026, 1), (2026, 2), (2026, 3), (2026, 4)]
     with_next = periods(quarters + [(2026, 4), (2027, 1)])
-    assert list(with_next) == [*PERIODS[:-1], "2026", "guncel"]
+    assert list(with_next) == [*years, "2026", "guncel"]
     assert with_next["guncel"] == [(2026, 2), (2026, 3), (2026, 4), (2027, 1)]
 
 
@@ -93,8 +92,8 @@ def test_residents_count_as_measured_in_or_next_to_a_measured_tile():
     assert not near_measured(tiles, np.array([], dtype=np.int64)).any()
 
 
-def test_every_province_has_every_period(provinces):
-    assert set(provinces) == {(code, p) for code in [*PROVINCES, NATIONAL] for p in PERIODS}
+def test_every_province_has_every_period(provinces, expected_periods):
+    assert set(provinces) == {(code, p) for code in [*PROVINCES, NATIONAL] for p in expected_periods}
 
 
 def test_districts_add_up_to_their_province(provinces, districts, district_list):
@@ -109,20 +108,20 @@ def test_districts_add_up_to_their_province(provinces, districts, district_list)
         assert download == pytest.approx(float(provinces[key]["indirme_mbps"]), abs=0.1), key
 
 
-def test_provinces_add_up_to_the_country(provinces):
-    for period in PERIODS:
+def test_provinces_add_up_to_the_country(provinces, expected_periods):
+    for period in expected_periods:
         tiles, tests, devices, download = add_up([provinces[code, period] for code in PROVINCES])
         national = provinces[NATIONAL, period]
         assert (tiles, tests, devices) == tuple(int(national[c]) for c in ("kare", "test", "cihaz")), period
         assert download == pytest.approx(float(national["indirme_mbps"]), abs=0.1), period
 
 
-def test_residents_add_up(provinces, districts, district_list):
+def test_residents_add_up(provinces, districts, district_list, expected_periods):
     """A district without measurements in a period has no row, so its residents are missing from the sum."""
     in_province = defaultdict(set)
     for code, d in district_list.items():
         in_province[d["il_kodu"]].add(code)
-    for period in PERIODS:
+    for period in expected_periods:
         for province in PROVINCES:
             rows = [districts[code, period] for code in in_province[province] if (code, period) in districts]
             row = provinces[province, period]
@@ -153,8 +152,8 @@ def test_province_residents_are_close_to_the_official_2021_population(provinces)
     assert int(provinces[NATIONAL, "guncel"]["nufus"]) == pytest.approx(official[NATIONAL], rel=0.002)
 
 
-def test_almost_every_district_has_measurements(districts, district_list):
-    for period in PERIODS:
+def test_almost_every_district_has_measurements(districts, district_list, expected_periods):
+    for period in expected_periods:
         assert sum((code, period) in districts for code in district_list) >= 960, period
 
 

@@ -3,10 +3,14 @@
 Its quarters and residents are written in the pipeline's own formats, build.py's paths are pointed at
 them and at the clipped district shapes, and build.main() runs as it does on the full data.
 fixture/README.md says what each square is for.
+
+The periods the full data must have are worked out here too, from its latest quarter, so the checks on
+it keep passing when a new quarter comes out.
 """
 from __future__ import annotations
 
 import csv
+import json
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +19,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from pipeline import build, ookla
+from pipeline import build, ookla, tiles
 from pipeline.common import PROVINCES, tile_to_quadkey
 
 FIXTURE_DIR = Path(__file__).with_name("fixture")
@@ -107,3 +111,21 @@ def sample_without_measured_residents_in_mardin(tmp_path_factory) -> Sample:
     """Without nusaybin_next: Mardin keeps its measured square and 20 residents, none of them next to it."""
     return run_build(tmp_path_factory.mktemp("sample_without_measured_residents_in_mardin"), (2026, 1),
                      leave_out=frozenset({"nusaybin_next"}))
+
+
+@pytest.fixture(scope="session")
+def latest_quarter() -> tuple[int, int]:
+    """The latest Ookla quarter in the full data, as tiles.py wrote it to iller.json."""
+    path = tiles.OUT_DIR / "iller.json"
+    if not path.exists():
+        pytest.skip("needs iller.json: download the release named in web/data-release.txt or run `python -m pipeline.tiles`")
+    year, quarter = json.loads(path.read_text(encoding="utf-8"))["ookla"]["son"]
+    return year, quarter
+
+
+@pytest.fixture(scope="session")
+def expected_periods(latest_quarter) -> list[str]:
+    """The full data's periods, from its latest quarter alone: every year from 2019 up to the one before the
+    latest quarter's, then "guncel". The latest quarter's own year is incomplete or, when that quarter is a
+    Q4, the same four quarters as "guncel"."""
+    return [str(year) for year in range(2019, latest_quarter[0])] + ["guncel"]

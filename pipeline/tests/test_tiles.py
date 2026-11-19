@@ -19,8 +19,6 @@ from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, TILES_PATH
 from pipeline.common import PROVINCES, ROOT, lonlat_to_tile, normalize_name, quadkey_to_tile, tile_bounds, tile_to_quadkey
 from pipeline.tiles import BORDERS_PATH, FOOTPRINT_DEPTH, LEVELS, MAX_ZOOM, OUT_DIR, cell_features, cells_path, tile_zooms
 
-PERIODS = [str(y) for y in range(2019, 2026)] + ["guncel"]
-
 
 def read_json(name):
     path = OUT_DIR / name
@@ -49,8 +47,8 @@ def archives():
     return found
 
 
-def test_there_is_one_cell_archive_per_period_and_one_for_borders():
-    assert {path.name for path in archives()} == {BORDERS_PATH.name, *(cells_path(p).name for p in PERIODS)}
+def test_there_is_one_cell_archive_per_period_and_one_for_borders(expected_periods):
+    assert {path.name for path in archives()} == {BORDERS_PATH.name, *(cells_path(p).name for p in expected_periods)}
 
 
 @pytest.fixture(scope="module")
@@ -151,25 +149,28 @@ def test_each_zoom_carries_its_level_and_the_borders(zoom):
     assert set(borders) == {"iller", "ilceler"} and borders["iller"] and borders["ilceler"]
 
 
-def test_a_square_keeps_its_values_in_the_tiles():
+def test_a_square_keeps_its_values_in_the_tiles(expected_periods):
     if not TILES_PATH.exists():
         pytest.skip("run `python -m pipeline.build` to make the tile table")
     quadkey = tile_to_quadkey(*lonlat_to_tile(29.03, 40.99, 16), 16)  # Kadıköy
     tiles = pq.read_table(TILES_PATH)
     rows = tiles.filter(pc.equal(tiles["quadkey"], quadkey)).to_pylist()
     expected = {k: v for r in rows for k, v in [(f"t{r['donem']}", r["test"]), (f"d{r['donem']}", r["indirme_mbps"])]}
-    assert len(rows) == len(PERIODS)
-    found = [f["properties"] for period in PERIODS
+    assert len(rows) == len(expected_periods)
+    found = [f["properties"] for period in expected_periods
              for f in decode(cells_path(period), MAX_ZOOM, *lonlat_to_tile(29.03, 40.99, MAX_ZOOM))["hucreler"]
              if quadkey_of(f) == quadkey]
-    assert len(found) == len(PERIODS)  # once in each period's archive
+    assert len(found) == len(expected_periods)  # once in each period's archive
     assert {k: v for props in found for k, v in props.items() if k in expected} == expected
 
 
-def test_province_json_matches_the_tables():
+def test_province_json_matches_the_tables(latest_quarter, expected_periods):
     data = read_json("iller.json")
-    assert [p["id"] for p in data["donemler"]] == PERIODS
-    assert data["donemler"][-1] == {"id": "guncel", "ad": "Güncel", "aralik": "2025 Ç4 – 2026 Ç3"}
+    assert [p["id"] for p in data["donemler"]] == expected_periods
+    # "guncel" is the four quarters up to the latest one: a whole year after a Q4.
+    year, quarter = latest_quarter
+    span = f"{year} Ç1 – Ç4" if quarter == 4 else f"{year - 1} Ç{quarter + 1} – {year} Ç{quarter}"
+    assert data["donemler"][-1] == {"id": "guncel", "ad": "Güncel", "aralik": span}
     assert data["btk_yillari"] == list(range(2020, 2026))
     # Ookla's attribution names the access date and the quarters used.
     assert data["ookla"]["ilk"] == [2019, 1] and tuple(data["ookla"]["son"]) >= (2026, 3)
