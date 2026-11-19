@@ -124,7 +124,11 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
                   ) : (
                     <td colSpan={4} className={styles.muted}>Bu dönemde ölçüm yok</td>
                   )}
-                  <td className={styles.num}>{then ? formatValue(DOWNLOAD, then.indirme_mbps) : "–"}</td>
+                  <td className={styles.num}>
+                    {then ? formatValue(DOWNLOAD, then.indirme_mbps) : "–"}
+                    {/* On its own line, so the column stays as narrow as its header. */}
+                    {then && then.test < LOW_TESTS && <><br /><span className={styles.muted}>(az test)</span></>}
+                  </td>
                 </tr>
               );
             })}
