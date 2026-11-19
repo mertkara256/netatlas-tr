@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { periodText, type Area, type PeriodInfo } from "@/lib/data";
+import { CELL_SIZE, periodText, type Area, type CellPick, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, representationConditions, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
@@ -28,6 +28,48 @@ function Stat({ label, value, note }: { label: string; value: string; note: stri
         <span className={styles.statNote}>{note}</span>
       </dd>
     </div>
+  );
+}
+
+/** The heat-map cell under the click, with the values the tooltip gives at that point (cellAt() in
+ *  MapView), so a phone, which has no tooltip, can read what a cell's colour stands for. */
+function CellSection({ pick, period, periods }: { pick: CellPick; period: PeriodInfo; periods: PeriodInfo[] }) {
+  // While another period is shown, the map reads the cell again (MapView); stale if it could not.
+  const reading = pick.period !== period.id && !pick.stale;
+  const readIn = periods.find((p) => p.id === pick.period)!;
+  const v = pick.cell?.values;
+
+  return (
+    <section className={styles.cell}>
+      <h3>
+        Tıkladığın hücre{" "}
+        <span className={styles.muted}>
+          {reading ? period.ad : [pick.cell && CELL_SIZE[pick.cell.level], readIn.ad].filter(Boolean).join(" · ")}
+        </span>
+      </h3>
+      {reading ? (
+        <p className={`${styles.muted} ${styles.nearbyLoading}`} role="status">
+          <span className={styles.spinner} aria-hidden="true" />Yükleniyor…
+        </p>
+      ) : v ? (
+        <p>
+          {formatValue(DOWNLOAD, v.d)} indirme · {formatValue(UPLOAD, v.u)} yükleme · {formatValue(LATENCY, v.l)} gecikme
+          <br />
+          <span className={styles.muted}>
+            {formatNumber(v.t)} test ({reliabilityLabel(v.t).toLocaleLowerCase("tr-TR")} güvenilirlik)
+          </span>
+        </p>
+      ) : (
+        <p>Tıkladığın yerde {pick.period === period.id ? "bu dönemde" : `${readIn.ad} döneminde`} ölçüm yok.</p>
+      )}
+      {!reading && v && v.t < LOW_TESTS && <p className={styles.note}>{LOW_TESTS}&apos;dan az test var; değerler belirsiz.</p>}
+      {pick.stale && pick.period !== period.id && (
+        <p className={styles.note}>
+          Bu bilgi {readIn.ad} dönemine ait: tıkladığın yer haritanın görünen kısmında olmadığı için {period.ad} dönemi
+          okunamadı. Haritayı oraya geri kaydırınca güncellenir.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -75,7 +117,7 @@ function NearbySection({ point, period }: { point: [number, number]; period: Per
 
 /** Speeds, yearly trend and BTK access of a province or district, beside Türkiye's.
  *  Shared by the map's region panel and the province pages. */
-export default function RegionDetails({ area, province, national, isDistrict, periods, period, metric, point }: {
+export default function RegionDetails({ area, province, national, isDistrict, periods, period, metric, point, cell }: {
   area: Area;
   /** The area itself, or a district's province (BTK publishes no district figures). */
   province: Area;
@@ -86,6 +128,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
   metric: Metric;
   /** The point clicked on the map to open the panel. */
   point?: [number, number];
+  /** In the heat map, the cell under that point. */
+  cell?: CellPick;
 }) {
   const theme = useColorScheme();
   const v = area.hiz[period.id];
@@ -99,10 +143,16 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
 
   return (
     <div className={styles.details}>
+      {cell && <CellSection pick={cell} period={period} periods={periods} />}
       {point && <NearbySection point={point} period={period} />}
 
       <section>
-        <h3>{periodText(period)}</h3>
+        {/* Under the cell and its surroundings, the heading says whose values these are. */}
+        {cell ? (
+          <h3>{isDistrict ? "İlçe geneli" : "İl geneli"} <span className={styles.muted}>{periodText(period)}</span></h3>
+        ) : (
+          <h3>{periodText(period)}</h3>
+        )}
         {v && n ? (
           <dl className={styles.stats}>
             <Stat label="İndirme" value={formatValue(DOWNLOAD, v.indirme_mbps)} note={`Türkiye ${formatValue(DOWNLOAD, n.indirme_mbps)}`} />
