@@ -15,6 +15,8 @@ const DOWNLOAD = metricById("indirme");
 const UPLOAD = metricById("yukleme");
 const LATENCY = metricById("gecikme");
 const percent = (v: number) => `%${formatNumber(v * 100)}`;
+// One decimal, so a share just under a note's threshold (Hadim's 0.498 residents) does not read as the threshold.
+const share = (v: number) => `%${formatNumber(v * 100, 1)}`;
 const shortLabel = (p: PeriodInfo) => (p.id === "guncel" ? p.ad : `'${p.id.slice(2)}`);
 
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
@@ -113,7 +115,7 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
         )}
         {v?.olculen_nufus_payi != null && n?.olculen_nufus_payi != null && (
           <p className={styles.note}>
-            Nüfusun ölçüm yapılan karelerde ya da hemen yanlarında yaşayan payı: {percent(v.olculen_nufus_payi)} (Türkiye {percent(n.olculen_nufus_payi)}).
+            Nüfusun ölçüm yapılan karelerde ya da hemen yanlarında yaşayan payı: {share(v.olculen_nufus_payi)} (Türkiye {share(n.olculen_nufus_payi)}).
           </p>
         )}
         {v && v.test < LOW_TESTS && <p className={styles.note}>{LOW_TESTS}&apos;dan az test var; değerler belirsiz.</p>}
@@ -121,8 +123,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
           <p className={styles.note}>
             Bu değer {isDistrict ? "ilçenin" : "ilin"} tamamını değil, ölçüm yapılan yerleri gösterir:{" "}
             {representation.map((condition) => (condition === "oneTile"
-              ? `ağırlıkta tek bir 475 m'lik karenin payı ${percent(v!.tek_kare_payi!)}`
-              : `ölçüme yakın yaşayan nüfusun payı ${percent(v!.olculen_nufus_payi!)}`)).join(", ")}.
+              ? `ağırlıkta tek bir 475 m'lik karenin payı ${share(v!.tek_kare_payi!)}`
+              : `ölçüme yakın yaşayan nüfusun payı ${share(v!.olculen_nufus_payi!)}`)).join(", ")}.
           </p>
         )}
       </section>
