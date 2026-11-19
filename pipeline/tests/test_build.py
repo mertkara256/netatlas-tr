@@ -259,8 +259,9 @@ def test_measured_residents_match_a_hand_calculation(sample, monkeypatch, code, 
 
 @pytest.mark.parametrize("province, district", [("Rize", "Hemşin"), ("Aksaray", "Güzelyurt")])
 def test_towns_with_many_tests_count_as_measured(districts, district_list, province, district):
-    """Their tests fall one tile off the most populated tiles: with the same tile only, 12% and 35%."""
+    """Their tests fall one tile off the most populated tiles: with the same tile only, 71% and 34% in 2025.
+    A whole year, unlike "guncel", keeps its tests when a new quarter comes out."""
     code = next(c for c, d in district_list.items() if (d["il"], d["ilce"]) == (province, district))
-    row = districts[code, "guncel"]
+    row = districts[code, "2025"]
     assert int(row["test"]) >= 200
     assert float(row["olculen_nufus_payi"]) > 0.8
