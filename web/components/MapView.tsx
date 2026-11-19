@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addProtocol, setWorkerUrl, type ExpressionSpecification, type Map as MapLibreMap } from "maplibre-gl";
+import { addProtocol, setWorkerUrl, type ExpressionSpecification, type MapGeoJSONFeature, type Map as MapLibreMap, type VectorTileSource } from "maplibre-gl";
 import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
-import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type PeriodInfo, type Selection, type View } from "@/lib/data";
+import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type CellPick, type CellValues, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
@@ -36,6 +36,7 @@ const TURKEY_BOUNDS: [number, number, number, number] = [25.6, 35.8, 44.9, 42.2]
 const CELL_BOUNDS: [number, number, number, number] = [25.5, 35.7, 45.0, 42.2];
 // The deepest tile zoom in the archive (MAX_ZOOM in pipeline/tiles.py); MapLibre overzooms beyond.
 const TILE_MAXZOOM = 12;
+const cellTiles = (period: string) => `harita://${cellsArchive(period)}/{z}/{x}/{y}`;
 const AREA_LAYERS = { ilceler: "district-fill", iller: "province-fill" } as const;
 // The outline of a cell with few tests (see FEW_TESTS_FILL), kept inside the cell: a tile's rings
 // run clockwise on screen, so a positive offset is inward. Thinner zoomed out, where a cell is
@@ -73,7 +74,25 @@ const HIT_SLOP = 4;
 // Share of the map the region panel covers on phones (max-height in RegionPanel.module.css).
 const PHONE_SHEET_SHARE = 0.62;
 
-type Values = { d: number; u: number; l: number; t: number };
+/** The cell the tooltip reads at a point: the one drawn there, else, over the gaps between the parts
+ *  drawn zoomed out, one within HIT_SLOP. A click reads it the same way for the region panel. */
+function cellAt(map: MapLibreMap, { x, y }: { x: number; y: number }): MapGeoJSONFeature | undefined {
+  if (!map.getLayer("cells")) return undefined;
+  return map.queryRenderedFeatures([x, y], { layers: ["cells"] })[0]
+    ?? map.queryRenderedFeatures([[x - HIT_SLOP, y - HIT_SLOP], [x + HIT_SLOP, y + HIT_SLOP]], { layers: ["cells"] })[0];
+}
+
+/** A cell's values in one period, or null if it has none. */
+function cellValues(p: MapGeoJSONFeature["properties"], period: string): CellValues | null {
+  return p[`t${period}`] == null ? null : { d: p[`d${period}`], u: p[`u${period}`], l: p[`l${period}`], t: p[`t${period}`] };
+}
+
+/** The cell at a point as the tooltip gives it, for the region panel. */
+function pickCell(map: MapLibreMap, point: { x: number; y: number }, period: string): CellPick {
+  const feature = cellAt(map, point);
+  const values = feature && cellValues(feature.properties, period);
+  return { period, cell: feature && values ? { level: feature.properties.seviye, values } : null };
+}
 
 /** A circle of `radius` metres around a point, as a GeoJSON polygon of 64 sides. */
 function circle([lon, lat]: [number, number], radius: number): GeoJSON.Feature<GeoJSON.Polygon> {
@@ -107,7 +126,7 @@ function firstLabelLayer(map: MapLibreMap): string {
   return layers[first]?.id ?? "";
 }
 
-function describe(metric: Metric, v: Values | null): Pick<HoverInfo, "value" | "rows"> {
+function describe(metric: Metric, v: CellValues | null): Pick<HoverInfo, "value" | "rows"> {
   if (!v) return { value: null, rows: [] };
   const reliability = reliabilityLabel(v.t);
   const rows: [string, string][] = [
@@ -123,7 +142,7 @@ function describe(metric: Metric, v: Values | null): Pick<HoverInfo, "value" | "
   return { value: formatValue(metric, v[metric.tileKey]), rows: rows.filter(([k]) => k !== metric.label) };
 }
 
-const lowNote = (v: Values | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
+const lowNote = (v: CellValues | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
 
 export default function MapView({ period, metric, view, theme, areas, selection, focus, onHover, onSelect }: {
   period: PeriodInfo;
@@ -246,18 +265,13 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   }, [highlight, onHover]);
 
   const handlePointer = useCallback((e: MapLayerMouseEvent) => {
-    const { x, y } = e.point;
-    const feature = e.features?.[0] ?? (view === "kareler" && e.target.getLayer("cells")
-      ? e.target.queryRenderedFeatures([[x - HIT_SLOP, y - HIT_SLOP], [x + HIT_SLOP, y + HIT_SLOP]], { layers: ["cells"] })[0]
-      : undefined);
+    const feature = view === "kareler" ? cellAt(e.target, e.point) : e.features?.[0];
     if (!feature) return clear();
     const container = e.target.getContainer();
     const base = { x: e.point.x, y: e.point.y, width: container.clientWidth, height: container.clientHeight };
     const p = feature.properties;
     if (view === "kareler") {
-      const values = p[`t${period.id}`] == null ? null : {
-        d: p[`d${period.id}`], u: p[`u${period.id}`], l: p[`l${period.id}`], t: p[`t${period.id}`],
-      };
+      const values = cellValues(p, period.id);
       const district = e.target.queryRenderedFeatures(e.point, { layers: ["district-hit"] })[0]?.properties;
       highlight(null);
       onHover({
@@ -281,7 +295,8 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   }, [view, period, metric, areas, highlight, onHover, clear]);
 
   // A click opens the panel of the area under the pointer; in the heat map, of the district,
-  // remembering the clicked cell. On phones this replaces the tooltip.
+  // remembering the clicked point and the cell the tooltip gives there. On phones this replaces
+  // the tooltip.
   const handleClick = useCallback((e: MapLayerMouseEvent) => {
     let selection: Selection;
     const point: [number, number] = [e.lngLat.lng, e.lngLat.lat];
@@ -289,7 +304,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       if (!e.target.getLayer("district-hit")) return; // clicked before our layers were added
       const district = e.target.queryRenderedFeatures(e.point, { layers: ["district-hit"] })[0];
       if (!district) return;
-      selection = { kind: "ilceler", code: String(district.properties.ilce_kodu), point };
+      selection = { kind: "ilceler", code: String(district.properties.ilce_kodu), point, cell: pickCell(e.target, e.point, period.id) };
     } else {
       const feature = e.features?.[0];
       if (!feature) return;
@@ -301,7 +316,34 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     const { clientHeight } = e.target.getContainer();
     const visible = clientHeight * (1 - PHONE_SHEET_SHARE);
     if (hasPhoneSheet() && e.point.y > visible) e.target.panBy([0, e.point.y - visible / 2]);
-  }, [view, clear, onSelect]);
+  }, [view, period.id, clear, onSelect]);
+
+  // The panel's cell belongs to the period it was read in. When another period is shown, read it
+  // again as a new click at the same point would, once that period's cells are drawn: tried at
+  // every idle until it succeeds. A point off the map cannot be read: the panel then says which
+  // period its values are from, until the map is moved back over the point.
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    const pick = selection?.cell;
+    const point = selection?.point;
+    if (!map || !pick || !point || pick.period === period.id || view !== "kareler" || loaded?.theme !== theme) return;
+    const read = () => {
+      // The new period's source is added a moment after the old one is removed, and the map can go
+      // idle in between, with no cells drawn.
+      if (!map.getLayer("cells") || map.getSource<VectorTileSource>("kareler")?.tiles[0] !== cellTiles(period.id)) return;
+      const at = map.project(point);
+      const { clientWidth, clientHeight } = map.getContainer();
+      if (at.x >= 0 && at.y >= 0 && at.x < clientWidth && at.y < clientHeight) {
+        onSelect({ ...selection, cell: pickCell(map, at, period.id) });
+      } else if (!pick.stale) {
+        onSelect({ ...selection, cell: { ...pick, stale: true } });
+      }
+    };
+    map.on("idle", read);
+    return () => {
+      map.off("idle", read);
+    };
+  }, [selection, period.id, view, loaded, theme, onSelect]);
 
   // Outline the selected area; tile features keep their state across period and metric changes,
   // but a basemap switch re-adds the source, so the state is set again then.
@@ -457,7 +499,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
             key={`${theme}-${period.id}`}
             id="kareler"
             type="vector"
-            tiles={[`harita://${cellsArchive(period.id)}/{z}/{x}/{y}`]}
+            tiles={[cellTiles(period.id)]}
             maxzoom={TILE_MAXZOOM}
             bounds={CELL_BOUNDS}
           >

@@ -284,8 +284,8 @@ export default async function MethodPage() {
             çizilir; komşu hücrelerin renkleri birbirine karışmaz. Kareler arasında yumuşak geçiş bilerek yok:
             geçişteki renkler hiçbir karede ölçülmemiş ara değerler olurdu, bir yerin rengi üzerine gelince gösterilen
             değerle uyuşmazdı ve komşu kareler arasında gerçekte olmayan bir eğilim görünürdü. Ölçüm olmayan yerler boş
-            kalır. Üzerine gelince gösterilen değer, parçanın renginin gösterdiği değerdir; parçaların arasındaki
-            boşlukta birkaç piksel yakındaki parçanınki gösterilir. Uzaktan parçalar içi boş çizilemeyecek kadar küçük
+            kalır. Üzerine gelince ve tıklayınca bölge panelinde gösterilen değer, parçanın renginin gösterdiği
+            değerdir; parçaların arasındaki boşlukta birkaç piksel yakındaki parçanınki gösterilir. Uzaktan parçalar içi boş çizilemeyecek kadar küçük
             olduğundan, az testli değerler yakınlaşınca ayırt edilir.
           </li>
           <li>

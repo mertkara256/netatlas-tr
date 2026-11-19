@@ -49,8 +49,17 @@ export const CELL_SIZE: Record<number, string> = {
   10: "~30 km", 11: "~15 km", 12: "~7,6 km", 13: "~3,8 km", 14: "~1,9 km", 15: "~950 m", 16: "~475 m",
 };
 
-/** The area whose panel is open, and the point clicked on the map to open it, if any. */
-export type Selection = { kind: AreaKind; code: string; point?: [number, number] };
+/** A heat-map cell's download, upload, latency and tests in one period (d, u, l, t in the tiles). */
+export type CellValues = { d: number; u: number; l: number; t: number };
+
+/** The heat-map cell the tooltip reads at the clicked point, in the period it was read in: its level
+ *  and values, or null where no cell is drawn there. Stale when the period has changed while the
+ *  point was off the map, so it could not be read again. */
+export type CellPick = { period: string; cell: { level: number; values: CellValues } | null; stale?: boolean };
+
+/** The area whose panel is open, the point clicked on the map to open it, if any, and in the heat
+ *  map the cell under that point. */
+export type Selection = { kind: AreaKind; code: string; point?: [number, number]; cell?: CellPick };
 
 const loading = new Map<AreaKind, Promise<Record<string, Area>>>();
 
