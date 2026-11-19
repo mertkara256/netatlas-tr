@@ -388,7 +388,7 @@ export default async function MethodPage() {
           <li><strong>Abonelik hane değildir:</strong> iş yeri abonelikleri de sayıya dahildir.</li>
           <li>
             <strong>Ölçüm olmayan ilçe-yıllar</strong> boş kalır (ör. eski ilçe merkezi Ilısu Barajı&apos;nın altında kalan
-            Hasankeyf&apos;te 2020 sonrası).
+            Hasankeyf&apos;te 2020–2024).
           </li>
         </ul>
       </section>
