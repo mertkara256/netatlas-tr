@@ -249,9 +249,11 @@ export default async function MethodPage() {
             kareleri dahil olur, sınırın öbür yanındaki yerleşimler (ör. Kamışlı, İdlib) dışarıda kalır.
           </li>
           <li>
-            <strong>İl, ilçe ve Türkiye değeri:</strong> İçindeki karelerin her çeyrekteki ortalaması, o karede o çeyrekte
-            test yapan cihaz sayısıyla ağırlıklandırılır. Böylece aynı yerde onlarca test yapan tek bir cihaz, değeri onlarca
-            kez değil, bir kez etkiler. Aynı yılın iki yarısı karşılaştırıldığında bu yöntem ilçe ve il değerlerini daha
+            <strong>İl, ilçe ve Türkiye değeri:</strong> İçindeki karelerin her çeyrekteki ortalaması (kare-çeyrek
+            ortalaması), o karede o çeyrekte test yapan cihaz sayısıyla ağırlıklandırılır. Bu ortalamayı Ookla karedeki bütün
+            testlerden hesaplar; cihaz sayısı onun alan değerindeki ağırlığını belirler, kendisini değiştirmez. Karesinde tek
+            başına onlarca test yapan bir cihaz değeri bir kez etkiler; aynı karede başka cihazlar da test yapıyorsa o karenin
+            ortalamasında yine ağır basar. Aynı yılın iki yarısı karşılaştırıldığında bu yöntem ilçe ve il değerlerini daha
             tutarlı yaptı: 1.000–4.999 testli ilçelerde iki yarı arasındaki tipik fark %13–16&apos;dan %9–11&apos;e, 5.000&apos;den
             az testli illerde %14–25&apos;ten %6–20&apos;ye indi. Kare değerleri, ısı haritası ve çevrendeki 1 km test ağırlıklı
             kalır; kare içinde iki yöntem neredeyse aynı sonucu verir. Bir alanın en büyük karesi ağırlığın en az
@@ -386,7 +388,7 @@ export default async function MethodPage() {
           <li><strong>Abonelik hane değildir:</strong> iş yeri abonelikleri de sayıya dahildir.</li>
           <li>
             <strong>Ölçüm olmayan ilçe-yıllar</strong> boş kalır (ör. eski ilçe merkezi Ilısu Barajı&apos;nın altında kalan
-            Hasankeyf&apos;te 2020 sonrası).
+            Hasankeyf&apos;te 2020–2024).
           </li>
         </ul>
       </section>
