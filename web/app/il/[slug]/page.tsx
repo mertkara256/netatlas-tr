@@ -5,6 +5,7 @@ import RegionDetails from "@/components/RegionDetails";
 import { NATIONAL, periodText } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, metricById } from "@/lib/metrics";
+import { compareAreas } from "@/lib/order";
 import { readDistricts, readProvinces } from "@/lib/serverData";
 import { slugify } from "@/lib/slug";
 import styles from "../../pages.module.css";
@@ -50,16 +51,52 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
   // No exact rank among the 81: neighbouring ranks are typically under 1% apart, less than a year's
   // values move by chance, so the rank would mostly be noise. The gap to Türkiye carries the same news.
   const gap = Math.round((v.indirme_mbps / nationalDownload - 1) * 100);
+  const same = formatValue(DOWNLOAD, v.indirme_mbps) === formatValue(DOWNLOAD, nationalDownload);
 
   const districts = Object.entries(await readDistricts())
     .filter(([, d]) => d.il_kodu === code)
     .map(([, d]) => d)
-    .sort((a, b) => {
-      const x = a.hiz[current.id]?.indirme_mbps;
-      const y = b.hiz[current.id]?.indirme_mbps;
-      if (x == null || y == null) return x == null ? (y == null ? a.ad.localeCompare(b.ad, "tr") : 1) : -1;
-      return y - x;
-    });
+    // By name first, so districts with no measurement (and equal values) stay alphabetical.
+    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"))
+    // As the map's table does: a few tests make the extremes, which would otherwise top the list.
+    .sort(compareAreas({
+      value: (d) => d.hiz[current.id]?.indirme_mbps,
+      tests: (d) => d.hiz[current.id]?.test,
+      dir: -1,
+      reliableFirst: true,
+    }));
+
+  // The reliable values first, then the rest under a heading row (see compareAreas).
+  const split = districts.findIndex((d) => (d.hiz[current.id]?.test ?? 0) < HIGH_TESTS);
+  const reliable = split === -1 ? districts : districts.slice(0, split);
+  const rest = split === -1 ? [] : districts.slice(split);
+  const districtRow = (d: (typeof districts)[number]) => {
+    const now = d.hiz[current.id];
+    const then = d.hiz["2019"];
+    return (
+      <tr key={d.ad}>
+        <th scope="row" style={{ fontWeight: 400 }}>
+          {d.ad}
+          {now && now.test < LOW_TESTS && <span className={styles.muted}> (az test)</span>}
+        </th>
+        {now ? (
+          <>
+            <td className={styles.num}>{formatValue(DOWNLOAD, now.indirme_mbps)}</td>
+            <td className={styles.num}>{formatValue(UPLOAD, now.yukleme_mbps)}</td>
+            <td className={styles.num}>{formatValue(LATENCY, now.gecikme_ms)}</td>
+            <td className={styles.num}>{formatNumber(now.test)}</td>
+          </>
+        ) : (
+          <td colSpan={4} className={styles.muted}>Bu dönemde ölçüm yok</td>
+        )}
+        <td className={styles.num}>
+          {then ? formatValue(DOWNLOAD, then.indirme_mbps) : "–"}
+          {/* On its own line, so the column stays as narrow as its header. */}
+          {then && then.test < LOW_TESTS && <><br /><span className={styles.muted}>(az test)</span></>}
+        </td>
+      </tr>
+    );
+  };
 
   return (
     <main className={styles.page}>
@@ -71,8 +108,9 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
       <h1>{province.ad}</h1>
       <p className={styles.lead}>
         Speedtest ile ölçülen ortalama sabit internet indirme hızı {formatValue(DOWNLOAD, v.indirme_mbps)};{" "}
-        {gap === 0 ? "Türkiye ortalamasıyla" : "Türkiye ortalamasından"} ({formatValue(DOWNLOAD, nationalDownload)}){" "}
-        {gap === 0 ? "aynı" : `%${Math.abs(gap)} ${gap > 0 ? "yüksek" : "düşük"}`}.
+        {same ? "Türkiye ortalamasıyla" : gap === 0 ? "Türkiye ortalamasına" : "Türkiye ortalamasından"}{" "}
+        ({formatValue(DOWNLOAD, nationalDownload)}){" "}
+        {same ? "aynı" : gap === 0 ? "yakın" : `%${Math.abs(gap)} ${gap > 0 ? "yüksek" : "düşük"}`}.
         Dönem: {periodText(current)}.
       </p>
 
@@ -92,7 +130,8 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
       <div className={styles.tableScroll}>
         <table className={styles.table}>
           <caption className={styles.muted} style={{ captionSide: "bottom", padding: 8, textAlign: "left" }}>
-            {periodText(current)}, indirme hızına göre sıralı. 2019 sütunu karşılaştırma için.
+            {periodText(current)}, indirme hızına göre sıralı; {formatNumber(HIGH_TESTS)}&apos;den az testli ilçeler
+            güvenilir olanlardan sonra, ölçümü olmayanlar en sonda. 2019 sütunu karşılaştırma için.
           </caption>
           <thead>
             <tr>
@@ -104,35 +143,20 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
               <th scope="col" className={styles.num}>2019 indirme</th>
             </tr>
           </thead>
-          <tbody>
-            {districts.map((d) => {
-              const now = d.hiz[current.id];
-              const then = d.hiz["2019"];
-              return (
-                <tr key={d.ad}>
-                  <th scope="row" style={{ fontWeight: 400 }}>
-                    {d.ad}
-                    {now && now.test < LOW_TESTS && <span className={styles.muted}> (az test)</span>}
+          <tbody>{reliable.map(districtRow)}</tbody>
+          {rest.length > 0 && (
+            <tbody>
+              {/* Says why a faster district may sit below; none when only unmeasured districts follow. */}
+              {rest.some((d) => d.hiz[current.id]) && (
+                <tr>
+                  <th scope="rowgroup" colSpan={6} className={styles.groupRow}>
+                    {formatNumber(HIGH_TESTS)}&apos;den az testli ilçeler
                   </th>
-                  {now ? (
-                    <>
-                      <td className={styles.num}>{formatValue(DOWNLOAD, now.indirme_mbps)}</td>
-                      <td className={styles.num}>{formatValue(UPLOAD, now.yukleme_mbps)}</td>
-                      <td className={styles.num}>{formatValue(LATENCY, now.gecikme_ms)}</td>
-                      <td className={styles.num}>{formatNumber(now.test)}</td>
-                    </>
-                  ) : (
-                    <td colSpan={4} className={styles.muted}>Bu dönemde ölçüm yok</td>
-                  )}
-                  <td className={styles.num}>
-                    {then ? formatValue(DOWNLOAD, then.indirme_mbps) : "–"}
-                    {/* On its own line, so the column stays as narrow as its header. */}
-                    {then && then.test < LOW_TESTS && <><br /><span className={styles.muted}>(az test)</span></>}
-                  </td>
                 </tr>
-              );
-            })}
-          </tbody>
+              )}
+              {rest.map(districtRow)}
+            </tbody>
+          )}
         </table>
       </div>
       <p className={styles.footnote}>
