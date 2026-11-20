@@ -52,6 +52,9 @@ const TURKEY_BOUNDS: [number, number, number, number] = [25.6, 35.8, 44.9, 42.2]
 const CELL_BOUNDS: [number, number, number, number] = [25.5, 35.7, 45.0, 42.2];
 // The deepest tile zoom in the archive (MAX_ZOOM in pipeline/tiles.py); MapLibre overzooms beyond.
 const TILE_MAXZOOM = 12;
+// How long a period change may leave the map without its cells before the loading message shows.
+// A period read back from the cache is drawn well within it.
+const PERIOD_LOADING_DELAY = 400; // ms
 const cellTiles = (period: string) => `harita://${cellsArchive(period)}/{z}/{x}/{y}`;
 const AREA_LAYERS = { ilceler: "district-fill", iller: "province-fill" } as const;
 // The outline of a cell with few tests (see FEW_TESTS_FILL), kept inside the cell: a tile's rings
@@ -213,17 +216,35 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   const hovered = useRef<{ layer: string; id: string } | null>(null);
 
   // The basemap draws well before the speed tiles arrive, and until then Türkiye shows no colour.
-  // Our source is added in this commit, so the next idle comes once its tiles are drawn.
-  const [drawnTheme, setDrawnTheme] = useState<Theme | null>(null);
+  // Our sources are added in this commit, so an idle comes once their tiles are drawn. A new
+  // period's cells are added a moment after the old ones are removed, and the map can go idle in
+  // between, so only an idle with that period's source in counts.
+  const [drawn, setDrawn] = useState<{ theme: Theme; period: string } | null>(null);
   useEffect(() => {
     const map = mapRef.current?.getMap();
     if (!map || loaded?.style !== style) return;
-    const drawn = () => setDrawnTheme(theme);
-    map.once("idle", drawn);
-    return () => {
-      map.off("idle", drawn);
+    const check = () => {
+      if (!map.getLayer("cells") || map.getSource<VectorTileSource>("kareler")?.tiles[0] !== cellTiles(period.id)) return;
+      map.off("idle", check);
+      setDrawn({ theme, period: period.id });
     };
-  }, [loaded, style, theme]);
+    map.on("idle", check);
+    return () => {
+      map.off("idle", check);
+    };
+  }, [loaded, style, theme, period.id]);
+  // After a period change the map can stay empty until the new period's tiles arrive. The loading
+  // message waits a moment, so a period read back from the cache, drawn at once, shows none.
+  const periodPending = drawn !== null && drawn.theme === theme && drawn.period !== period.id;
+  const [periodSlow, setPeriodSlow] = useState(false);
+  useEffect(() => {
+    if (!periodPending) return;
+    const timer = setTimeout(() => setPeriodSlow(true), PERIOD_LOADING_DELAY);
+    return () => {
+      clearTimeout(timer);
+      setPeriodSlow(false);
+    };
+  }, [periodPending]);
 
   // Set when the panel opens or closes, for the next resize only (see handleLoad). None comes
   // on phones, where the panel lies over the map, hence the timeout.
@@ -600,7 +621,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
           </Source>
         )}
       </Map>
-      {drawnTheme !== theme && <MapLoading />}
+      {(drawn?.theme !== theme || (periodPending && periodSlow)) && <MapLoading />}
       {fallback && (
         <div className={styles.basemapNotice} role="status">
           <p>Altlık harita {retry === "failed" ? "yine " : ""}yüklenemedi, yer adları gösterilmiyor.</p>
