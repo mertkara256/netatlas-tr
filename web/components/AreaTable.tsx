@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NATIONAL, periodText, type Area, type AreaKind, type PeriodInfo, type Selection } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
+import { compareAreas } from "@/lib/order";
 import { normalize } from "@/lib/search";
 import styles from "./AreaTable.module.css";
 
@@ -23,9 +24,22 @@ export default function AreaTable({ kind, areas, provinces, period, metric, onSe
   onSelect: (selection: Selection) => void;
 }) {
   const [query, setQuery] = useState("");
+  const columns: { key: Column; label: string; numeric?: boolean }[] = [
+    { key: "ad", label: kind === "iller" ? "İl" : "İlçe" },
+    ...(kind === "ilceler" ? [{ key: "il" as const, label: "İl" }] : []),
+    { key: "indirme_mbps", label: "İndirme", numeric: true },
+    { key: "yukleme_mbps", label: "Yükleme", numeric: true },
+    { key: "gecikme_ms", label: "Gecikme", numeric: true },
+    { key: "test", label: "Test", numeric: true },
+  ];
+  // A header's first click puts the best first: the lowest latency, the highest other numbers, names A to Z.
+  const firstDir = (c: (typeof columns)[number]): 1 | -1 => (c.numeric && c.key !== "gecikme_ms" ? -1 : 1);
+
   // Until a header is clicked, sort by the chosen metric, best first, with values from fewer than
   // HIGH_TESTS tests after the reliable ones: a few tests make the extremes, which would otherwise top the list.
-  const [sort, setSort] = useState<{ column: Column; dir: 1 | -1 } | null>(null);
+  // A clicked column the other table lacks (the districts' "İl" in the provinces table) falls back to that too.
+  const [clicked, setClicked] = useState<{ column: Column; dir: 1 | -1 } | null>(null);
+  const sort = clicked && columns.some((c) => c.key === clicked.column) ? clicked : null;
   const order = sort ?? {
     column: (metric.id === "guvenilirlik" ? "test" : metric.areaKey) as Column,
     dir: metric.id === "gecikme" ? 1 : -1,
@@ -41,25 +55,12 @@ export default function AreaTable({ kind, areas, provinces, period, metric, onSe
       values: a.hiz[period.id],
     }))
     .filter((r) => !q || normalize(`${r.ad} ${r.il ?? ""}`).includes(q))
-    .sort((a, b) => {
-      const x = order.column === "ad" || order.column === "il" ? a[order.column] : a.values?.[order.column];
-      const y = order.column === "ad" || order.column === "il" ? b[order.column] : b.values?.[order.column];
-      if (x == null || y == null) return Number(x == null) - Number(y == null); // no data last
-      if (!sort && order.column !== "test") {
-        const reliable = (r: Row) => (r.values!.test >= HIGH_TESTS ? 0 : 1);
-        if (reliable(a) !== reliable(b)) return reliable(a) - reliable(b);
-      }
-      return order.dir * (typeof x === "string" ? x.localeCompare(y as string, "tr") : (x as number) - (y as number));
-    });
-
-  const columns: { key: Column; label: string; numeric?: boolean }[] = [
-    { key: "ad", label: kind === "iller" ? "İl" : "İlçe" },
-    ...(kind === "ilceler" ? [{ key: "il" as const, label: "İl" }] : []),
-    { key: "indirme_mbps", label: "İndirme", numeric: true },
-    { key: "yukleme_mbps", label: "Yükleme", numeric: true },
-    { key: "gecikme_ms", label: "Gecikme", numeric: true },
-    { key: "test", label: "Test", numeric: true },
-  ];
+    .sort(compareAreas({
+      value: (r) => (order.column === "ad" || order.column === "il" ? r[order.column] : r.values?.[order.column]),
+      tests: (r) => r.values?.test,
+      dir: order.dir,
+      reliableFirst: !sort && order.column !== "test",
+    }));
 
   return (
     <div className={styles.wrap}>
@@ -92,7 +93,7 @@ export default function AreaTable({ kind, areas, provinces, period, metric, onSe
                   >
                     <button
                       type="button"
-                      onClick={() => setSort({ column: c.key, dir: sorted ? (-order.dir as 1 | -1) : c.numeric ? -1 : 1 })}
+                      onClick={() => setClicked({ column: c.key, dir: sorted ? (-order.dir as 1 | -1) : firstDir(c) })}
                     >
                       {c.label}
                       <span aria-hidden="true">{sorted ? (order.dir === 1 ? " ↑" : " ↓") : ""}</span>
