@@ -207,6 +207,12 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
           format={(value) => (tests ? `${formatNumber(value)} test` : formatValue(metric, value))}
           theme={theme}
         />
+        {(metric.id === "indirme" || metric.id === "yukleme") && (
+          <p className={styles.note}>
+            2025&apos;in son çeyreğinde ölçülen hızlar bir anda yükseldi; nedenini bilmiyoruz.{" "}
+            <Link href="/yontem/#donemler">Ayrıntılar</Link>
+          </p>
+        )}
       </section>
 
       <section>
