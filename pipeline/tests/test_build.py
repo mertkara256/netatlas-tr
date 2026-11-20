@@ -174,13 +174,16 @@ def test_each_tile_belongs_to_one_district(tiles, district_list):
 
 
 def test_tiles_add_up_to_their_district(tiles, districts):
-    totals = defaultdict(lambda: [0, 0])
-    for period, district, tests in zip(*(tiles[c].to_pylist() for c in ("donem", "ilce_kodu", "test")), strict=True):
+    totals = defaultdict(lambda: [0, 0, 0])
+    for period, district, tests, devices in zip(*(tiles[c].to_pylist() for c in ("donem", "ilce_kodu", "test", "cihaz")),
+                                                strict=True):
         totals[district, period][0] += 1
         totals[district, period][1] += tests
+        totals[district, period][2] += devices
     assert set(totals) == set(districts)
-    for key, (count, tests) in totals.items():
-        assert (count, tests) == (int(districts[key]["kare"]), int(districts[key]["test"])), key
+    for key, (count, tests, devices) in totals.items():
+        row = districts[key]
+        assert (count, tests, devices) == (int(row["kare"]), int(row["test"]), int(row["cihaz"])), key
 
 
 @pytest.mark.parametrize("place, lonlat, province, district", [

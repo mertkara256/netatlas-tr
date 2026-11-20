@@ -24,7 +24,7 @@ A small input for `pipeline/build.py`. `../conftest.py` runs the build on it onc
 | `moda_coast_49` | 48.3% Kadıköy, 0.3% Üsküdar; centre at sea | 2 | | A coastal square stays in although its centre is at sea |
 | `moda_coast_65` | 65.5% Kadıköy; centre at sea | 3 | | The same |
 | `moda_coast_19` | 18.6% Kadıköy | 50 | 30 | Under a fifth: left out, with its tests and residents |
-| `kadikoy_two_quarters` | all | 30, then 10 | 100 | A square pools its quarters by tests: 30.0 Mbps (50.0 by devices) |
+| `kadikoy_two_quarters` | all | 30, then 10 | 100 | A square pools its quarters by devices: 50.0 Mbps (30.0 by tests) |
 | `kadikoy_largest` | all | 4 in each of three quarters, 2 devices each | | The largest square over the period: 6 of Kadıköy's 20 devices |
 | `kadikoy_burst` | all | 5 in one quarter, 5 devices | | Largest in a single quarter, not over the period |
 | `kadikoy_next` | all | | 50 | Next to a measured square: measured |
@@ -41,7 +41,7 @@ A small input for `pipeline/build.py`. `../conftest.py` runs the build on it onc
 | `izmit` | all | 66 in each of three quarters | 60 | With the next two: İzmit and Kocaeli have 199 tests in 2025 ("orta") and 200 in the current period ("yuksek") |
 | `izmit_2025q1` | all | 1 in 2025 Q1 | | In 2025, not in a current period that ends in 2026 Q1 |
 | `izmit_2026q1` | all | 2 in 2026 Q1 | | Only in the current period |
-| `adapazari_a` | all | 100 from 1 device, 10 Mbps | 30 | Adapazarı averages 91.0 Mbps by devices (18.2 by tests) |
+| `adapazari_a` | all | 100 from 1 device, 10 Mbps | 30 | Adapazarı averages 91.0 Mbps by devices (18.2 by tests). The two first share a heat-map cell at level 14, in the current period with `serdivan_junction` alone: 81.5 Mbps by devices (22.0 by tests) |
 | `adapazari_b` | all | 10 from 9 devices, 100 Mbps | 70 | The same |
 
 The squares that must be left out carry 50 tests at 999 Mbps, so a leak shows in every total.
