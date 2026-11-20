@@ -2,7 +2,7 @@
 
 Chat apps and social sites show it beside a shared link to the site. It is drawn the way the map
 draws cells: each pixel is one Web Mercator tile at level 14 (about 1.9 km, four by four of Ookla's
-squares), coloured with the test-weighted mean download speed of the measured squares inside it, in
+squares), coloured with the device-weighted mean download speed of the measured squares inside it, in
 the site's dark-theme colours. Pixels with no measured square stay empty, and neighbouring pixels
 are never blended, so a colour is always a measured value.
 
@@ -128,17 +128,18 @@ def province_rings() -> list[np.ndarray]:
 
 
 def speed_pixels(period: str) -> dict[tuple[int, int], float]:
-    """(x, y) of each level-14 tile with a measured square -> its squares' test-weighted mean download."""
-    table = pq.read_table(TILES_PATH, columns=["donem", "quadkey", "test", "indirme_mbps"])
+    """(x, y) of each level-14 tile with a measured square -> its squares' device-weighted mean download,
+    as the map's cells pool them (tiles.py)."""
+    table = pq.read_table(TILES_PATH, columns=["donem", "quadkey", "cihaz", "indirme_mbps"])
     table = table.filter(pc.equal(table["donem"], period))
     shift = SQUARE_LEVEL - LEVEL
     sums: dict[tuple[int, int], list[float]] = {}
-    for quadkey, tests, mbps in zip(*(table[c].to_pylist() for c in ["quadkey", "test", "indirme_mbps"]), strict=True):
+    for quadkey, devices, mbps in zip(*(table[c].to_pylist() for c in ["quadkey", "cihaz", "indirme_mbps"]), strict=True):
         x, y, _ = quadkey_to_tile(quadkey)
         total = sums.setdefault((x >> shift, y >> shift), [0.0, 0])
-        total[0] += tests * mbps
-        total[1] += tests
-    return {pixel: weighted / tests for pixel, (weighted, tests) in sums.items()}
+        total[0] += devices * mbps
+        total[1] += devices
+    return {pixel: weighted / devices for pixel, (weighted, devices) in sums.items()}
 
 
 def fonts(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
