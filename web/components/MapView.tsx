@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addProtocol, setWorkerUrl, type ExpressionSpecification, type MapGeoJSONFeature, type Map as MapLibreMap, type VectorTileSource } from "maplibre-gl";
-import Map, { Layer, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
+import { addProtocol, setWorkerUrl, type ExpressionSpecification, type MapGeoJSONFeature, type Map as MapLibreMap, type StyleSpecification, type VectorTileSource } from "maplibre-gl";
+import Map, { Layer, NavigationControl, Source, type ErrorEvent, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
 import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type CellPick, type CellValues, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
@@ -10,6 +10,7 @@ import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metr
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { vectorTile } from "@/lib/siteTiles";
 import { hasPhoneSheet } from "@/lib/viewport";
+import styles from "./Atlas.module.css";
 import MapLoading from "./MapLoading";
 import type { HoverInfo } from "./Tooltip";
 
@@ -22,6 +23,19 @@ addProtocol("harita", vectorTile);
 const BASEMAPS: Record<Theme, string> = {
   light: "https://tiles.openfreemap.org/styles/positron",
   dark: "https://tiles.openfreemap.org/styles/dark",
+};
+// When a basemap's style cannot be fetched, our borders and speeds are drawn on the page's colour
+// (--page in app/globals.css) alone, without place names, until a retry finds the style again. Only
+// the style itself counts: a missing font or basemap tile leaves the rest of the basemap drawn.
+const plainStyle = (name: string, color: string): StyleSpecification => ({
+  version: 8,
+  name,
+  sources: {},
+  layers: [{ id: "background", type: "background", paint: { "background-color": color } }],
+});
+const FALLBACKS: Record<Theme, StyleSpecification> = {
+  light: plainStyle("yedek-light", "#f9f9f7"),
+  dark: plainStyle("yedek-dark", "#0d0d0d"),
 };
 // Images the dark basemap asks for but its sprite lacks: a dot beside city names below zoom 9 (the
 // sprite has it as "circle_11") and the fill of woods from zoom 10. Neither was ever drawn.
@@ -166,7 +180,10 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       else if (id.startsWith(HATCH)) ref.getMap().addImage(id, hatch(id.slice(HATCH.length)), { pixelRatio: 2 });
     });
   }, []);
-  const style = BASEMAPS[theme];
+  // The basemap, or the plain style that stands in for it (see FALLBACKS), named by its URL or name.
+  const [fallback, setFallback] = useState(false);
+  const mapStyle = fallback ? FALLBACKS[theme] : BASEMAPS[theme];
+  const style = typeof mapStyle === "string" ? mapStyle : mapStyle.name!;
   // Which style has finished loading, and the label layer ours must go under. The light and
   // dark basemaps end in different label layers, so our layers are added afresh after a switch.
   const [loaded, setLoaded] = useState<{ style: string; beforeId: string } | null>(null);
@@ -217,7 +234,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     const map = mapRef.current!.getMap();
     const update = () => {
       showTurkishNames(map);
-      setLoaded({ style: map.getStyleUrl() ?? "", beforeId: firstLabelLayer(map) });
+      // Read from the map: a plain style is swapped in within react-map-gl's layout effect, before
+      // this component's effects could note which one was asked for.
+      setLoaded({ style: map.getStyleUrl() ?? map.getStyle().name ?? "", beforeId: firstLabelLayer(map) });
     };
     update();
     map.on("style.load", update);
@@ -245,6 +264,24 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       collapseAttribution();
     });
   }, []);
+
+  // The basemap's style could not be fetched (the service is down, or the request blocked): draw
+  // ours on the plain style instead. Other errors are logged, as react-map-gl does by default.
+  const handleError = useCallback((e: ErrorEvent) => {
+    const url = (e.error as { url?: string }).url;
+    if (url && Object.values(BASEMAPS).includes(url)) setFallback(true);
+    else console.error(e.error);
+  }, []);
+
+  // A retry asks for the style first and switches back only if it comes, so a failed retry leaves
+  // the map as it was.
+  const [retry, setRetry] = useState<"none" | "trying" | "failed">("none");
+  const retryBasemap = useCallback(async () => {
+    setRetry("trying");
+    const ok = await fetch(BASEMAPS[theme]).then((response) => response.ok, () => false);
+    setRetry(ok ? "none" : "failed");
+    if (ok) setFallback(false);
+  }, [theme]);
 
   const highlight = useCallback((next: { layer: string; id: string } | null) => {
     const map = mapRef.current?.getMap();
@@ -392,7 +429,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       <Map
         ref={setMap}
         initialViewState={{ bounds: TURKEY_BOUNDS, fitBoundsOptions: { padding: 12 } }}
-        mapStyle={style}
+        mapStyle={mapStyle}
+        // A basemap that failed to load cannot be diffed against; the plain style is built afresh.
+        styleDiffing={!fallback}
         minZoom={3}
         maxZoom={15}
         dragRotate={false}
@@ -407,6 +446,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         }}
         interactiveLayerIds={view === "kareler" ? ["cells"] : [AREA_LAYERS[view]]}
         onLoad={handleLoad}
+        onError={handleError}
         onMouseMove={handlePointer}
         onClick={handleClick}
         onMouseLeave={clear}
@@ -534,6 +574,14 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         )}
       </Map>
       {drawnTheme !== theme && <MapLoading />}
+      {fallback && (
+        <div className={styles.basemapNotice} role="status">
+          <p>Altlık harita {retry === "failed" ? "yine " : ""}yüklenemedi, yer adları gösterilmiyor.</p>
+          <button type="button" onClick={retryBasemap} disabled={retry === "trying"}>
+            {retry === "trying" ? "Deneniyor…" : "Yeniden dene"}
+          </button>
+        </div>
+      )}
     </>
   );
 }
