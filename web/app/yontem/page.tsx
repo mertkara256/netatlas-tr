@@ -240,8 +240,8 @@ export default async function MethodPage() {
         <ul>
           <li>
             <strong>Kareler:</strong> Ookla her çeyrek için dünyayı Web Mercator sisteminde ~475 m&apos;lik karelere bölüp her
-            karede ortalama indirme, yükleme, gecikme ve test sayısını yayımlar. Bir dönemin çeyrekleri birleştirilirken testler
-            toplanır, ortalamalar test sayısıyla ağırlıklandırılır.
+            karede ortalama indirme, yükleme, gecikme, test ve cihaz sayısını yayımlar. Bir dönemin çeyrekleri birleştirilirken
+            testler ve cihazlar toplanır, ortalamalar il ve ilçe değerlerindeki gibi cihaz sayısıyla ağırlıklandırılır.
           </li>
           <li>
             <strong>İl ve ilçeye atama:</strong> Alanının en az %20&apos;si Türkiye karasında olan kareler sayılır. Kare, karasının
@@ -255,8 +255,10 @@ export default async function MethodPage() {
             başına onlarca test yapan bir cihaz değeri bir kez etkiler; aynı karede başka cihazlar da test yapıyorsa o karenin
             ortalamasında yine ağır basar. Aynı yılın iki yarısı karşılaştırıldığında bu yöntem ilçe ve il değerlerini daha
             tutarlı yaptı: 1.000–4.999 testli ilçelerde iki yarı arasındaki tipik fark %13–16&apos;dan %9–11&apos;e, 5.000&apos;den
-            az testli illerde %14–25&apos;ten %6–20&apos;ye indi. Kare değerleri, ısı haritası ve çevrendeki 1 km test ağırlıklı
-            kalır; kare içinde iki yöntem neredeyse aynı sonucu verir. Bir alanın en büyük karesi ağırlığın en az
+            az testli illerde %14–25&apos;ten %6–20&apos;ye indi. Kareler, ısı haritasının her hücresi ve çevrendeki 1 km de
+            aynı kuralla hesaplanır, böylece bütün bir ilçeyi kaplayan hücre ilçe değerini gösterir. Hücreler önceden test
+            ağırlıklıydı: uzaktan bakınca tek bir cihazın çok test yaptığı ilçelerde hücre ile panel 1,5 kattan fazla
+            ayrılabiliyordu (Güncel dönemde 973 ilçeden 50&apos;sinde). Güvenilirlik her yerde test sayısına bakar. Bir alanın en büyük karesi ağırlığın en az
             %{formatNumber(ONE_TILE_SHARE * 100)}&apos;unu tutuyorsa ya da nüfusunun
             %{formatNumber(MEASURED_RESIDENTS_SHARE * 100)}&apos;den azı ölçüm yapılan karelerde ya da hemen
             yanlarında yaşıyorsa (aşağıda), bölge panelinde değerin alanın tamamını değil ölçüm yapılan yerleri
@@ -275,7 +277,7 @@ export default async function MethodPage() {
           </li>
           <li>
             <strong>Isı haritası:</strong> Yakınlaşınca Ookla&apos;nın kendi kareleri görünür. Uzaklaştıkça kareler daha büyük
-            hücrelerde ({levels.slice(0, -1).reverse().join(", ")}) test ağırlıklı olarak birleşir; her yakınlıkta hücreler
+            hücrelerde ({levels.slice(0, -1).reverse().join(", ")}) cihaz ağırlıklı olarak birleşir; her yakınlıkta hücreler
             ekranda 8–16 piksel genişliktedir. Bir hücre yalnızca içinde ölçüm olan yerlerde boyanır: en çok 8 × 8
             parçaya bölünür ve içinde ölçülmüş bir 475 m&apos;lik kare olan parçalar hücrenin renginde çizilir. Uzaktan
             bakınca bu parçalar 1–2 piksel olur; yakınlaştıkça Ookla&apos;nın karelerine iner. Hücreler eskiden tamamen
@@ -290,7 +292,7 @@ export default async function MethodPage() {
           </li>
           <li>
             <strong>Çevrendeki {formatNumber(NEARBY_RADIUS / 1000)} km:</strong> Haritada tıklanan noktaya merkezi{" "}
-            {formatNumber(NEARBY_RADIUS / 1000)} km&apos;den yakın olan 475 m&apos;lik karelerin test ağırlıklı ortalamasıdır.
+            {formatNumber(NEARBY_RADIUS / 1000)} km&apos;den yakın olan 475 m&apos;lik karelerin cihaz ağırlıklı ortalamasıdır.
             Hangi yakınlıkta bakılırsa bakılsın Ookla&apos;nın kendi karelerinden hesaplanır.
           </li>
           <li>
