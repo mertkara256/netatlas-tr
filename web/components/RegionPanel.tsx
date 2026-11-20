@@ -6,7 +6,7 @@ import { provincePath } from "@/lib/slug";
 import RegionDetails from "./RegionDetails";
 import styles from "./RegionPanel.module.css";
 
-export default function RegionPanel({ selection, areas, periods, period, metric, loadingFailed, heatMap, onClose, onSelect }: {
+export default function RegionPanel({ selection, areas, periods, period, metric, loadingFailed, heatMap, mapHidden, onClose, onSelect }: {
   selection: Selection;
   areas: Partial<Record<AreaKind, Record<string, Area>>>;
   periods: PeriodInfo[];
@@ -15,6 +15,8 @@ export default function RegionPanel({ selection, areas, periods, period, metric,
   loadingFailed: boolean;
   /** The heat map is on screen, so the clicked cell is drawn; other views draw no cells. */
   heatMap: boolean;
+  /** The table is shown in the map's place. */
+  mapHidden: boolean;
   onClose: () => void;
   onSelect: (selection: Selection) => void;
 }) {
@@ -77,6 +79,7 @@ export default function RegionPanel({ selection, areas, periods, period, metric,
           metric={metric}
           point={selection.point}
           cell={heatMap ? selection.cell : undefined}
+          mapHidden={mapHidden}
         />
       )}
     </aside>

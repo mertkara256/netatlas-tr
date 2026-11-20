@@ -96,6 +96,27 @@ function cellAt(map: MapLibreMap, { x, y }: { x: number; y: number }): MapGeoJSO
     ?? map.queryRenderedFeatures([[x - HIT_SLOP, y - HIT_SLOP], [x + HIT_SLOP, y + HIT_SLOP]], { layers: ["cells"] })[0];
 }
 
+/** The district of a cell clicked where no district is: a coastal cell, on its side over the sea. Of
+ *  the districts within the cell's box, the one nearest the click, found in squares growing from it. */
+function districtOfCell(map: MapLibreMap, click: { x: number; y: number }, cell: MapGeoJSONFeature): MapGeoJSONFeature | undefined {
+  const { geometry } = cell;
+  const rings = geometry.type === "Polygon" ? geometry.coordinates : geometry.type === "MultiPolygon" ? geometry.coordinates.flat() : [];
+  const corners = rings.flat().map(([lon, lat]) => map.project([lon, lat]));
+  if (!corners.length) return undefined;
+  const [minX, maxX] = [Math.min(...corners.map((c) => c.x)), Math.max(...corners.map((c) => c.x))];
+  const [minY, maxY] = [Math.min(...corners.map((c) => c.y)), Math.max(...corners.map((c) => c.y))];
+  // Zoomed out, the cell may be one found within HIT_SLOP of the click, outside its box.
+  const x = Math.min(Math.max(click.x, minX), maxX);
+  const y = Math.min(Math.max(click.y, minY), maxY);
+  for (let r = HIT_SLOP; ; r *= 2) {
+    const district = map.queryRenderedFeatures(
+      [[Math.max(minX, x - r), Math.max(minY, y - r)], [Math.min(maxX, x + r), Math.min(maxY, y + r)]],
+      { layers: ["district-hit"] },
+    )[0];
+    if (district || (x - r <= minX && y - r <= minY && x + r >= maxX && y + r >= maxY)) return district;
+  }
+}
+
 /** A cell's values in one period, or null if it has none. */
 function cellValues(p: MapGeoJSONFeature["properties"], period: string): CellValues | null {
   return p[`t${period}`] == null ? null : { d: p[`d${period}`], u: p[`u${period}`], l: p[`l${period}`], t: p[`t${period}`] };
@@ -327,15 +348,17 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     });
   }, [view, period, metric, areas, highlight, onHover, clear]);
 
-  // A click opens the panel of the area under the pointer; in the heat map, of the district,
-  // remembering the clicked point and the cell the tooltip gives there. On phones this replaces
-  // the tooltip.
+  // A click opens the panel of the area under the pointer; in the heat map, of the district (or,
+  // over the sea, the cell's district), remembering the clicked point and the cell the tooltip gives
+  // there. On phones this replaces the tooltip.
   const handleClick = useCallback((e: MapLayerMouseEvent) => {
     let selection: Selection;
     const point: [number, number] = [e.lngLat.lng, e.lngLat.lat];
     if (view === "kareler") {
       if (!e.target.getLayer("district-hit")) return; // clicked before our layers were added
-      const district = e.target.queryRenderedFeatures(e.point, { layers: ["district-hit"] })[0];
+      const cell = cellAt(e.target, e.point);
+      const district = e.target.queryRenderedFeatures(e.point, { layers: ["district-hit"] })[0]
+        ?? (cell && districtOfCell(e.target, e.point, cell));
       if (!district) return;
       selection = { kind: "ilceler", code: String(district.properties.ilce_kodu), point, cell: pickCell(e.target, e.point, period.id) };
     } else {
@@ -354,7 +377,8 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   // The panel's cell belongs to the period it was read in. When another period is shown, read it
   // again as a new click at the same point would, once that period's cells are drawn: tried at
   // every idle until it succeeds. A point off the map cannot be read: the panel then says which
-  // period its values are from, until the map is moved back over the point.
+  // period its values are from, until the map is moved back over the point. Nor can a map hidden
+  // behind the table (Atlas), which the panel says itself; it is read once the map is shown again.
   useEffect(() => {
     const map = mapRef.current?.getMap();
     const pick = selection?.cell;
@@ -366,6 +390,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       if (!map.getLayer("cells") || map.getSource<VectorTileSource>("kareler")?.tiles[0] !== cellTiles(period.id)) return;
       const at = map.project(point);
       const { clientWidth, clientHeight } = map.getContainer();
+      if (!clientWidth) return; // hidden
       if (at.x >= 0 && at.y >= 0 && at.x < clientWidth && at.y < clientHeight) {
         onSelect({ ...selection, cell: pickCell(map, at, period.id) });
       } else if (!pick.stale) {

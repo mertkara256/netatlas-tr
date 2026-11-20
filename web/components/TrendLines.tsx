@@ -30,7 +30,8 @@ export default function TrendLines({ data, areaName, format, axisFormat, theme, 
   return (
     <ResponsiveContainer width="100%" height={height}>
       {/* Room on the right for the last axis label ("Güncel"), which is centred on its point. */}
-      <LineChart data={data} margin={{ top: 8, right: 22, bottom: 0, left: 0 }}>
+      {/* Hidden from screen readers, with no keyboard stop: the table under the chart gives its values. */}
+      <LineChart data={data} margin={{ top: 8, right: 22, bottom: 0, left: 0 }} accessibilityLayer={false} aria-hidden>
         <CartesianGrid vertical={false} stroke={c.grid} />
         <XAxis dataKey="kisa" interval={0} tickLine={false} axisLine={{ stroke: c.axis }} tick={{ fill: c.muted, fontSize: 11 }} />
         <YAxis width={38} ticks={ticks} domain={[0, ticks[ticks.length - 1]]} tickLine={false} axisLine={false} tick={{ fill: c.muted, fontSize: 11 }} tickFormatter={axisFormat} />

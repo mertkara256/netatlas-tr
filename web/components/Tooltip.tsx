@@ -16,6 +16,8 @@ const WIDTH = 224; // px, matches .tooltip in Atlas.module.css
 const GAP = 14;
 const MARGIN = 8;
 
+/** What is under the pointer. Hidden from screen readers, which it would interrupt at every move; the
+ *  region panel and the table give the same values. */
 export default function Tooltip({ info }: { info: HoverInfo }) {
   // Beside the pointer where there is room, otherwise clamped inside the map (narrow phones).
   const right = info.x + GAP + WIDTH <= info.width - MARGIN;
@@ -27,7 +29,7 @@ export default function Tooltip({ info }: { info: HoverInfo }) {
     transform: `translateY(${above ? `calc(-100% - ${GAP}px)` : `${GAP}px`})`,
   };
   return (
-    <div className={styles.tooltip} style={style} role="status">
+    <div className={styles.tooltip} style={style} aria-hidden="true">
       <div className={styles.tooltipTitle}>{info.title}</div>
       <div className={styles.muted}>{info.subtitle}</div>
       {info.value ? <div className={styles.tooltipValue}>{info.value}</div> : <div>Bu dönemde ölçüm yok</div>}

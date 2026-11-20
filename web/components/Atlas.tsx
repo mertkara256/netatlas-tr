@@ -149,6 +149,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
             metric={metric}
             loadingFailed={Boolean(areaErrors[selection.kind] || areaErrors.iller)}
             heatMap={view === "kareler"}
+            mapHidden={display === "tablo"}
             onClose={closePanel}
             onSelect={setSelection}
           />
