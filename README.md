@@ -28,6 +28,26 @@
 
 It shows what people actually measured in an area, not the maximum speed available at a specific address. How the values are computed, what to keep in mind and all sources are on the [methodology page](https://mertkara256.github.io/netatlas-tr/yontem/) (in Turkish).
 
+## Data files
+
+- [`data/processed/`](data/processed) has the tables behind the site as CSV: speeds per province (`iller_hiz.csv`) and district (`ilceler_hiz.csv`) for every period, BTK's statistics per province and year (`btk_iller.csv`), and the list of districts (`ilceler.csv`).
+- [Releases](https://github.com/mertkara256/netatlas-tr/releases) hold the files the site loads: the map tiles (PMTiles) and the province, district and search JSON. `web/data-release.txt` names the release the site uses.
+
+## Running locally
+
+Needs [GitHub CLI](https://cli.github.com/) (signed in), Node.js 22 and [uv](https://docs.astral.sh/uv/). From the repository's root:
+
+```bash
+gh release download "$(cat web/data-release.txt)" --dir web/public/data
+cd web && npm ci && npm run dev
+```
+
+The site is then at http://localhost:3000/. The pipeline tests run from the root; the ones that need the raw data are skipped without it:
+
+```bash
+uv run --locked pytest
+```
+
 ## Data sources
 
 | Data | Source | License |
@@ -49,7 +69,7 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 
 **Türkiye ev interneti atlası:** Ölçülen sabit internet hızları ~475 m'lik karelerde, her karede güvenilirlik bilgisi, 2019'dan bugüne değişim ve illere göre resmi erişim istatistikleri.
 
-> **Site:** https://mertkara256.github.io/netatlas-tr/ · Proje [yol haritasına](docs/YOL-HARITASI.md) göre adım adım geliştiriliyor.
+> **Site:** https://mertkara256.github.io/netatlas-tr/ · Proje [yol haritasına](docs/YOL-HARITASI.md) göre adım adım geliştirildi.
 
 ### Bir bakışta
 
@@ -70,6 +90,26 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 ![Kadıköy'e yakından: 475 m'lik kareler ve ilçenin hızlarını, test sayısını ve 2019'dan bu yana değişimini gösteren panel](docs/gorseller/kadikoy.png)
 
 Belirli bir adrese verilebilecek en yüksek hızı değil, bir bölgede insanların gerçekten ölçtüğü hızı gösterir. Değerlerin nasıl hesaplandığı, nelere dikkat etmek gerektiği ve tüm kaynaklar [yöntem sayfasında](https://mertkara256.github.io/netatlas-tr/yontem/).
+
+### Veri dosyaları
+
+- [`data/processed/`](data/processed) sitenin arkasındaki tabloları CSV olarak içerir: her dönem için il (`iller_hiz.csv`) ve ilçe (`ilceler_hiz.csv`) hızları, il ve yıla göre BTK istatistikleri (`btk_iller.csv`) ve ilçe listesi (`ilceler.csv`).
+- Sitenin yüklediği dosyalar, yani harita karoları (PMTiles) ve il, ilçe ve arama JSON'ları [Releases](https://github.com/mertkara256/netatlas-tr/releases) altında. Sitenin hangi sürümü kullandığı `web/data-release.txt`'de yazar.
+
+### Yerelde çalıştırma
+
+[GitHub CLI](https://cli.github.com/) (oturum açılmış), Node.js 22 ve [uv](https://docs.astral.sh/uv/) gerekir. Reponun kök klasöründen:
+
+```bash
+gh release download "$(cat web/data-release.txt)" --dir web/public/data
+cd web && npm ci && npm run dev
+```
+
+Site ardından http://localhost:3000/ adresinde açılır. Boru hattı testleri kök klasörden çalışır; ham veri gerektirenler, veri yoksa atlanır:
+
+```bash
+uv run --locked pytest
+```
 
 ### Veri kaynakları ve lisans
 
