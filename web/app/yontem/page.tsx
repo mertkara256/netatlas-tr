@@ -25,6 +25,9 @@ const SECTIONS = [
 ] as const;
 
 const DOWNLOAD = metricById("indirme");
+// The last four quarters when the page's hand-measured figures were taken. They name this period, not
+// Güncel, so they stay true when Güncel moves on.
+const MEASURED = "2025 Ç4 – 2026 Ç3";
 
 // BTK's subscribers by package speed, from the text beside Şekil 3-4 of its latest quarterly report
 // (≤50 Mbps = 100 − the share above 50; 50–100 is given rounded). Update by hand with a newer report.
@@ -231,7 +234,7 @@ export default async function MethodPage() {
           <a href="https://www.btk.gov.tr/s3/web-btk-site/7708c26c-5161-4919-8b3d-daa31d4ac8fb/2026/08/f092061c-9663-495b-8881-9900b1724e25.pdf">
             BTK Üç Aylık Pazar Verileri Raporu, 2025 Ç4
           </a>
-          , Şekil 3-4). 2025 ve Güncel değerlerinin önceki yıllardan bu kadar yüksek çıkmasının bir kısmı bu çeyrekten gelir.
+          , Şekil 3-4). 2025 ile {MEASURED} değerlerinin önceki yıllardan bu kadar yüksek çıkmasının bir kısmı bu çeyrekten gelir.
         </p>
       </section>
 
@@ -258,7 +261,7 @@ export default async function MethodPage() {
             az testli illerde %14–25&apos;ten %6–20&apos;ye indi. Kareler, ısı haritasının her hücresi ve çevrendeki 1 km de
             aynı kuralla hesaplanır, böylece bütün bir ilçeyi kaplayan hücre ilçe değerini gösterir. Hücreler önceden test
             ağırlıklıydı: uzaktan bakınca tek bir cihazın çok test yaptığı ilçelerde hücre ile panel 1,5 kattan fazla
-            ayrılabiliyordu (Güncel dönemde 973 ilçeden 50&apos;sinde). Güvenilirlik her yerde test sayısına bakar. Bir alanın en büyük karesi ağırlığın en az
+            ayrılabiliyordu ({MEASURED} döneminde 973 ilçeden 50&apos;sinde). Güvenilirlik her yerde test sayısına bakar. Bir alanın en büyük karesi ağırlığın en az
             %{formatNumber(ONE_TILE_SHARE * 100)}&apos;unu tutuyorsa ya da nüfusunun
             %{formatNumber(MEASURED_RESIDENTS_SHARE * 100)}&apos;den azı ölçüm yapılan karelerde ya da hemen
             yanlarında yaşıyorsa (aşağıda), bölge panelinde değerin alanın tamamını değil ölçüm yapılan yerleri
@@ -313,8 +316,8 @@ export default async function MethodPage() {
         <p>
           Eşikler veriye bakılarak seçildi. Aynı dönemin iki yarısı (1.+3. ve 2.+4. çeyrek) karşılaştırıldığında, iki yarının
           indirme değeri arasındaki tipik fark {LOW_TESTS}&apos;dan az testli karelerde yaklaşık %50, {LOW_TESTS}–49 testte
-          %30–43, 50–{HIGH_TESTS - 1} testte %22–31, {HIGH_TESTS}–499 testte %16–18&apos;dir (2024 ve Güncel). İl ve ilçeler aynı
-          test sayısında benzer oynar. 2025 Ç4 – 2026 Ç3 döneminde karelerin %59&apos;u düşük güvenilirlikteydi ama bu kareler
+          %30–43, 50–{HIGH_TESTS - 1} testte %22–31, {HIGH_TESTS}–499 testte %16–18&apos;dir (2024 ile {MEASURED}). İl ve ilçeler aynı
+          test sayısında benzer oynar. {MEASURED} döneminde karelerin %59&apos;u düşük güvenilirlikteydi ama bu kareler
           testlerin yalnızca %3&apos;ünü tutuyordu; testlerin %62&apos;si yüksek güvenilirlikteki karelerdeydi. Haritada düşük güvenilirlikteki değerler
           içi boş gösterilir: çerçeve değerin kendi rengindedir, içi soluk kalır. İl ve ilçe görünümünde ise alan, değerin
           renginde çizgilerle taranır. Renk hızı, içinin boş ya da taralı olması belirsizliği anlatır.
@@ -327,8 +330,8 @@ export default async function MethodPage() {
           yaşıyorsa, değer alanın tamamını değil, ölçüm yapılan yerleri gösterir. Bu iki pay etikete katılmadı. Tek bir
           karede yoğunlaşma değeri daha oynak yapmıyor: en büyük karesi ağırlığın en az
           %{formatNumber(ONE_TILE_SHARE * 100)}&apos;unu tutan yüksek güvenilirlikteki ilçelerde iki yarı arasındaki fark,
-          test sayısı benzer ilçelerinkinden tipik olarak yalnızca 1 puan fazla (2019–Güncel, 50 ilçe ve dönem; ör.
-          Aybastı, Güncel: 216 test, tek karenin payı %36, fark %10; 200–499 testli ilçelerde tipik fark %18). Nüfus
+          test sayısı benzer ilçelerinkinden tipik olarak yalnızca 1 puan fazla (2019 – 2026 Ç3, 50 ilçe ve dönem; ör.
+          Aybastı, {MEASURED}: 216 test, tek karenin payı %36, fark %10; 200–499 testli ilçelerde tipik fark %18). Nüfus
           için %{formatNumber(MEASURED_RESIDENTS_SHARE * 100)} veriden türetilmedi; &quot;nüfusun yarısından çoğu
           ölçümlerden uzakta&quot; anlamına gelen bir tercih. İki yarı karşılaştırması yalnızca oynaklığı ölçer; ölçülmeyen
           yerlerde hızın farklı olup olmadığını, yani değerin yanlı olup olmadığını gösteremez.
