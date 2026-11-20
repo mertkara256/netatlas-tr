@@ -354,7 +354,8 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   // The panel's cell belongs to the period it was read in. When another period is shown, read it
   // again as a new click at the same point would, once that period's cells are drawn: tried at
   // every idle until it succeeds. A point off the map cannot be read: the panel then says which
-  // period its values are from, until the map is moved back over the point.
+  // period its values are from, until the map is moved back over the point. Nor can a map hidden
+  // behind the table (Atlas), which the panel says itself; it is read once the map is shown again.
   useEffect(() => {
     const map = mapRef.current?.getMap();
     const pick = selection?.cell;
@@ -366,6 +367,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       if (!map.getLayer("cells") || map.getSource<VectorTileSource>("kareler")?.tiles[0] !== cellTiles(period.id)) return;
       const at = map.project(point);
       const { clientWidth, clientHeight } = map.getContainer();
+      if (!clientWidth) return; // hidden
       if (at.x >= 0 && at.y >= 0 && at.x < clientWidth && at.y < clientHeight) {
         onSelect({ ...selection, cell: pickCell(map, at, period.id) });
       } else if (!pick.stale) {

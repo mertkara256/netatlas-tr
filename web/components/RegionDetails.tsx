@@ -33,9 +33,16 @@ function Stat({ label, value, note }: { label: string; value: string; note: stri
 
 /** The heat-map cell under the click, with the values the tooltip gives at that point (cellAt() in
  *  MapView), so a phone, which has no tooltip, can read what a cell's colour stands for. */
-function CellSection({ pick, period, periods }: { pick: CellPick; period: PeriodInfo; periods: PeriodInfo[] }) {
+function CellSection({ pick, period, periods, mapHidden }: {
+  pick: CellPick;
+  period: PeriodInfo;
+  periods: PeriodInfo[];
+  mapHidden: boolean;
+}) {
   // While another period is shown, the map reads the cell again (MapView); stale if it could not.
-  const reading = pick.period !== period.id && !pick.stale;
+  // A map hidden behind the table reads nothing until it is shown again.
+  const old = pick.period !== period.id;
+  const reading = old && !pick.stale && !mapHidden;
   const readIn = periods.find((p) => p.id === pick.period)!;
   const v = pick.cell?.values;
 
@@ -63,7 +70,12 @@ function CellSection({ pick, period, periods }: { pick: CellPick; period: Period
         <p>Tıkladığın yerde {pick.period === period.id ? "bu dönemde" : `${readIn.ad} döneminde`} ölçüm yok.</p>
       )}
       {!reading && v && v.t < LOW_TESTS && <p className={styles.note}>{LOW_TESTS}&apos;dan az test var; değerler belirsiz.</p>}
-      {pick.stale && pick.period !== period.id && (
+      {old && mapHidden ? (
+        <p className={styles.note}>
+          Bu bilgi {readIn.ad} dönemine ait: harita gösterilmediği için {period.ad} dönemi okunamadı. Haritaya dönünce
+          güncellenir.
+        </p>
+      ) : old && pick.stale && (
         <p className={styles.note}>
           Bu bilgi {readIn.ad} dönemine ait: tıkladığın yer haritanın görünen kısmında olmadığı için {period.ad} dönemi
           okunamadı. Haritayı oraya geri kaydırınca güncellenir.
@@ -117,7 +129,7 @@ function NearbySection({ point, period }: { point: [number, number]; period: Per
 
 /** Speeds, yearly trend and BTK access of a province or district, beside Türkiye's.
  *  Shared by the map's region panel and the province pages. */
-export default function RegionDetails({ area, province, national, isDistrict, periods, period, metric, point, cell }: {
+export default function RegionDetails({ area, province, national, isDistrict, periods, period, metric, point, cell, mapHidden = false }: {
   area: Area;
   /** The area itself, or a district's province (BTK publishes no district figures). */
   province: Area;
@@ -130,6 +142,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
   point?: [number, number];
   /** In the heat map, the cell under that point. */
   cell?: CellPick;
+  /** The table is shown in the map's place, so the map cannot read the cell. */
+  mapHidden?: boolean;
 }) {
   const theme = useColorScheme();
   const v = area.hiz[period.id];
@@ -143,7 +157,7 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
 
   return (
     <div className={styles.details}>
-      {cell && <CellSection pick={cell} period={period} periods={periods} />}
+      {cell && <CellSection pick={cell} period={period} periods={periods} mapHidden={mapHidden} />}
       {point && <NearbySection point={point} period={period} />}
 
       <section>
