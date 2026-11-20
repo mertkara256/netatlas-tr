@@ -53,7 +53,7 @@ function datasetMarkup([firstYear, firstQuarter]: number[], [lastYear, lastQuart
       "Türkiye'nin 81 ili ve 973 ilçesinde Speedtest ile ölçülen ortalama sabit internet indirme ve yükleme hızı ile "
       + "gecikme; 2019'dan bugüne her takvim yılı ve yayınlanmış son dört çeyrek için. Değerler cihaz ağırlıklıdır; "
       + "test sayısı, kare ve çeyrek başına cihaz sayılarının toplamı, güvenilirlik etiketi ve nüfusun ölçüm yapılan "
-      + "karelerde yaşayan payı da verilir. "
+      + "karelerde ya da hemen yanlarında yaşayan payı da verilir. "
       + "Ookla'nın açık Speedtest verisinden türetilmiştir.",
     url: `${SITE_ORIGIN}${BASE_PATH}/yontem/`,
     sameAs: REPO_URL,
@@ -314,8 +314,8 @@ export default async function MethodPage() {
           Eşikler veriye bakılarak seçildi. Aynı dönemin iki yarısı (1.+3. ve 2.+4. çeyrek) karşılaştırıldığında, iki yarının
           indirme değeri arasındaki tipik fark {LOW_TESTS}&apos;dan az testli karelerde yaklaşık %50, {LOW_TESTS}–49 testte
           %30–43, 50–{HIGH_TESTS - 1} testte %22–31, {HIGH_TESTS}–499 testte %16–18&apos;dir (2024 ve Güncel). İl ve ilçeler aynı
-          test sayısında benzer oynar. Güncel dönemde karelerin %59&apos;u düşük güvenilirlikte ama bu kareler testlerin
-          yalnızca %3&apos;ünü tutar; testlerin %62&apos;si yüksek güvenilirlikteki karelerdedir. Haritada düşük güvenilirlikteki değerler
+          test sayısında benzer oynar. 2025 Ç4 – 2026 Ç3 döneminde karelerin %59&apos;u düşük güvenilirlikteydi ama bu kareler
+          testlerin yalnızca %3&apos;ünü tutuyordu; testlerin %62&apos;si yüksek güvenilirlikteki karelerdeydi. Haritada düşük güvenilirlikteki değerler
           içi boş gösterilir: çerçeve değerin kendi rengindedir, içi soluk kalır. İl ve ilçe görünümünde ise alan, değerin
           renginde çizgilerle taranır. Renk hızı, içinin boş ya da taralı olması belirsizliği anlatır.
         </p>
