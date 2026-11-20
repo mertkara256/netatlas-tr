@@ -166,28 +166,24 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       else if (id.startsWith(HATCH)) ref.getMap().addImage(id, hatch(id.slice(HATCH.length)), { pixelRatio: 2 });
     });
   }, []);
-  // Which basemap has finished loading, and the label layer ours must go under. The light and
+  const style = BASEMAPS[theme];
+  // Which style has finished loading, and the label layer ours must go under. The light and
   // dark basemaps end in different label layers, so our layers are added afresh after a switch.
-  const [loaded, setLoaded] = useState<{ theme: Theme; beforeId: string } | null>(null);
-  const themeRef = useRef(theme);
+  const [loaded, setLoaded] = useState<{ style: string; beforeId: string } | null>(null);
   const hovered = useRef<{ layer: string; id: string } | null>(null);
-
-  useEffect(() => {
-    themeRef.current = theme;
-  }, [theme]);
 
   // The basemap draws well before the speed tiles arrive, and until then Türkiye shows no colour.
   // Our source is added in this commit, so the next idle comes once its tiles are drawn.
   const [drawnTheme, setDrawnTheme] = useState<Theme | null>(null);
   useEffect(() => {
     const map = mapRef.current?.getMap();
-    if (!map || loaded?.theme !== theme) return;
+    if (!map || loaded?.style !== style) return;
     const drawn = () => setDrawnTheme(theme);
     map.once("idle", drawn);
     return () => {
       map.off("idle", drawn);
     };
-  }, [loaded, theme]);
+  }, [loaded, style, theme]);
 
   // Set when the panel opens or closes, for the next resize only (see handleLoad). None comes
   // on phones, where the panel lies over the map, hence the timeout.
@@ -221,7 +217,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     const map = mapRef.current!.getMap();
     const update = () => {
       showTurkishNames(map);
-      setLoaded({ theme: themeRef.current, beforeId: firstLabelLayer(map) });
+      setLoaded({ style: map.getStyleUrl() ?? "", beforeId: firstLabelLayer(map) });
     };
     update();
     map.on("style.load", update);
@@ -326,7 +322,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     const map = mapRef.current?.getMap();
     const pick = selection?.cell;
     const point = selection?.point;
-    if (!map || !pick || !point || pick.period === period.id || view !== "kareler" || loaded?.theme !== theme) return;
+    if (!map || !pick || !point || pick.period === period.id || view !== "kareler" || loaded?.style !== style) return;
     const read = () => {
       // The new period's source is added a moment after the old one is removed, and the map can go
       // idle in between, with no cells drawn.
@@ -343,19 +339,19 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     return () => {
       map.off("idle", read);
     };
-  }, [selection, period.id, view, loaded, theme, onSelect]);
+  }, [selection, period.id, view, loaded, style, onSelect]);
 
   // Outline the selected area; tile features keep their state across period and metric changes,
   // but a basemap switch re-adds the source, so the state is set again then.
   const selected = useRef<Selection | null>(null);
   useEffect(() => {
     const map = mapRef.current?.getMap();
-    if (!map || loaded?.theme !== theme || !map.getSource("harita")) return;
+    if (!map || loaded?.style !== style || !map.getSource("harita")) return;
     for (const [target, state] of [[selected.current, false], [selection, true]] as const) {
       if (target) map.setFeatureState({ source: "harita", sourceLayer: target.kind, id: target.code }, { selected: state });
     }
     selected.current = selection;
-  }, [selection, loaded, theme]);
+  }, [selection, loaded, style]);
 
   // Speeds from fewer than LOW_TESTS tests are drawn hollow; reliability shows the tests themselves.
   const hollow = metric.id !== "guvenilirlik";
@@ -396,7 +392,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       <Map
         ref={setMap}
         initialViewState={{ bounds: TURKEY_BOUNDS, fitBoundsOptions: { padding: 12 } }}
-        mapStyle={BASEMAPS[theme]}
+        mapStyle={style}
         minZoom={3}
         maxZoom={15}
         dragRotate={false}
@@ -418,9 +414,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         style={{ position: "absolute", inset: 0 }}
       >
         <NavigationControl showCompass={false} />
-        {loaded?.theme === theme && (
+        {loaded?.style === style && (
           <Source
-            key={theme}
+            key={style}
             id="harita"
             type="vector"
             tiles={[`harita://${BORDERS_ARCHIVE}/{z}/{x}/{y}`]}
@@ -494,9 +490,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         )}
         {/* The selected period's cells, from that period's archive. A new period adds the source
             afresh; its layers go under the districts and provinces, as before the split. */}
-        {loaded?.theme === theme && (
+        {loaded?.style === style && (
           <Source
-            key={`${theme}-${period.id}`}
+            key={`${style}-${period.id}`}
             id="kareler"
             type="vector"
             tiles={[cellTiles(period.id)]}
@@ -531,8 +527,8 @@ export default function MapView({ period, metric, view, theme, areas, selection,
           </Source>
         )}
         {/* The area the panel's "nearest 1 km" figure pools. */}
-        {loaded?.theme === theme && nearbyCircle && (
-          <Source key={`nearby-${theme}`} id="nearby" type="geojson" data={nearbyCircle}>
+        {loaded?.style === style && nearbyCircle && (
+          <Source key={`nearby-${style}`} id="nearby" type="geojson" data={nearbyCircle}>
             <Layer id="nearby-line" type="line" paint={{ "line-color": lines.hover, "line-width": 2 }} beforeId={before} />
           </Source>
         )}
