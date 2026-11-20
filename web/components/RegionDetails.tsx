@@ -73,7 +73,7 @@ function CellSection({ pick, period, periods }: { pick: CellPick; period: Period
   );
 }
 
-/** Test-weighted averages of Ookla's 475 m squares within 1 km of the clicked point, read from the
+/** Device-weighted averages of Ookla's 475 m squares within 1 km of the clicked point, read from the
  *  map tiles in the browser whatever the zoom (lib/nearby.ts). */
 function NearbySection({ point, period }: { point: [number, number]; period: PeriodInfo }) {
   const [attempt, setAttempt] = useState(0);

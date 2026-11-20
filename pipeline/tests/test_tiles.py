@@ -81,8 +81,8 @@ def test_level_16_cells_are_the_tiles(sample_cells):
     tiles, features = sample_cells
     squares = {(quadkey_of(f), period_of(f)): f["properties"] for f in features if f["properties"]["seviye"] == 16}
     for row in tiles.to_pylist():
-        cell = squares[row["quadkey"], row["donem"]]
-        assert (cell[f"t{row['donem']}"], cell[f"d{row['donem']}"]) == (row["test"], row["indirme_mbps"])
+        cell, p = squares[row["quadkey"], row["donem"]], row["donem"]
+        assert (cell[f"t{p}"], cell[f"c{p}"], cell[f"d{p}"]) == (row["test"], row["cihaz"], row["indirme_mbps"])
     assert len(squares) == tiles.num_rows
 
 
@@ -101,19 +101,64 @@ def test_each_cell_is_drawn_where_its_squares_were_measured(sample_cells):
         assert shapely.box(*tile_bounds(*quadkey_to_tile(cell))).buffer(1e-9).contains(shape), (cell, period)
 
 
-def test_every_level_holds_all_tests_and_the_same_average(sample, sample_cells):
+def test_every_level_holds_all_tests(sample, sample_cells):
     tiles, features = sample_cells
     for period in sample.periods:
-        rows = tiles.filter(pc.equal(tiles["donem"], period)).to_pylist()
-        tests = sum(r["test"] for r in rows)
-        download = sum(r["indirme_mbps"] * r["test"] for r in rows) / tests
+        tests = pc.sum(tiles.filter(pc.equal(tiles["donem"], period))["test"]).as_py()
         for level in LEVELS:
             cells = [f["properties"] for f in features
                      if f["properties"]["seviye"] == level and f"t{period}" in f["properties"]]
             assert sum(c[f"t{period}"] for c in cells) == tests, (period, level)
-            # Each cell average is rounded to 0.1, so their weighted mean can be 0.05 off.
-            mean = sum(c[f"d{period}"] * c[f"t{period}"] for c in cells) / tests
-            assert mean == pytest.approx(download, abs=0.05), (period, level)
+
+
+def test_each_cell_averages_its_squares_weighted_by_devices(sample_cells):
+    """As provinces and districts do (build.py): a square's tests count once per device."""
+    tiles, features = sample_cells
+    rows = tiles.to_pylist()
+    for f in features:
+        p, period, cell = f["properties"], period_of(f), quadkey_of(f)
+        squares = [r for r in rows if r["donem"] == period and r["quadkey"].startswith(cell)]
+        devices = sum(r["cihaz"] for r in squares)
+        assert p[f"t{period}"] == sum(r["test"] for r in squares), (cell, period)
+        assert p[f"d{period}"] == round(sum(r["indirme_mbps"] * r["cihaz"] for r in squares) / devices, 1), (cell, period)
+        assert p[f"u{period}"] == round(sum(r["yukleme_mbps"] * r["cihaz"] for r in squares) / devices, 1), (cell, period)
+        assert p[f"l{period}"] == round(sum(r["gecikme_ms"] * r["cihaz"] for r in squares) / devices), (cell, period)
+
+
+def cell_holding(sample, features, square, level, period):
+    cell = sample.squares[square][:level]
+    (found,) = [f["properties"] for f in features
+                if f["properties"]["seviye"] == level and period_of(f) == period and quadkey_of(f) == cell]
+    return found
+
+
+def test_one_device_testing_often_does_not_outweigh_many_devices_in_a_merged_cell(sample, sample_cells):
+    """adapazari_a has 100 tests from 1 device at 10 Mbps, adapazari_b 10 tests from 9 devices at 100 Mbps.
+    They first share a cell at level 14, in the current period with serdivan_junction alone (15 tests from
+    3 devices, 50 Mbps): (10 + 9 x 100 + 3 x 50) / 13 = 81.5 Mbps. Weighted by tests it would be 22.0."""
+    assert sample.squares["adapazari_a"][:15] != sample.squares["adapazari_b"][:15]
+    cell = cell_holding(sample, sample_cells[1], "adapazari_a", 14, "guncel")
+    assert cell_holding(sample, sample_cells[1], "adapazari_b", 14, "guncel") is cell
+    assert (cell["tguncel"], cell["dguncel"], cell["uguncel"], cell["lguncel"]) == (125, 81.5, 20.0, 13)
+
+
+def test_a_cell_holding_a_whole_district_shows_the_districts_value(sample, sample_cells):
+    """Kadıköy's measured squares all lie in one level-13 cell, with no other district's. The cell and the
+    district's panel pool the same tile-quarters by the same devices; they can differ only by rounding
+    (each square's speeds are rounded to 0.1 before the cell pools them)."""
+    tiles, features = sample_cells
+    for period in sample.periods:
+        squares = tiles.filter(pc.equal(tiles["donem"], period))
+        kadikoy = {q[:13] for q, d in zip(squares["quadkey"].to_pylist(), squares["ilce_kodu"].to_pylist(), strict=True)
+                   if d == "TUR034023"}
+        (cell,) = kadikoy
+        assert {d for q, d in zip(squares["quadkey"].to_pylist(), squares["ilce_kodu"].to_pylist(), strict=True)
+                if q.startswith(cell)} == {"TUR034023"}
+        values = cell_holding(sample, features, "kadikoy_largest", 13, period)
+        district = sample.districts["TUR034023", period]
+        assert values[f"t{period}"] == int(district["test"])
+        assert values[f"d{period}"] == pytest.approx(float(district["indirme_mbps"]), abs=0.05)
+        assert values[f"u{period}"] == pytest.approx(float(district["yukleme_mbps"]), abs=0.05)
 
 
 def test_pmtiles_stays_under_github_file_limit():
@@ -143,8 +188,11 @@ def test_each_zoom_carries_its_level_and_the_borders(zoom):
     assert set(cells) == {"hucreler"}
     assert {f["properties"]["seviye"] for f in cells["hucreler"]} == {
         next(level for level in LEVELS if tile_zooms(level)[0] <= zoom <= tile_zooms(level)[1])}
-    # Only the archive's own period, so a view downloads no other.
-    assert {k for f in cells["hucreler"] for k in f["properties"]} == {"seviye", "dguncel", "uguncel", "lguncel", "tguncel"}
+    # Only the archive's own period, so a view downloads no other. Ookla's squares also carry their devices,
+    # for the nearby query.
+    level = cells["hucreler"][0]["properties"]["seviye"]
+    assert {k for f in cells["hucreler"] for k in f["properties"]} == {
+        "seviye", "dguncel", "uguncel", "lguncel", "tguncel", *(["cguncel"] if level == 16 else [])}
     borders = decode(BORDERS_PATH, zoom, *tile)
     assert set(borders) == {"iller", "ilceler"} and borders["iller"] and borders["ilceler"]
 
@@ -155,7 +203,8 @@ def test_a_square_keeps_its_values_in_the_tiles(expected_periods):
     quadkey = tile_to_quadkey(*lonlat_to_tile(29.03, 40.99, 16), 16)  # Kadıköy
     tiles = pq.read_table(TILES_PATH)
     rows = tiles.filter(pc.equal(tiles["quadkey"], quadkey)).to_pylist()
-    expected = {k: v for r in rows for k, v in [(f"t{r['donem']}", r["test"]), (f"d{r['donem']}", r["indirme_mbps"])]}
+    expected = {k: v for r in rows for k, v in [(f"t{r['donem']}", r["test"]), (f"c{r['donem']}", r["cihaz"]),
+                                                  (f"d{r['donem']}", r["indirme_mbps"])]}
     assert len(rows) == len(expected_periods)
     found = [f["properties"] for period in expected_periods
              for f in decode(cells_path(period), MAX_ZOOM, *lonlat_to_tile(29.03, 40.99, MAX_ZOOM))["hucreler"]

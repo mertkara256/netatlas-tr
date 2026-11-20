@@ -100,12 +100,14 @@ def test_area_values_are_weighted_by_devices(sample):
     assert (float(row["indirme_mbps"]), float(row["yukleme_mbps"]), float(row["gecikme_ms"])) == (91.0, 23.0, 13.0)
 
 
-def test_a_tile_pools_its_quarters_weighted_by_tests(sample):
-    """30 tests from 1 device at 20 Mbps, then 10 tests from 3 devices at 60 Mbps: 30.0 Mbps (50.0 by devices)."""
+def test_a_tile_pools_its_quarters_weighted_by_devices(sample):
+    """30 tests from 1 device at 20 Mbps, then 10 tests from 3 devices at 60 Mbps: 50.0 Mbps, as an area would
+    pool them. Weighted by tests, download would be 30.0 Mbps, upload 6.0 and latency 17.0 ms."""
     tiles = sample.tiles.filter(pc.equal(sample.tiles["quadkey"], sample.squares["kadikoy_two_quarters"])).to_pylist()
     assert len(tiles) == len(sample.periods)
     for tile in tiles:
-        assert (tile["test"], tile["indirme_mbps"], tile["yukleme_mbps"], tile["gecikme_ms"]) == (40, 30.0, 6.0, 17.0)
+        assert (tile["test"], tile["cihaz"]) == (40, 4)
+        assert (tile["indirme_mbps"], tile["yukleme_mbps"], tile["gecikme_ms"]) == (50.0, 10.0, 11.0)
 
 
 @pytest.mark.parametrize("province, district, period, tests, label", [

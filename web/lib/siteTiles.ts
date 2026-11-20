@@ -1,8 +1,8 @@
-// The map's vector sources read their tiles from the site's archives. A tile is kept after its first
-// read, so a basemap switch or a return to a period, which adds the source afresh, does not fetch it
-// again; a failed fetch is tried once more with a fresh archive (lib/retry.ts).
+// The map's vector sources and the nearby query (lib/nearby.ts) read their tiles from the site's archives.
+// A tile is kept after its first read, so a basemap switch or a return to a period, which adds the
+// source afresh, does not fetch it again; a failed fetch is tried once more with a fresh archive (lib/retry.ts).
 import type { AddProtocolAction } from "maplibre-gl";
-import { invalidateSiteArchive, siteArchive } from "./nearby";
+import { invalidateSiteArchive, siteArchive } from "./siteArchive";
 import { retryOnce } from "./retry";
 
 // A view needs about 15 tiles from each of two archives; the rest keeps recent periods at hand.

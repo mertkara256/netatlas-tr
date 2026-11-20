@@ -4,9 +4,11 @@ import test from "node:test";
 import { PMTiles } from "pmtiles";
 import { loadLib } from "./load.mjs";
 
-function loadRequest(nearby, siteArchive = () => "archive", invalidateSiteArchive = () => {}) {
+const { RETRY_DELAY } = loadLib("retry");
+
+function loadRequest(nearby) {
   const stubs = {
-    "./nearby": { nearby, siteArchive, invalidateSiteArchive },
+    "./nearby": { nearby },
     "./data": { cellsArchive: (period) => `kareler-${period}` },
   };
   return loadLib("nearby-request", { stubs }).startNearbyRequest;
@@ -20,15 +22,19 @@ function deferred() {
 
 const value = { squares: 3, tests: 20, download: 100, upload: 20, latency: 10 };
 
-// Use the real decoder and its default SharedPromiseCache with an in-memory range source.
-function loadArchive(createSource) {
+// The real query, tile cache and archives, with the real PMTiles reader and its default
+// SharedPromiseCache over an in-memory range source.
+function loadRealRequest(createSource) {
   class TestArchive extends PMTiles {
     constructor() { super(createSource()); }
   }
-  return loadLib("nearby", {
-    stubs: { pmtiles: { PMTiles: TestArchive }, "./data": { archivePath: (name) => `/data/${name}.pmtiles` } },
+  return loadLib("nearby-request", {
+    stubs: {
+      pmtiles: { PMTiles: TestArchive },
+      "./data": { archivePath: (name) => `/data/${name}.pmtiles`, cellsArchive: (period) => `kareler-${period}` },
+    },
     globals: { window: { location: { origin: "https://example.test" } } },
-  });
+  }).startNearbyRequest;
 }
 
 function emptyArchive() {
@@ -51,7 +57,7 @@ test("a failed nearby query waits for an explicit retry, which can succeed", asy
   const results = [];
   let calls = 0;
   const start = loadRequest((archive, lon, lat, period) => {
-    assert.deepEqual([archive, lon, lat, period], ["archive", 29, 41, "guncel"]);
+    assert.deepEqual([archive, lon, lat, period], ["kareler-guncel", 29, 41, "guncel"]);
     return ++calls === 1 ? first.promise : second.promise;
   });
   const cancel = start(29, 41, "guncel", (result) => results.push(result));
@@ -71,7 +77,7 @@ test("a failed nearby query waits for an explicit retry, which can succeed", asy
 
 test("the query reads the cells of the period it was asked for", async () => {
   const opened = [];
-  const start = loadRequest(async () => value, (name) => { opened.push(name); return name; });
+  const start = loadRequest(async (archive) => { opened.push(archive); return value; });
   start(29, 41, "2019", () => {});
   start(29, 41, "guncel", () => {});
   await setImmediate();
@@ -86,16 +92,13 @@ test("an empty measurement result stays distinct from a failed request", async (
   assert.deepEqual(results, [{ status: "ready", value: null }]);
 });
 
-for (const failure of ["archive", "query"]) {
-  test(`a synchronous ${failure} failure becomes a request error`, async () => {
-    const results = [];
-    const fail = () => { throw new Error("Unable to initialize query"); };
-    const start = loadRequest(failure === "query" ? fail : async () => value, failure === "archive" ? fail : undefined);
-    assert.doesNotThrow(() => start(29, 41, "guncel", (result) => results.push(result)));
-    await setImmediate();
-    assert.deepEqual(results, [{ status: "error" }]);
-  });
-}
+test("a synchronous query failure becomes a request error", async () => {
+  const results = [];
+  const start = loadRequest(() => { throw new Error("Unable to initialize query"); });
+  assert.doesNotThrow(() => start(29, 41, "guncel", (result) => results.push(result)));
+  await setImmediate();
+  assert.deepEqual(results, [{ status: "error" }]);
+});
 
 for (const settles of ["success", "failure"]) {
   test(`cleanup ignores a late ${settles} after unmount`, async () => {
@@ -130,47 +133,44 @@ for (const settles of ["success", "failure"]) {
   });
 }
 
-test("retry recovers from a rejected header cached by the real PMTiles reader", async () => {
+test("a header the CDN rejected once is read again from a fresh archive, without a failed panel", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   let reads = 0;
-  const archiveModule = loadArchive(() => ({
+  const start = loadRealRequest(() => ({
     getKey: () => "nearby-test",
     async getBytes() {
       if (++reads === 1) throw new TypeError("Header range request failed");
       return { data: emptyArchive() };
     },
   }));
-  const firstArchive = archiveModule.siteArchive("kareler-guncel");
-  await assert.rejects(firstArchive.getHeader());
-  await assert.rejects(firstArchive.getHeader());
-  assert.equal(reads, 1, "the failed header is still cached by this reader");
-  const start = loadRequest(archiveModule.nearby, archiveModule.siteArchive, archiveModule.invalidateSiteArchive);
   const results = [];
   start(29, 41, "guncel", (result) => results.push(result));
-  await setImmediate();
-  assert.deepEqual(results, [{ status: "error" }]);
-  assert.notEqual(archiveModule.siteArchive("kareler-guncel"), firstArchive);
-  start(29, 41, "guncel", (result) => results.push(result));
-  await setImmediate();
+  for (let i = 0; i < 5; i++) await setImmediate();
+  assert.deepEqual(results, []);
+  t.mock.timers.tick(RETRY_DELAY);
+  for (let i = 0; i < 5; i++) await setImmediate();
   assert.equal(reads, 2);
+  assert.deepEqual(results, [{ status: "ready", value: null }]);
+});
+
+test("after two failures the panel's retry reads the tiles again", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let reads = 0;
+  const start = loadRealRequest(() => ({
+    getKey: () => "nearby-test",
+    async getBytes() {
+      if (++reads <= 2) throw new TypeError("Header range request failed");
+      return { data: emptyArchive() };
+    },
+  }));
+  const results = [];
+  start(29, 41, "guncel", (result) => results.push(result));
+  for (let i = 0; i < 5; i++) await setImmediate();
+  t.mock.timers.tick(RETRY_DELAY);
+  for (let i = 0; i < 5; i++) await setImmediate();
+  assert.deepEqual(results, [{ status: "error" }]);
+  start(29, 41, "guncel", (result) => results.push(result));
+  for (let i = 0; i < 5; i++) await setImmediate();
+  assert.equal(reads, 3);
   assert.deepEqual(results, [{ status: "error" }, { status: "ready", value: null }]);
-});
-
-test("an obsolete failure cannot invalidate the replacement archive", () => {
-  const archiveModule = loadArchive(() => ({ getKey: () => "test", getBytes: async () => ({ data: emptyArchive() }) }));
-  const old = archiveModule.siteArchive("kareler-guncel");
-  archiveModule.invalidateSiteArchive(old);
-  const replacement = archiveModule.siteArchive("kareler-guncel");
-  archiveModule.invalidateSiteArchive(old);
-  assert.equal(archiveModule.siteArchive("kareler-guncel"), replacement);
-});
-
-test("archives are opened once per name, and a failure replaces only its own", () => {
-  const archiveModule = loadArchive(() => ({ getKey: () => "test", getBytes: async () => ({ data: emptyArchive() }) }));
-  const borders = archiveModule.siteArchive("sinirlar");
-  const cells = archiveModule.siteArchive("kareler-guncel");
-  assert.notEqual(borders, cells);
-  assert.equal(archiveModule.siteArchive("sinirlar"), borders);
-  archiveModule.invalidateSiteArchive(cells);
-  assert.equal(archiveModule.siteArchive("sinirlar"), borders);
-  assert.notEqual(archiveModule.siteArchive("kareler-guncel"), cells);
 });

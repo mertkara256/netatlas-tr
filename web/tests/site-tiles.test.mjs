@@ -10,7 +10,7 @@ function loadSiteTiles(archives) {
   const names = [];
   let opened = 0;
   const stubs = {
-    "./nearby": {
+    "./siteArchive": {
       siteArchive: (name) => {
         names.push(name);
         return archives[Math.min(opened++, archives.length - 1)];
@@ -72,4 +72,33 @@ test("a failed read is not kept: the next reader fetches again", async (t) => {
   await assert.rejects(first, /Failed to fetch/);
   assert.equal((await siteTile("kareler-guncel", 7, 75, 48)).byteLength, 6);
   assert.deepEqual(reads, ["7/75/48", "7/75/48", "7/75/48"]);
+});
+
+/** siteArchive.ts with a stand-in PMTiles class that reads nothing. */
+function loadArchives() {
+  class TestArchive {}
+  return loadLib("siteArchive", {
+    stubs: { pmtiles: { PMTiles: TestArchive }, "./data": { archivePath: (name) => `/data/${name}.pmtiles` } },
+    globals: { window: { location: { origin: "https://example.test" } } },
+  });
+}
+
+test("an obsolete failure cannot invalidate the replacement archive", () => {
+  const archiveModule = loadArchives();
+  const old = archiveModule.siteArchive("kareler-guncel");
+  archiveModule.invalidateSiteArchive(old);
+  const replacement = archiveModule.siteArchive("kareler-guncel");
+  archiveModule.invalidateSiteArchive(old);
+  assert.equal(archiveModule.siteArchive("kareler-guncel"), replacement);
+});
+
+test("archives are opened once per name, and a failure replaces only its own", () => {
+  const archiveModule = loadArchives();
+  const borders = archiveModule.siteArchive("sinirlar");
+  const cells = archiveModule.siteArchive("kareler-guncel");
+  assert.notEqual(borders, cells);
+  assert.equal(archiveModule.siteArchive("sinirlar"), borders);
+  archiveModule.invalidateSiteArchive(cells);
+  assert.equal(archiveModule.siteArchive("sinirlar"), borders);
+  assert.notEqual(archiveModule.siteArchive("kareler-guncel"), cells);
 });

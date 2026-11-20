@@ -3,15 +3,17 @@
 Periods are the calendar years with all four quarters published (2019-2025 today) and
 "guncel", the latest four published quarters. When the latest quarter is a Q4, that year and
 "guncel" are the same four quarters, and the year is left out until the next quarter arrives.
-Within a period a tile's tests are summed and its speeds averaged weighted by tests. Province,
-district and national values average every tile-quarter in them weighted by its devices instead.
+Within a period a tile's tests and devices are summed. Its speeds, like those of provinces,
+districts and Türkiye, average every tile-quarter in it weighted by the tile-quarter's devices.
 The unit is the tile-quarter's mean, which Ookla takes over all its tests: devices set how much
-that mean counts in the area, not the mean itself. A phone testing dozens of times alone in a
-tile counts once, but next to other devices in the same tile it still dominates the tile's mean
-(9 tests at 10 Mbps and 1 at 100 average 19 Mbps, where equal devices would give 55). Split-half
-checks (2024 and the current period) found area values more repeatable this way: districts with
+that mean counts, not the mean itself. A phone testing dozens of times alone in a tile counts
+once, but next to other devices in the same tile it still dominates the tile's mean (9 tests at
+10 Mbps and 1 at 100 average 19 Mbps, where equal devices would give 55). Split-half checks
+(2024 and the current period) found area values more repeatable this way: districts with
 1,000-4,999 tests moved a median 9-11% between half-years instead of 13-16%, provinces under
-5,000 tests 6-20% instead of 14-25%. Within a tile, weighting by devices changes nothing.
+5,000 tests 6-20% instead of 14-25%. A single tile's quarters were about as repeatable either
+way; it is weighted by devices so that the map's cells, pooled from tiles (tiles.py), are worked
+out the same way as the areas, and a cell that holds a whole district shows the district's value.
 
 Each area also gets its residents (WorldPop, see population.py) and the share of them living in
 or next to a tile with at least one test in the period: how much of the area's population the
@@ -55,8 +57,8 @@ MIN_LAND_SHARE = 0.2
 # a tile's download moves about 50% between half-years below 10 tests, 22-31% at 50-199 tests and
 # 16-17% at 200-499. Areas, device-weighted, are about the same at the same test counts.
 RELIABILITY = [(200, "yuksek"), (10, "orta"), (0, "dusuk")]
-# Per tile-quarter: tests and devices, and each average times tests (for tiles) and times devices (for areas).
-SUMS = ["tests", "d_sum", "u_sum", "lat_sum", "devices", "d_dev", "u_dev", "lat_dev"]
+# Per tile-quarter: tests and devices, and each average times devices.
+SUMS = ["tests", "devices", "d_dev", "u_dev", "lat_dev"]
 # A resident counts as measured when a test was run in their tile or one of the eight around it.
 # The two grids line up (tests and residents coincide most in the same tile, falling off evenly in
 # every direction), but a small town's tests often land one tile off its most populated tiles. With
@@ -98,7 +100,7 @@ def periods(quarters: list[tuple[int, int]]) -> dict[str, list[tuple[int, int]]]
 
 
 def read_quarter(year: int, quarter: int) -> pa.Table:
-    """Tests, devices and the speed totals weighted by each, per tile, so quarters can be added up."""
+    """Tests, devices and the speed totals weighted by devices, per tile, so quarters can be added up."""
     t = pq.read_table(output_path(year, quarter))
     tests = pc.cast(t["tests"], pa.float64())
     devices = pc.cast(t["devices"], pa.float64())
@@ -106,7 +108,6 @@ def read_quarter(year: int, quarter: int) -> pa.Table:
     return pa.table({
         "quadkey": t["quadkey"],
         "tests": tests,
-        **{f"{k}_sum": pc.multiply(pc.cast(v, pa.float64()), tests) for k, v in speeds.items()},
         "devices": devices,
         **{f"{k}_dev": pc.multiply(pc.cast(v, pa.float64()), devices) for k, v in speeds.items()},
     })
@@ -165,16 +166,18 @@ def values(tiles: int, tests: float, devices: float, d_dev: float, u_dev: float,
 
 
 def tile_table(period: str, pooled: pa.Table) -> pa.Table:
-    tests = pooled["tests"]
+    """One row per tile: tests, devices and device-weighted speeds, as for an area."""
+    tests, devices = pooled["tests"], pooled["devices"]
     return pa.table({
         "donem": pa.array([period] * pooled.num_rows),
         "quadkey": pooled["quadkey"],
         "il_kodu": pooled["il_kodu"],
         "ilce_kodu": pooled["ilce_kodu"],
         "test": pc.cast(tests, pa.int64()),
-        "indirme_mbps": pc.round(pc.divide(pooled["d_sum"], pc.multiply(tests, 1000)), 1),
-        "yukleme_mbps": pc.round(pc.divide(pooled["u_sum"], pc.multiply(tests, 1000)), 1),
-        "gecikme_ms": pc.round(pc.divide(pooled["lat_sum"], tests), 1),
+        "cihaz": pc.cast(devices, pa.int64()),
+        "indirme_mbps": pc.round(pc.divide(pooled["d_dev"], pc.multiply(devices, 1000)), 1),
+        "yukleme_mbps": pc.round(pc.divide(pooled["u_dev"], pc.multiply(devices, 1000)), 1),
+        "gecikme_ms": pc.round(pc.divide(pooled["lat_dev"], devices), 1),
         "guvenilirlik": pa.array([reliability(t) for t in tests.to_pylist()]),
     })
 

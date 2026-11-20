@@ -2,7 +2,8 @@
 
 The speed layer is a heat map at every zoom: each cell is a Web Mercator tile at some level,
 from Ookla's own 475 m squares (level 16) up close to ~30 km cells (level 10) when zoomed out,
-pooled from the squares inside it with test weights. Each level is shown at the map zooms where
+pooled from the squares inside it weighted by devices, as provinces and districts are (build.py), so
+a cell that holds a whole district shows the district's value. Each level is shown at the map zooms where
 its cells are 8-16 px wide. A cell is drawn only where it holds measured squares (see footprint()),
 so it is one feature per period: its shape changes as squares are measured or not. Each period's
 cells go in their own archive, so a view downloads only the period on screen.
@@ -80,30 +81,37 @@ def footprint(parts: list[str]) -> dict:
 
 def cell_features(tiles: pa.Table) -> list[dict]:
     """One GeoJSON feature per cell and period at every level, carrying d/u/l/t (download, upload,
-    latency, tests) for that period, in the shape of the cell's measured parts (footprint())."""
-    tests = pc.cast(tiles["test"], pa.float64())
+    latency, tests) for that period, in the shape of the cell's measured parts (footprint()). Speeds
+    average the squares weighted by their devices. Ookla's own squares (level 16) also carry c, their
+    devices, so the nearby query (web/lib/nearby.ts) can pool them the same way."""
+    devices = pc.cast(tiles["cihaz"], pa.float64())
     sums = pa.table({
         "donem": tiles["donem"],
         "quadkey": tiles["quadkey"],
-        "t": tests,
-        "d": pc.multiply(tiles["indirme_mbps"], tests),
-        "u": pc.multiply(tiles["yukleme_mbps"], tests),
-        "l": pc.multiply(tiles["gecikme_ms"], tests),
+        "t": tiles["test"],
+        "c": devices,
+        "d": pc.multiply(tiles["indirme_mbps"], devices),
+        "u": pc.multiply(tiles["yukleme_mbps"], devices),
+        "l": pc.multiply(tiles["gecikme_ms"], devices),
     })
     features = []
     for level in LEVELS:
         part_level = min(level + FOOTPRINT_DEPTH, SQUARE_LEVEL)
         grouped = (sums.append_column("hucre", pc.utf8_slice_codeunits(sums["quadkey"], 0, level))
                    .append_column("parca", pc.utf8_slice_codeunits(sums["quadkey"], 0, part_level))
-                   .group_by(["hucre", "donem"]).aggregate([(c, "sum") for c in "tdul"] + [("parca", "distinct")]))
+                   .group_by(["hucre", "donem"]).aggregate([(c, "sum") for c in "tcdul"] + [("parca", "distinct")]))
         minzoom, maxzoom = tile_zooms(level)
-        for period, t, d, u, lat, parts in zip(*(grouped[c].to_pylist() for c in
-                                                ["donem", "t_sum", "d_sum", "u_sum", "l_sum", "parca_distinct"]), strict=True):
+        for period, t, c, d, u, lat, parts in zip(*(grouped[col].to_pylist() for col in
+                                                   ["donem", "t_sum", "c_sum", "d_sum", "u_sum", "l_sum", "parca_distinct"]),
+                                                 strict=True):
+            properties = {"seviye": level, f"d{period}": round(d / c, 1), f"u{period}": round(u / c, 1),
+                          f"l{period}": round(lat / c), f"t{period}": t}
+            if level == SQUARE_LEVEL:
+                properties[f"c{period}"] = int(c)
             features.append({
                 "type": "Feature",
                 "tippecanoe": {"minzoom": minzoom, "maxzoom": maxzoom},
-                "properties": {"seviye": level, f"d{period}": round(d / t, 1), f"u{period}": round(u / t, 1),
-                               f"l{period}": round(lat / t), f"t{period}": int(t)},
+                "properties": properties,
                 "geometry": footprint(parts),
             })
         print(f"  level {level}: {grouped.num_rows:,} cells over all periods, drawn as level {part_level} parts, "
