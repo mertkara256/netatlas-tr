@@ -64,7 +64,7 @@
   font-weight: 600;
 }
 
-.table tr:last-child td {
+.table tbody:last-child tr:last-child td {
   border-bottom: 0;
 }
 
@@ -134,4 +134,11 @@
   margin-top: 10px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.table .groupRow {
+  padding-top: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
 }
