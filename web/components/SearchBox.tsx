@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { loadPlaces, searchPlaces, type Place } from "@/lib/search";
+import { loadPlaces, MIN_QUERY, normalize, searchPlaces, type Place } from "@/lib/search";
 import styles from "./Atlas.module.css";
 
 /** A combobox: type a province or district (Turkish letters optional), pick with the mouse or
@@ -29,6 +29,10 @@ export default function SearchBox({ onPick }: { onPick: (place: Place) => void }
 
   const results = places ? searchPlaces(places, query) : [];
   const expanded = open && results.length > 0;
+  // A query long enough that lists nothing says why, where the list would be.
+  const status = open && !failed && !expanded && normalize(query).length >= MIN_QUERY
+    ? (places ? "Sonuç bulunamadı" : "Yükleniyor…")
+    : null;
 
   const pick = (place: Place) => {
     onPick(place);
@@ -61,10 +65,11 @@ export default function SearchBox({ onPick }: { onPick: (place: Place) => void }
           if (e.key === "ArrowDown" && expanded) setActive((active + 1) % results.length);
           else if (e.key === "ArrowUp" && expanded) setActive((active - 1 + results.length) % results.length);
           else if (e.key === "Enter" && expanded) pick(results[active]);
-          else if (e.key === "Escape") setOpen(false);
+          // Escape closes the list; with no list open, it goes on to close the region panel.
+          else if (e.key === "Escape" && (expanded || status)) setOpen(false);
           else return;
           e.preventDefault();
-          e.stopPropagation(); // Escape here should not also close the region panel
+          e.stopPropagation();
         }}
       />
       {failed && (
@@ -77,6 +82,7 @@ export default function SearchBox({ onPick }: { onPick: (place: Place) => void }
           }}>Yeniden dene</button>
         </div>
       )}
+      <div role="status">{status && <p className={styles.searchStatus}>{status}</p>}</div>
       {expanded && (
         <ul id={`${id}-list`} role="listbox" className={styles.results}>
           {results.map((place, i) => (

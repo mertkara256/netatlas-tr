@@ -46,12 +46,34 @@ export function loadPlaces(): Promise<Place[]> {
   return loading;
 }
 
+/** Queries shorter than this, folded, find nothing. */
+export const MIN_QUERY = 2;
+
+/** Where a place's folded name holds the query, or -1. A district also matches when the query's
+ *  words split into its name and the start of its province's, either way round ("Ereğli Konya",
+ *  "Konya Ereğli"): 24 district names recur in several provinces. */
+function matchAt(place: Place, q: string, words: string[]): number {
+  let at = place.ara.indexOf(q);
+  if (place.tur !== "ilce" || !place.il || words.length < 2) return at;
+  const province = normalize(place.il);
+  for (let i = 1; i < words.length; i++) {
+    const head = words.slice(0, i).join("");
+    const tail = words.slice(i).join("");
+    for (const [name, provinceStart] of [[head, tail], [tail, head]]) {
+      const found = province.startsWith(provinceStart) ? place.ara.indexOf(name) : -1;
+      if (found >= 0 && (at < 0 || found < at)) at = found;
+    }
+  }
+  return at;
+}
+
 /** Names starting with the query first, then names containing it; provinces before districts. */
 export function searchPlaces(places: Place[], query: string, limit = 8): Place[] {
   const q = normalize(query);
-  if (q.length < 2) return [];
+  if (q.length < MIN_QUERY) return [];
+  const words = query.split(/[\s,]+/).map(normalize).filter(Boolean);
   return places
-    .map((place) => ({ place, at: place.ara.indexOf(q) }))
+    .map((place) => ({ place, at: matchAt(place, q, words) }))
     .filter(({ at }) => at >= 0)
     .sort((a, b) =>
       Number(a.at > 0) - Number(b.at > 0)

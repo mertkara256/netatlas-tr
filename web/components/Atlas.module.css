@@ -112,7 +112,8 @@
   box-shadow: var(--shadow);
 }
 
-.searchError {
+.searchError,
+.searchStatus {
   position: absolute;
   z-index: 10;
   top: calc(100% + 4px);
@@ -124,6 +125,11 @@
   background: var(--surface);
   box-shadow: var(--shadow);
   font-size: 13px;
+}
+
+.searchStatus {
+  margin: 0;
+  color: var(--muted);
 }
 
 .searchError button {
