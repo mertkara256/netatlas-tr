@@ -111,6 +111,20 @@ test("only squares whose centres lie within the radius count", async () => {
     { squares: 2, tests: 20, download: 75, upload: 15, latency: 10 });
 });
 
+test("squares average weighted by devices, as the map's cells and the areas are", async () => {
+  // 100 tests from 1 device at 10 Mbps and 10 tests from 9 devices at 100 Mbps: 91 Mbps (18.2 by tests).
+  const { nearby } = loadNearby(tilesWith([
+    { square: HERE, properties: square(100, 1, 10, { lguncel: 40 }) },
+    { square: east(1), properties: square(10, 9, 100, { lguncel: 10 }) },
+  ]));
+  const result = await nearby("kareler-guncel", CLON, CLAT, "guncel");
+  assert.equal(result.squares, 2);
+  assert.equal(result.tests, 110);
+  assert.equal(result.download, 91);
+  assert.equal(result.upload, 18.2);
+  assert.equal(result.latency, 13);
+});
+
 test("a square repeated in the next tile's buffer counts once", async () => {
   // A square in the easternmost column of its tile, with the point on the tile's eastern edge, so the
   // query reads both tiles and finds the square in each.

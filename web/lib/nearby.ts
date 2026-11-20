@@ -10,7 +10,7 @@ const EARTH_RADIUS = 6371008.8; // m
 
 export const NEARBY_RADIUS = 1000; // m
 
-/** Test-weighted averages of the squares around a point. */
+/** Averages of the squares around a point, weighted by devices as the map's cells and the areas are. */
 export type Nearby = { squares: number; tests: number; download: number; upload: number; latency: number };
 
 function lonLatToTile(lon: number, lat: number, zoom: number): [number, number] {
@@ -39,7 +39,7 @@ export async function nearby(archive: string, lon: number, lat: number, period: 
   for (let x = x0; x <= x1; x++) {
     for (let y = y0; y <= y1; y++) reads.push(siteTile(archive, TILE_ZOOM, x, y).then((data) => [x, y, data]));
   }
-  let squares = 0, tests = 0, download = 0, upload = 0, latency = 0;
+  let squares = 0, tests = 0, devices = 0, download = 0, upload = 0, latency = 0;
 
   for (const [x, y, data] of await Promise.all(reads)) {
     const layer = data && new VectorTile(new PbfReader(new Uint8Array(data))).layers.hucreler;
@@ -58,12 +58,14 @@ export async function nearby(archive: string, lon: number, lat: number, period: 
       const squareLon = ((x + cx) / n) * 360 - 180;
       const squareLat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + cy)) / n))) * 180) / Math.PI;
       if (distance(lon, lat, squareLon, squareLat) > radius) continue;
+      const c = p[`c${period}`] as number;
       squares++;
       tests += t;
-      download += (p[`d${period}`] as number) * t;
-      upload += (p[`u${period}`] as number) * t;
-      latency += (p[`l${period}`] as number) * t;
+      devices += c;
+      download += (p[`d${period}`] as number) * c;
+      upload += (p[`u${period}`] as number) * c;
+      latency += (p[`l${period}`] as number) * c;
     }
   }
-  return squares ? { squares, tests, download: download / tests, upload: upload / tests, latency: latency / tests } : null;
+  return squares ? { squares, tests, download: download / devices, upload: upload / devices, latency: latency / devices } : null;
 }
