@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { SITE_ORIGIN } from "@/lib/data";
 import "./globals.css";
 

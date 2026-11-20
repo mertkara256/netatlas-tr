@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "maplibre-gl/dist/maplibre-gl.css";
+import "./MapView.css";
 import { addProtocol, setWorkerUrl, type ExpressionSpecification, type MapGeoJSONFeature, type Map as MapLibreMap, type StyleSpecification, type VectorTileSource } from "maplibre-gl";
 import Map, { Layer, NavigationControl, Source, type ErrorEvent, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
