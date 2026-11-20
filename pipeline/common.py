@@ -60,10 +60,11 @@ def province_code(name: str) -> str | None:
 
 def download(url: str) -> bytes:
     # certifi keeps HTTPS working on Python builds that ship without system CA roots;
-    # HDX refuses Python's default user agent.
+    # HDX refuses Python's default user agent. The timeout applies to each wait on the
+    # connection, not the whole download, so it stops a stalled server, not a slow file.
     context = ssl.create_default_context(cafile=certifi.where())
     request = urllib.request.Request(url, headers={"User-Agent": "netatlas-tr-pipeline"})
-    with urllib.request.urlopen(request, context=context) as resp:
+    with urllib.request.urlopen(request, context=context, timeout=60) as resp:
         return resp.read()
 
 

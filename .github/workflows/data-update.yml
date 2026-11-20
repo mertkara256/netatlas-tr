@@ -21,6 +21,8 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    # A full build takes about 5 minutes; a hung download or build should not hold the runner for 6 hours.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.0
@@ -71,12 +73,20 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       # The same version the published tiles were made with. DejaVu is the font of the link-preview image.
+      # A tag can be moved, so the build checks that 2.79.0 is still the commit it was pinned to.
       - name: Install tippecanoe
         if: steps.check.outputs.tag
+        env:
+          TIPPECANOE_SHA: 68ab8dcc229f95b8b25877697d5e8d66783af503  # 2.79.0
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q libsqlite3-dev zlib1g-dev fonts-dejavu-core
           git clone --quiet --depth 1 --branch 2.79.0 https://github.com/felt/tippecanoe.git "$RUNNER_TEMP/tippecanoe"
+          actual=$(git -C "$RUNNER_TEMP/tippecanoe" rev-parse HEAD)
+          if [ "$actual" != "$TIPPECANOE_SHA" ]; then
+            echo "::error::tippecanoe 2.79.0 is now $actual, not $TIPPECANOE_SHA. Check the change upstream before pinning the new commit."
+            exit 1
+          fi
           make -C "$RUNNER_TEMP/tippecanoe" -j"$(nproc)" > /dev/null
           sudo make -C "$RUNNER_TEMP/tippecanoe" install > /dev/null
 
