@@ -25,9 +25,10 @@ export const RAMPS: Record<Theme, { full: string[]; reliability: string[]; noDat
 export const FEW_TESTS_FILL = 0.25;
 
 // Panel charts: the selected area in categorical slot 1 (blue), Türkiye in the de-emphasis
-// grey, and the reference palette's chart chrome.
+// grey, and the reference palette's chart chrome. Axis labels (muted) are text, so on light they
+// take the page's --muted (app/globals.css): 5.0:1 on --surface, 4.9:1 on --page.
 export const CHART: Record<Theme, { area: string; national: string; grid: string; axis: string; muted: string; surface: string }> = {
-  light: { area: "#2a78d6", national: "#898781", grid: "#e1e0d9", axis: "#c3c2b7", muted: "#898781", surface: "#fcfcfb" },
+  light: { area: "#2a78d6", national: "#898781", grid: "#e1e0d9", axis: "#c3c2b7", muted: "#6f6e69", surface: "#fcfcfb" },
   dark: { area: "#3987e5", national: "#898781", grid: "#2c2c2a", axis: "#383835", muted: "#898781", surface: "#1a1a19" },
 };
 

@@ -23,7 +23,8 @@
     --muted: #9a9890;
     --border: rgba(255, 255, 255, 0.1);
     --wash: rgba(255, 255, 255, 0.05);
-    --accent: #3987e5;
+    /* Link text: 5.1:1 on --wash over --surface, 5.8:1 on --surface, 6.4:1 on --page. */
+    --accent: #5497e7;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   }
 }
