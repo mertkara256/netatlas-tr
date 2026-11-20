@@ -43,6 +43,22 @@ jobs:
           tag="veri-$latest"
           if gh release view "$tag" > /dev/null 2>&1; then
             if [ "$REBUILD" != true ]; then
+              # A run that failed after the release but before its pull request would leave main
+              # on old data with no further warning. Fail every week until main points at this
+              # quarter (or a rebuild of it) or a pull request from its branch exists, in any state.
+              current=$(gh api "repos/$GITHUB_REPOSITORY/contents/web/data-release.txt?ref=main" \
+                -H "Accept: application/vnd.github.raw")
+              case "$current" in
+                "$tag" | "$tag"-[0-9]*) ;;
+                *)
+                  prs=$(gh pr list --state all --limit 1000 --json headRefName \
+                    --jq "[.[] | select(.headRefName | test(\"^data-update/$tag(-[0-9]+)?$\"))] | length")
+                  if [ "$prs" = 0 ]; then
+                    echo "::error::$tag is released, but main's web/data-release.txt is $current and no pull request from data-update/$tag exists. Open one from that branch to bring main up to date (or close it, if main should stay)."
+                    exit 1
+                  fi
+                  ;;
+              esac
               echo "$tag is already released; nothing to do."
               exit 0
             fi
