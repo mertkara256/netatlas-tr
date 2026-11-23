@@ -317,6 +317,8 @@
   width: 360px;
   min-width: 0;
   height: 46px;
+  touch-action: none;
+  cursor: pointer;
 }
 
 .trackLine,
@@ -396,6 +398,11 @@
 
 .tick[data-state="on"] {
   color: var(--ink);
+  cursor: grab;
+}
+
+.track:active .tick[data-state="on"] {
+  cursor: grabbing;
 }
 
 .tick[data-state="on"] .tickDot {
