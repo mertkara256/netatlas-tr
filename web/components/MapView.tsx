@@ -184,7 +184,7 @@ function describe(metric: Metric, v: CellValues | null): Pick<HoverInfo, "value"
 
 const lowNote = (v: CellValues | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
 
-export default function MapView({ period, metric, view, theme, areas, selection, focus, onHover, onSelect, onDrawn }: {
+export default function MapView({ period, metric, view, theme, areas, selection, focus, onHover, onSelect, onDrawn, onMap, secondary = false }: {
   period: PeriodInfo;
   metric: Metric;
   view: View;
@@ -196,18 +196,25 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   onHover: (info: HoverInfo | null) => void;
   onSelect: (selection: Selection) => void;
   /** Called with a period's id once its cells are drawn (the periods play on this). */
-  onDrawn: (period: string) => void;
+  onDrawn?: (period: string) => void;
+  /** Called with the map once it exists, and with null when it goes, so another map can follow it. */
+  onMap?: (map: MapLibreMap | null) => void;
+  /** The left-hand map of a comparison, drawn over the main one and moved with it (Atlas): it has no
+   *  zoom buttons, sources strip or loading messages of its own, and leaves flying to search results,
+   *  making room for the panel and reading the panel's cell again to the main map. */
+  secondary?: boolean;
 }) {
   const mapRef = useRef<MapRef>(null);
   // MapLibre warns about each of the dark basemap's missing images on every load; an empty image
   // keeps them undrawn, quietly. Set as soon as the map exists, before its first tiles ask for them.
   const setMap = useCallback((ref: MapRef | null) => {
     mapRef.current = ref;
+    onMap?.(ref?.getMap() ?? null);
     ref?.getMap().setMissingStyleImageResolver((id) => {
       if (MISSING_BASEMAP_IMAGES.has(id)) ref.getMap().addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
       else if (id.startsWith(HATCH)) ref.getMap().addImage(id, hatch(id.slice(HATCH.length)), { pixelRatio: 2 });
     });
-  }, []);
+  }, [onMap]);
   // The basemap, or the plain style that stands in for it (see FALLBACKS), named by its URL or name.
   const [fallback, setFallback] = useState(false);
   const mapStyle = fallback ? FALLBACKS[theme] : BASEMAPS[theme];
@@ -229,7 +236,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       if (!map.getLayer("cells") || map.getSource<VectorTileSource>("kareler")?.tiles[0] !== cellTiles(period.id)) return;
       map.off("idle", check);
       setDrawn({ theme, period: period.id });
-      onDrawn(period.id);
+      onDrawn?.(period.id);
     };
     map.on("idle", check);
     return () => {
@@ -265,7 +272,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   // Fly to a search result once the panel it opens has taken its place, keeping the area clear
   // of the phone sheet. The fit replaces the left-edge anchoring of that same resize.
   useEffect(() => {
-    if (!focus) return;
+    if (!focus || secondary) return;
     anchorLeft.current = false;
     const timer = setTimeout(() => {
       const map = mapRef.current?.getMap();
@@ -275,7 +282,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       map.fitBounds(focus.bbox, { padding: { top: 30, left: 30, right: 30, bottom: 30 + sheet }, maxZoom: 11, duration: 800 });
     }, 80);
     return () => clearTimeout(timer);
-  }, [focus]);
+  }, [focus, secondary]);
 
   const handleLoad = useCallback(() => {
     const map = mapRef.current!.getMap();
@@ -287,6 +294,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     };
     update();
     map.on("style.load", update);
+    if (secondary) return;
 
     // MapLibre opens the compact attribution (about 640 px) on load; where it and the period and
     // legend box (about 680 px, Atlas.module.css .dock) do not fit side by side, it would run over
@@ -311,7 +319,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       width = next;
       collapseAttribution();
     });
-  }, []);
+  }, [secondary]);
 
   // The basemap's style could not be fetched (the service is down, or the request blocked): draw
   // ours on the plain style instead. Other errors are logged, as react-map-gl does by default.
@@ -410,7 +418,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     const map = mapRef.current?.getMap();
     const pick = selection?.cell;
     const point = selection?.point;
-    if (!map || !pick || !point || pick.period === period.id || view !== "kareler" || loaded?.style !== style) return;
+    if (secondary || !map || !pick || !point || pick.period === period.id || view !== "kareler" || loaded?.style !== style) return;
     const read = () => {
       // The new period's source is added a moment after the old one is removed, and the map can go
       // idle in between, with no cells drawn.
@@ -428,7 +436,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     return () => {
       map.off("idle", read);
     };
-  }, [selection, period.id, view, loaded, style, onSelect]);
+  }, [selection, period.id, view, loaded, style, onSelect, secondary]);
 
   // Outline the selected area; tile features keep their state across period and metric changes,
   // but a basemap switch re-adds the source, so the state is set again then.
@@ -488,7 +496,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         maxZoom={15}
         dragRotate={false}
         touchPitch={false}
-        attributionControl={{ compact: true, customAttribution: "Speedtest® by Ookla® Open Data · OCHA COD-AB" }}
+        attributionControl={secondary ? false : { compact: true, customAttribution: "Speedtest® by Ookla® Open Data · OCHA COD-AB" }}
         locale={{
           "Map.Title": "Hız haritası: ok tuşlarıyla kaydır, + ve − ile yakınlaş",
           "NavigationControl.ZoomIn": "Yakınlaş",
@@ -505,7 +513,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         onDragStart={clear}
         style={{ position: "absolute", inset: 0 }}
       >
-        <NavigationControl showCompass={false} />
+        {!secondary && <NavigationControl showCompass={false} />}
         {loaded?.style === style && (
           <Source
             key={style}
@@ -625,8 +633,8 @@ export default function MapView({ period, metric, view, theme, areas, selection,
           </Source>
         )}
       </Map>
-      {(drawn?.theme !== theme || (periodPending && periodSlow)) && <MapLoading />}
-      {fallback && (
+      {!secondary && (drawn?.theme !== theme || (periodPending && periodSlow)) && <MapLoading />}
+      {fallback && !secondary && (
         <div className={styles.basemapNotice} role="status">
           <p>Altlık harita {retry === "failed" ? "yine " : ""}yüklenemedi, yer adları gösterilmiyor.</p>
           <button type="button" onClick={retryBasemap} disabled={retry === "trying"}>

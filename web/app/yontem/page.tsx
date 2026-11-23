@@ -428,6 +428,7 @@ export default async function MethodPage() {
         <h2>Erişilebilirlik ve klavye</h2>
         <ul>
           <li>Bütün kontroller Tab ile gezilebilir; her dönemin kendi düğmesi var, oynat düğmesi dönemleri sırayla gösterir.</li>
+          <li>İki dönemi karşılaştırırken aradaki çizgi, tutamağı odaktayken ← ve → ile kayar.</li>
           <li>Harita odaktayken ok tuşları haritayı kaydırır, + ve − yakınlaştırır.</li>
           <li>Arama kutusunda ↑ ↓ ile sonuçlar arasında gezilir, Enter ile seçilir; seçilen yerin paneli açılır.</li>
           <li>Bölge paneli Esc ile kapanır; odak paneli açan öğeye döner.</li>

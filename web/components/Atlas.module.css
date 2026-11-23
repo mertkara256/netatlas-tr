@@ -219,7 +219,9 @@
 
 .segmented button:focus-visible,
 .play:focus-visible,
-.legendInfo:focus-visible {
+.legendInfo:focus-visible,
+.compareToggle:focus-visible,
+.compareHandle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -261,6 +263,60 @@
 .mapControls .segmented {
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+/* A comparison: the left period's map over the main one, cut off at the line (CompareDivider). */
+.compareLeft {
+  position: absolute;
+  inset: 0;
+}
+
+.compareLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px solid var(--ink);
+  margin-left: -1px;
+  pointer-events: none;
+}
+
+.compareHandle {
+  position: absolute;
+  top: 50%;
+  left: -21px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--page);
+  box-shadow: var(--shadow);
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Each period's name beside the line, under the controls. */
+.compareLabel {
+  position: absolute;
+  top: 60px;
+  left: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.compareLabelLeft {
+  left: auto;
+  right: 8px;
 }
 
 /* The period and what the colours mean, in one row at the map's bottom left. */
@@ -319,6 +375,28 @@
   height: 46px;
   touch-action: none;
   cursor: pointer;
+}
+
+/* Turns the comparison on and off, at the end of the dock. */
+.compareToggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.compareToggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--page);
 }
 
 .trackLine,
@@ -414,9 +492,40 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
-.tick[data-state="on"] .tickLabel {
+.tick[data-state="on"] .tickLabel,
+.tick[data-state="ring"] .tickLabel {
   font-size: 12px;
   font-weight: 700;
+}
+
+/* Comparing: the left map's handle is a ring, the right map's a filled point, each named above. */
+.tick[data-state="ring"] {
+  color: var(--ink);
+  cursor: grab;
+}
+
+.track:active .tick[data-state="ring"] {
+  cursor: grabbing;
+}
+
+.tick[data-state="ring"] .tickDot {
+  top: 14px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 3px var(--accent);
+}
+
+.tickTag {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  transform: translateX(-50%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -782,12 +891,17 @@
     width: auto;
   }
 
+  .compareLabel {
+    top: 110px;
+  }
+
   .tick {
     width: 36px;
   }
 
+  /* The colours and, comparing or not, the comparison switch beside them. */
   .legend {
-    flex: 1 1 100%;
+    flex: 1 1 200px;
     padding-left: 4px;
   }
 
