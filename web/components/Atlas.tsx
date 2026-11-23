@@ -1,13 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { loadAreas, REPO_URL, type Area, type AreaKind, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { metricById, type MetricId } from "@/lib/metrics";
 import type { Place } from "@/lib/search";
+import { syncMaps } from "@/lib/syncMaps";
 import { useColorScheme } from "@/lib/useColorScheme";
 import AreaTable from "./AreaTable";
+import CompareDivider from "./CompareDivider";
 import Controls, { type Display } from "./Controls";
 import Legend from "./Legend";
 import MapLoading from "./MapLoading";
@@ -92,6 +95,30 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
     setPlaying(!playing);
     setHover(null);
   };
+  // Comparing puts another period's map over the left part of this one, up to a line the reader
+  // drags; the two maps move together. The right map is the period picked as usual, the left one
+  // its own. Only over the map: the table shows one period.
+  const [leftIndex, setLeftIndex] = useState<number | null>(null);
+  const [split, setSplit] = useState(50);
+  const comparing = leftIndex !== null && display === "harita";
+  const toggleCompare = () => {
+    setHover(null);
+    if (leftIndex !== null) return setLeftIndex(null);
+    setPlaying(false);
+    // The first period on the left, against the one on screen, or the latest if that is the first.
+    if (periodIndex === 0) setPeriodIndex(last);
+    setLeftIndex(0);
+  };
+  const pickLeft = (index: number) => {
+    setLeftIndex(index);
+    setHover(null);
+  };
+  const [mainMap, setMainMap] = useState<MapLibreMap | null>(null);
+  const [leftMap, setLeftMap] = useState<MapLibreMap | null>(null);
+  useEffect(() => {
+    if (comparing && mainMap && leftMap) return syncMaps(mainMap, leftMap);
+  }, [comparing, mainMap, leftMap]);
+
   const pickPeriod = (index: number) => {
     setPlaying(false);
     setPeriodIndex(index);
@@ -174,13 +201,47 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
             onHover={setHover}
             onSelect={setSelection}
             onDrawn={setDrawnPeriod}
+            onMap={setMainMap}
           />
+          {comparing && (
+            <>
+              <div className={styles.compareLeft} style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}>
+                <MapView
+                  period={periods[leftIndex]}
+                  metric={metric}
+                  view={view}
+                  theme={theme}
+                  areas={view === "kareler" ? null : areas[view] ?? null}
+                  selection={selection}
+                  focus={null}
+                  onHover={setHover}
+                  onSelect={setSelection}
+                  onMap={setLeftMap}
+                  secondary
+                />
+              </div>
+              <CompareDivider split={split} onSplit={setSplit} left={periods[leftIndex].ad} right={period.ad} />
+            </>
+          )}
           {controls(true)}
           {/* On phones the region panel and the dock would leave no map; the panel wins. */}
           <div className={`${styles.dock} ${selection ? styles.besidePanel : ""}`}>
-            <Timeline periods={periods} periodIndex={periodIndex} onPeriod={pickPeriod} playing={playing} onPlay={togglePlay} />
+            <Timeline
+              periods={periods}
+              periodIndex={periodIndex}
+              onPeriod={pickPeriod}
+              playing={playing}
+              onPlay={togglePlay}
+              compare={comparing ? { index: leftIndex, onPick: pickLeft } : null}
+            />
             <span className={styles.dockDivider} />
             <Legend metric={metric} period={period} view={view} theme={theme} />
+            <button type="button" className={styles.compareToggle} aria-pressed={comparing} aria-label="İki dönemi karşılaştır" title="İki dönemi karşılaştır" onClick={toggleCompare}>
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <path d="M12 3v18" />
+              </svg>
+            </button>
           </div>
           {hover && <Tooltip info={hover} />}
         </div>
