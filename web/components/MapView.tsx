@@ -289,11 +289,11 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     map.on("style.load", update);
 
     // MapLibre opens the compact attribution (about 640 px) on load; where it and the period and
-    // legend box (470 px, Atlas.module.css .dock) do not fit side by side, it would run over the
-    // box. The ⓘ button still opens it.
+    // legend box (about 680 px, Atlas.module.css .dock) do not fit side by side, it would run over
+    // the box. The ⓘ button still opens it.
     const container = map.getContainer();
     const collapseAttribution = () => setTimeout(() => {
-      if (container.clientWidth < 1150) {
+      if (container.clientWidth < 1340) {
         container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
       }
     }, 0);

@@ -138,7 +138,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
       <header className={styles.header}>
         <div className={styles.brand}>
           <h1 className={styles.title}>NetAtlas TR</h1>
-          <p className={styles.subtitle}>Türkiye&apos;nin ev interneti, milyonlarca hız testiyle</p>
+          <p className={styles.subtitle}>Türkiye&apos;nin internet hızı haritası</p>
         </div>
         <SearchBox onPick={pickPlace} />
         <nav className={styles.nav} aria-label="Sayfalar">
@@ -149,7 +149,10 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
       </header>
       {/* Over the map the controls float on it; above the table they form a bar, with the period. */}
       {display === "tablo" && controls(false, (
-        <Timeline periods={periods} periodIndex={periodIndex} onPeriod={pickPeriod} playing={false} />
+        <div className={styles.field}>
+          <span className={`${styles.fieldLabel} ${styles.groupLabel}`}>Dönem</span>
+          <Timeline periods={periods} periodIndex={periodIndex} onPeriod={pickPeriod} playing={false} />
+        </div>
       ))}
       {loadingFailed && (
         <div className={styles.loadError} role="alert">
@@ -176,7 +179,8 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
           {/* On phones the region panel and the dock would leave no map; the panel wins. */}
           <div className={`${styles.dock} ${selection ? styles.besidePanel : ""}`}>
             <Timeline periods={periods} periodIndex={periodIndex} onPeriod={pickPeriod} playing={playing} onPlay={togglePlay} />
-            <Legend metric={metric} view={view} theme={theme} />
+            <span className={styles.dockDivider} />
+            <Legend metric={metric} period={period} view={view} theme={theme} />
           </div>
           {hover && <Tooltip info={hover} />}
         </div>

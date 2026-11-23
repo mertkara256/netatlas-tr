@@ -218,8 +218,8 @@
 }
 
 .segmented button:focus-visible,
-.periodButtons button:focus-visible,
-.play:focus-visible {
+.play:focus-visible,
+.legendInfo:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -263,24 +263,34 @@
   box-shadow: var(--shadow);
 }
 
-/* The period and what the colours mean, in one box at the map's bottom left. */
+/* The period and what the colours mean, in one row at the map's bottom left. */
 .dock {
   position: absolute;
   left: 10px;
   bottom: 10px;
-  width: 470px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   max-width: calc(100% - 20px);
-  padding: 10px 12px;
+  padding: 8px 12px 8px 8px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.dockDivider {
+  flex: none;
+  align-self: stretch;
+  width: 1px;
+  margin: 4px 0;
+  background: var(--border);
 }
 
 .timeline {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -289,8 +299,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 0;
   border-radius: 50%;
   background: var(--accent);
@@ -298,44 +308,127 @@
   cursor: pointer;
 }
 
-.timelineBody {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+/* The periods as points on a line. Up to the period picked the line and its points are blue, after it
+   grey; the point picked is larger, with a halo. Each point sits at --at (0-1) along the line. */
+.track {
+  --pad: 20px;
+  position: relative;
+  flex: 0 1 360px;
+  width: 360px;
   min-width: 0;
+  height: 46px;
 }
 
-.periodButtons {
-  display: flex;
-  gap: 2px;
-  overflow-x: auto;
+.trackLine,
+.trackFill {
+  position: absolute;
+  top: 20px;
+  height: 2px;
+  border-radius: 1px;
 }
 
-.periodButtons button {
-  flex: none;
-  padding: 3px 7px;
+.trackLine {
+  left: var(--pad);
+  right: var(--pad);
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+.trackFill {
+  left: calc(var(--pad) + (100% - 2 * var(--pad)) * var(--from));
+  width: calc((100% - 2 * var(--pad)) * (var(--to) - var(--from)));
+  background: var(--accent);
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  left: calc(var(--pad) + (100% - 2 * var(--pad)) * var(--at));
+  width: 44px;
+  height: 46px;
+  padding: 0;
   border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--ink-2);
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
   font: inherit;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
   cursor: pointer;
 }
 
-.periodButtons button:hover {
-  background: var(--wash);
+.tick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tickDot {
+  position: absolute;
+  top: 17px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s;
+}
+
+.tick:hover .tickDot {
+  transform: scale(1.3);
+}
+
+.tickLabel {
+  position: absolute;
+  top: 29px;
+  left: 50%;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.tick[data-state="in"] {
+  color: var(--ink-2);
+}
+
+.tick[data-state="in"] .tickDot {
+  background: var(--accent);
+}
+
+.tick[data-state="on"] {
+  color: var(--ink);
+}
+
+.tick[data-state="on"] .tickDot {
+  top: 14px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.tick[data-state="on"] .tickLabel {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tickDot {
+    transition: none;
+  }
 }
 
 .shortYear {
   display: none;
 }
 
-.periodButtons button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--page);
-  font-weight: 600;
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* The map, and the region panel beside it on wide screens (over it on phones). */
@@ -352,21 +445,26 @@
   min-height: 360px;
 }
 
+/* The scale in one line; the rest opens from the ⓘ button above it. */
 .legend {
-  margin-top: 10px;
-  padding-top: 9px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
   color: var(--ink-2);
 }
 
-.legendTitle {
-  color: var(--ink);
-  font-weight: 600;
+.legendScale {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 180px;
 }
 
-.legendTitle + * {
-  margin-top: 6px;
+.legendTitle {
+  color: var(--ink-2);
+  font-weight: 600;
 }
 
 .swatches {
@@ -375,15 +473,15 @@
 }
 
 .swatches span {
-  height: 12px;
+  height: 6px;
 }
 
 .swatches span:first-child {
-  border-radius: 4px 0 0 4px;
+  border-radius: 3px 0 0 3px;
 }
 
 .swatches span:last-child {
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 3px 3px 0;
 }
 
 .swatches.small {
@@ -396,15 +494,15 @@
 }
 
 .gradient {
-  height: 12px;
-  border-radius: 4px;
+  height: 6px;
+  border-radius: 3px;
 }
 
 .breakLabels {
   position: relative;
-  height: 15px;
-  margin-top: 2px;
-  font-size: 11px;
+  height: 13px;
+  font-size: 10px;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -417,9 +515,54 @@
 .classLabels {
   display: grid;
   gap: 2px;
-  margin-top: 3px;
-  font-size: 11px;
+  font-size: 10px;
+  color: var(--muted);
   text-align: center;
+}
+
+.legendInfo {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.legendInfo[aria-expanded="true"] {
+  background: var(--wash);
+  color: var(--ink);
+}
+
+.legendPopover {
+  position: absolute;
+  z-index: 2;
+  right: -12px;
+  bottom: calc(100% + 16px);
+  width: 270px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+}
+
+.legendPopoverTitle {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.legendList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .legendRow {
@@ -613,29 +756,42 @@
     display: inline;
   }
 
-  /* The play button beside the period's name, the periods on a row of their own below. */
+  /* The play button and the line on one row, the colours on the next. */
+  .dock {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+
+  .dockDivider {
+    display: none;
+  }
+
   .timeline {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 6px 10px;
+    flex: 1 1 100%;
   }
 
-  .timelineBody {
-    display: contents;
+  .track {
+    flex: 1 1 auto;
+    width: auto;
   }
 
-  .periodButtons {
-    grid-column: 1 / -1;
-    justify-content: space-between;
-  }
-
-  .periodButtons button {
-    padding: 3px 5px;
-  }
-
-  .play {
+  .tick {
     width: 36px;
-    height: 36px;
+  }
+
+  .legend {
+    flex: 1 1 100%;
+    padding-left: 4px;
+  }
+
+  .legendScale {
+    flex: 1;
+    width: auto;
+  }
+
+  .legendPopover {
+    right: 0;
+    width: min(270px, calc(100vw - 40px));
   }
 
   /* The buttons say what they are; the groups keep their aria-label. */
