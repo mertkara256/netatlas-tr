@@ -46,3 +46,15 @@
     color: var(--ink-2);
   }
 }
+
+/* The zoom buttons sit under the map-or-table switch at the top right (Atlas.module.css,
+   .mapControls); on phones, under the controls' bar. */
+.maplibregl-ctrl-top-right {
+  top: 50px;
+}
+
+@media (max-width: 640px) {
+  .maplibregl-ctrl-top-right {
+    top: 108px;
+  }
+}

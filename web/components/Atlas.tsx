@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { loadAreas, REPO_URL, type Area, type AreaKind, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { metricById, type MetricId } from "@/lib/metrics";
 import type { Place } from "@/lib/search";
@@ -13,8 +13,12 @@ import Legend from "./Legend";
 import MapLoading from "./MapLoading";
 import RegionPanel from "./RegionPanel";
 import SearchBox from "./SearchBox";
+import Timeline from "./Timeline";
 import Tooltip, { type HoverInfo } from "./Tooltip";
 import styles from "./Atlas.module.css";
+
+// While the periods play in turn, how long each stays on screen once its cells are drawn.
+const PLAY_STEP = 1200; // ms
 
 // MapLibre needs the browser, so the map is left out of the prerendered HTML.
 const MapView = dynamic(() => import("./MapView"), { ssr: false, loading: () => <MapLoading /> });
@@ -67,6 +71,59 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
     setHover(null);
   };
   const closePanel = useCallback(() => setSelection(null), []);
+
+  // Playing steps through the periods from the first, each shown once the map has drawn it. Picking a
+  // period or the table stops it.
+  const [playRequested, setPlaying] = useState(false);
+  const [drawnPeriod, setDrawnPeriod] = useState<string | null>(null);
+  const last = periods.length - 1;
+  // It ends once the last period is drawn.
+  const playing = playRequested && !(periodIndex === last && drawnPeriod === period.id);
+  useEffect(() => {
+    if (!playing || drawnPeriod !== period.id) return;
+    const timer = setTimeout(() => {
+      setPeriodIndex(periodIndex + 1);
+      setHover(null);
+    }, PLAY_STEP);
+    return () => clearTimeout(timer);
+  }, [playing, drawnPeriod, period.id, periodIndex, last]);
+  const togglePlay = () => {
+    if (!playing && periodIndex === last) setPeriodIndex(0);
+    setPlaying(!playing);
+    setHover(null);
+  };
+  const pickPeriod = (index: number) => {
+    setPlaying(false);
+    setPeriodIndex(index);
+    setHover(null);
+  };
+  // The map-or-table switch is drawn afresh in its new place (over the map or in the table's bar),
+  // so focus follows it there.
+  const displaySwitched = useRef(false);
+  const pickDisplay = (next: Display) => {
+    if (next === "tablo") setPlaying(false);
+    displaySwitched.current = true;
+    setDisplay(next);
+    setHover(null);
+  };
+  useEffect(() => {
+    if (!displaySwitched.current) return;
+    displaySwitched.current = false;
+    document.querySelector<HTMLElement>('[role="group"][aria-label="Gösterim"] [aria-pressed="true"]')?.focus();
+  }, [display]);
+  const controls = (floating: boolean, children?: ReactNode) => (
+    <Controls
+      metric={metricId}
+      onMetric={andClearHover(setMetricId)}
+      view={view}
+      onView={andClearHover(setView)}
+      display={display}
+      onDisplay={pickDisplay}
+      floating={floating}
+    >
+      {children}
+    </Controls>
+  );
   // A search result opens its panel and brings it into view; the counter lets the same place
   // be flown to again.
   const [focus, setFocus] = useState<{ bbox: Place["bbox"]; count: number } | null>(null);
@@ -81,7 +138,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
       <header className={styles.header}>
         <div className={styles.brand}>
           <h1 className={styles.title}>NetAtlas TR</h1>
-          <p className={styles.subtitle}>Türkiye&apos;nin ev interneti, milyonlarca hız testiyle</p>
+          <p className={styles.subtitle}>Türkiye&apos;nin internet hızı haritası</p>
         </div>
         <SearchBox onPick={pickPlace} />
         <nav className={styles.nav} aria-label="Sayfalar">
@@ -90,17 +147,13 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
           <a className={styles.navLink} href={REPO_URL}>Kaynak kodu</a>
         </nav>
       </header>
-      <Controls
-        periods={periods}
-        periodIndex={periodIndex}
-        onPeriod={andClearHover(setPeriodIndex)}
-        metric={metricId}
-        onMetric={andClearHover(setMetricId)}
-        view={view}
-        onView={andClearHover(setView)}
-        display={display}
-        onDisplay={andClearHover(setDisplay)}
-      />
+      {/* Over the map the controls float on it; above the table they form a bar, with the period. */}
+      {display === "tablo" && controls(false, (
+        <div className={styles.field}>
+          <span className={`${styles.fieldLabel} ${styles.groupLabel}`}>Dönem</span>
+          <Timeline periods={periods} periodIndex={periodIndex} onPeriod={pickPeriod} playing={false} />
+        </div>
+      ))}
       {loadingFailed && (
         <div className={styles.loadError} role="alert">
           <p>Bölge verileri yüklenemedi. Bağlantını kontrol edip yeniden deneyebilirsin.</p>
@@ -120,8 +173,15 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
             focus={focus}
             onHover={setHover}
             onSelect={setSelection}
+            onDrawn={setDrawnPeriod}
           />
-          <Legend metric={metric} period={period} view={view} theme={theme} panelOpen={selection !== null} />
+          {controls(true)}
+          {/* On phones the region panel and the dock would leave no map; the panel wins. */}
+          <div className={`${styles.dock} ${selection ? styles.besidePanel : ""}`}>
+            <Timeline periods={periods} periodIndex={periodIndex} onPeriod={pickPeriod} playing={playing} onPlay={togglePlay} />
+            <span className={styles.dockDivider} />
+            <Legend metric={metric} period={period} view={view} theme={theme} />
+          </div>
           {hover && <Tooltip info={hover} />}
         </div>
         {display === "tablo" && (

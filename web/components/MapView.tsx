@@ -184,7 +184,7 @@ function describe(metric: Metric, v: CellValues | null): Pick<HoverInfo, "value"
 
 const lowNote = (v: CellValues | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
 
-export default function MapView({ period, metric, view, theme, areas, selection, focus, onHover, onSelect }: {
+export default function MapView({ period, metric, view, theme, areas, selection, focus, onHover, onSelect, onDrawn }: {
   period: PeriodInfo;
   metric: Metric;
   view: View;
@@ -195,6 +195,8 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   focus: { bbox: [number, number, number, number]; count: number } | null;
   onHover: (info: HoverInfo | null) => void;
   onSelect: (selection: Selection) => void;
+  /** Called with a period's id once its cells are drawn (the periods play on this). */
+  onDrawn: (period: string) => void;
 }) {
   const mapRef = useRef<MapRef>(null);
   // MapLibre warns about each of the dark basemap's missing images on every load; an empty image
@@ -227,12 +229,13 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       if (!map.getLayer("cells") || map.getSource<VectorTileSource>("kareler")?.tiles[0] !== cellTiles(period.id)) return;
       map.off("idle", check);
       setDrawn({ theme, period: period.id });
+      onDrawn(period.id);
     };
     map.on("idle", check);
     return () => {
       map.off("idle", check);
     };
-  }, [loaded, style, theme, period.id]);
+  }, [loaded, style, theme, period.id, onDrawn]);
   // After a period change the map can stay empty until the new period's tiles arrive. The loading
   // message waits a moment, so a period read back from the cache, drawn at once, shows none.
   const periodPending = drawn !== null && drawn.theme === theme && drawn.period !== period.id;
@@ -285,11 +288,12 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     update();
     map.on("style.load", update);
 
-    // MapLibre opens the compact attribution on load; where it and the legend (300 px) do not
-    // fit side by side, it would run over the legend. The ⓘ button still opens it.
+    // MapLibre opens the compact attribution (about 640 px) on load; where it and the period and
+    // legend box (about 680 px, Atlas.module.css .dock) do not fit side by side, it would run over
+    // the box. The ⓘ button still opens it.
     const container = map.getContainer();
     const collapseAttribution = () => setTimeout(() => {
-      if (container.clientWidth < 960) {
+      if (container.clientWidth < 1340) {
         container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
       }
     }, 0);
