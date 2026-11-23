@@ -111,6 +111,30 @@ export default async function MethodPage() {
         neye dikkat etmek gerektiğini ve kaynakları anlatır.
       </p>
 
+      <section id="kisaca" className={styles.prose}>
+        <h2>Kısaca</h2>
+        <ul>
+          <li>
+            <strong>Değerler ölçülen hızlardır, paket hızı ya da altyapı değil.</strong> İnsanların ev ve iş yeri
+            internetinde Speedtest ile yaptığı testlerin ortalamasıdır; bir adrese fiber gelip gelmediğini göstermez.
+          </li>
+          <li>
+            <strong>Ortalama, tipik bir evin hızından yüksektir.</strong> Son dört çeyrekte Türkiye ortalaması{" "}
+            {formatValue(DOWNLOAD, national.hiz[current.id].indirme_mbps)}, oysa abonelerin %{BTK_PACKAGES.ellialti}&apos;i 50
+            Mbps ve altı paket kullanıyor. Değerler en çok bölgeleri ve yılları karşılaştırmak için anlamlıdır (bkz.{" "}
+            <a href="#ne-gosteriyor">harita ne gösteriyor</a>).
+          </li>
+          <li>
+            <strong>Az testli değerler oynaktır.</strong> {LOW_TESTS}&apos;dan az testli değerler haritada içi boş ya da
+            taralı gösterilir; ölçüm olmayan yerler boş kalır (bkz. <a href="#guvenilirlik">güvenilirlik</a>).
+          </li>
+          <li>
+            <strong>2025&apos;in son çeyreğinde hızlar bir anda yükseldi, nedeni bilinmiyor.</strong> 2025 ve sonrası
+            önceki yıllarla karşılaştırılırken bu akılda tutulmalı (bkz. <a href="#donemler">dönemler</a>).
+          </li>
+        </ul>
+      </section>
+
       <nav className={styles.toc} aria-label="Bu sayfada">
         <ol>
           {SECTIONS.map(([id, title]) => <li key={id}><a href={`#${id}`}>{title}</a></li>)}
