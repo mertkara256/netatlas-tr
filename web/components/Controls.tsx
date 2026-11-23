@@ -1,4 +1,5 @@
-import { periodText, type PeriodInfo, type View } from "@/lib/data";
+import type { ReactNode } from "react";
+import type { View } from "@/lib/data";
 import { METRICS, type MetricId } from "@/lib/metrics";
 import styles from "./Atlas.module.css";
 
@@ -35,39 +36,20 @@ function Segmented<T extends string>(props: {
   );
 }
 
+/** What the map shows and how. Over the map (floating) the groups take its top edge, unlabelled; above
+ *  the table they form a bar with their labels, followed by `children` (the period). */
 export default function Controls(props: {
-  periods: PeriodInfo[];
-  periodIndex: number;
-  onPeriod: (index: number) => void;
   metric: MetricId;
   onMetric: (id: MetricId) => void;
   view: View;
   onView: (view: View) => void;
   display: Display;
   onDisplay: (display: Display) => void;
+  floating: boolean;
+  children?: ReactNode;
 }) {
-  const period = props.periods[props.periodIndex];
-  return (
-    <div className={styles.controls}>
-      <label className={`${styles.field} ${styles.periodField}`}>
-        <span className={styles.fieldLabel}>
-          Dönem: <strong>{periodText(period)}</strong>
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={props.periods.length - 1}
-          step={1}
-          value={props.periodIndex}
-          onChange={(e) => props.onPeriod(Number(e.target.value))}
-          aria-valuetext={periodText(period)}
-        />
-        <span className={styles.ticks} aria-hidden="true">
-          {props.periods.map((p) => (
-            <span key={p.id}>{p.id === "guncel" ? p.ad : `'${p.ad.slice(2)}`}</span>
-          ))}
-        </span>
-      </label>
+  const groups = (
+    <>
       <Segmented
         label="Gösterge"
         options={METRICS.map((m) => ({ id: m.id, label: m.label }))}
@@ -75,7 +57,19 @@ export default function Controls(props: {
         onChange={props.onMetric}
       />
       <Segmented label="Görünüm" options={VIEWS} value={props.view} onChange={props.onView} />
-      <Segmented label="Gösterim" options={DISPLAYS} value={props.display} onChange={props.onDisplay} />
+    </>
+  );
+  const display = <Segmented label="Gösterim" options={DISPLAYS} value={props.display} onChange={props.onDisplay} />;
+  return props.floating ? (
+    <div className={styles.mapControls}>
+      <div className={styles.mapControlsMain}>{groups}</div>
+      {display}
+    </div>
+  ) : (
+    <div className={styles.controls}>
+      {props.children}
+      {groups}
+      {display}
     </div>
   );
 }

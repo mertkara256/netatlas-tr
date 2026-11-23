@@ -1,12 +1,18 @@
+/* One slim row, so the map takes the page. */
 .header {
   display: flex;
   align-items: center;
-  gap: 12px 20px;
-  padding: 12px 16px 4px;
+  gap: 8px 20px;
+  min-height: 56px;
+  padding: 8px 16px;
   background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .brand {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -19,8 +25,11 @@
 
 .subtitle {
   margin: 0;
+  overflow: hidden;
   color: var(--ink-2);
   font-size: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .nav {
@@ -31,6 +40,7 @@
 .navLink {
   color: var(--accent);
   font-size: 15px;
+  white-space: nowrap;
   text-underline-offset: 2px;
 }
 
@@ -179,25 +189,6 @@
   color: var(--muted);
 }
 
-.periodField {
-  flex: 1 1 260px;
-  max-width: 420px;
-}
-
-.periodField input {
-  width: 100%;
-  margin: 2px 0 0;
-  accent-color: var(--accent);
-}
-
-.ticks {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
 .segmented {
   display: flex;
   flex-wrap: wrap;
@@ -227,9 +218,124 @@
 }
 
 .segmented button:focus-visible,
-.periodField input:focus-visible {
+.periodButtons button:focus-visible,
+.play:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* The controls over the map: what it shows along its top left, map or table at the top right (the
+   zoom buttons sit under that, MapView.css). Unlabelled; each group keeps its aria-label. */
+.mapControls {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.mapControls > * {
+  pointer-events: auto;
+}
+
+.mapControlsMain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.mapControlsMain > * {
+  pointer-events: auto;
+}
+
+.mapControls .groupLabel {
+  display: none;
+}
+
+.mapControls .segmented {
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* The period and what the colours mean, in one box at the map's bottom left. */
+.dock {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  width: 470px;
+  max-width: calc(100% - 20px);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.timeline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.play {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--page);
+  cursor: pointer;
+}
+
+.timelineBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.periodButtons {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+}
+
+.periodButtons button {
+  flex: none;
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.periodButtons button:hover {
+  background: var(--wash);
+}
+
+.shortYear {
+  display: none;
+}
+
+.periodButtons button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--page);
+  font-weight: 600;
 }
 
 /* The map, and the region panel beside it on wide screens (over it on phones). */
@@ -247,16 +353,9 @@
 }
 
 .legend {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  width: 300px;
-  max-width: calc(100% - 20px);
-  padding: 9px 11px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
   font-size: 12px;
   color: var(--ink-2);
 }
@@ -266,9 +365,8 @@
   font-weight: 600;
 }
 
-.legendPeriod {
-  margin-bottom: 6px;
-  color: var(--muted);
+.legendTitle + * {
+  margin-top: 6px;
 }
 
 .swatches {
@@ -371,11 +469,11 @@
   pointer-events: none;
 }
 
-/* Over the map when its basemap could not be loaded (MapView's FALLBACKS). */
+/* Over the map when its basemap could not be loaded (MapView's FALLBACKS), under its controls. */
 .basemapNotice {
   position: absolute;
   z-index: 1;
-  top: 10px;
+  top: 60px;
   left: 10px;
   display: flex;
   flex-wrap: wrap;
@@ -486,9 +584,58 @@
     padding: 8px 12px 10px;
   }
 
-  .periodField {
-    max-width: none;
-    flex-basis: 100%;
+  /* Over the map the controls become a bar along its top edge, wrapping as they need. */
+  .mapControls {
+    top: 0;
+    left: 0;
+    right: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mapControls .segmented {
+    box-shadow: none;
+  }
+
+  /* All three groups wrap in one run: the metrics, then the view and map-or-table side by side. */
+  .mapControlsMain {
+    display: contents;
+  }
+
+  .longYear {
+    display: none;
+  }
+
+  .shortYear {
+    display: inline;
+  }
+
+  /* The play button beside the period's name, the periods on a row of their own below. */
+  .timeline {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px 10px;
+  }
+
+  .timelineBody {
+    display: contents;
+  }
+
+  .periodButtons {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+
+  .periodButtons button {
+    padding: 3px 5px;
+  }
+
+  .play {
+    width: 36px;
+    height: 36px;
   }
 
   /* The buttons say what they are; the groups keep their aria-label. */
@@ -500,20 +647,21 @@
     padding: 4px 9px;
   }
 
-  /* The attribution opens along the bottom on phones. */
-  .legend {
-    top: 10px;
-    bottom: auto;
+  /* Clear of the attribution's ⓘ at the bottom right. */
+  .dock {
+    left: 8px;
+    bottom: 8px;
+    width: auto;
+    right: 44px;
+    max-width: none;
   }
 
-  .legend.besidePanel {
+  .dock.besidePanel {
     display: none;
   }
 
-  /* The legend takes the top of the map on phones; the attribution button sits under this. */
   .basemapNotice {
-    top: auto;
-    bottom: 40px;
+    top: 108px;
     max-width: calc(100% - 20px);
   }
 }
