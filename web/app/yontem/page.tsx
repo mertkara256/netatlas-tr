@@ -21,6 +21,7 @@ const SECTIONS = [
   ["renkler", "Renk ölçeği"],
   ["sinirlamalar", "Sınırlamalar"],
   ["erisilebilirlik", "Erişilebilirlik ve klavye"],
+  ["indir", "Veriyi indir"],
   ["lisans", "Lisans ve atıf"],
 ] as const;
 
@@ -46,7 +47,7 @@ function datasetMarkup([firstYear, firstQuarter]: number[], [lastYear, lastQuart
     "@type": "DataDownload",
     name,
     encodingFormat: "text/csv",
-    contentUrl: `${REPO_URL.replace("github.com", "raw.githubusercontent.com")}/main/data/processed/${file}`,
+    contentUrl: `${SITE_ORIGIN}${BASE_PATH}/veri/${file}`,
   });
   return {
     "@context": "https://schema.org",
@@ -90,6 +91,7 @@ export default async function MethodPage() {
   const quartersTr = `${ilk[0]} Ç${ilk[1]} – ${son[0]} Ç${son[1]}`;
   const levels = Object.values(CELL_SIZE);
   const current = data.donemler[data.donemler.length - 1];
+  const years = data.donemler.slice(0, -1).map((p) => p.id);
 
   return (
     <main className={styles.page}>
@@ -411,6 +413,63 @@ export default async function MethodPage() {
             de grafikteki değerleri açar.
           </li>
         </ul>
+      </section>
+
+      <section id="indir" className={styles.prose}>
+        <h2>Veriyi indir</h2>
+        <p>
+          Sitedeki il ve ilçe değerleri iki CSV dosyasında, her alan ve dönem için bir satır olarak indirilebilir:
+        </p>
+        <ul>
+          <li><a href={`${BASE_PATH}/veri/iller_hiz.csv`} download>iller_hiz.csv</a>: 81 il ve Türkiye geneli</li>
+          <li><a href={`${BASE_PATH}/veri/ilceler_hiz.csv`} download>ilceler_hiz.csv</a>: 973 ilçe</li>
+        </ul>
+        <p>Sütunlar:</p>
+        <ul>
+          <li><code>il_kodu</code>, <code>il</code>: ilin plaka kodu ve adı; Türkiye geneli <code>00</code>.</li>
+          <li>
+            <code>ilce_kodu</code>, <code>ilce</code>: yalnızca ilçe dosyasında, ilçenin OCHA COD-AB&apos;deki kodu (ör.{" "}
+            <code>TUR001001</code>) ve adı.
+          </li>
+          <li>
+            <code>donem</code>: takvim yılı ({years[0]}–{years[years.length - 1]}) ya da <code>guncel</code> (yayımlanmış son
+            dört çeyrek, şu an {current.aralik}; bkz. <a href="#donemler">dönemler</a>).
+          </li>
+          <li><code>kare</code>: dönemde en az bir test yapılan ~475 m&apos;lik karelerin sayısı.</li>
+          <li><code>test</code>: dönemdeki toplam test sayısı.</li>
+          <li>
+            <code>cihaz</code>: kişi ya da cihaz sayısı değildir. Ookla&apos;nın her kare ve çeyrek için verdiği, orada test
+            yapan cihaz sayılarının toplamıdır; birden çok karede ya da çeyrekte test yapan bir cihaz her birinde yeniden
+            sayılır. Hız değerleri bu sayılarla ağırlıklandırılır (bkz. <a href="#hesaplama">hesaplama</a>).
+          </li>
+          <li>
+            <code>indirme_mbps</code>, <code>yukleme_mbps</code>, <code>gecikme_ms</code>: cihaz ağırlıklı ortalama indirme
+            ve yükleme hızı (Mbps) ile gecikme (ms).
+          </li>
+          <li>
+            <code>guvenilirlik</code>: test sayısına göre etiket, <code>dusuk</code> ({LOW_TESTS}&apos;dan az),{" "}
+            <code>orta</code> ({LOW_TESTS}–{HIGH_TESTS - 1}) ya da <code>yuksek</code> ({HIGH_TESTS} ve üstü).
+          </li>
+          <li>
+            <code>tek_kare_payi</code>: en çok cihazı olan tek karenin, alanın <code>cihaz</code> toplamındaki payı;{" "}
+            <code>{ONE_TILE_SHARE}</code> ve üstünde bölge panelinde temsil uyarısı çıkar.
+          </li>
+          <li>
+            <code>nufus</code>: alanın WorldPop&apos;a göre 2021 nüfusu, kareler gibi il ve ilçelere atanmış; TÜİK&apos;in
+            sayısından biraz ayrılabilir.
+          </li>
+          <li>
+            <code>olculen_nufus_payi</code>: nüfusun, dönemde test yapılan bir karede ya da hemen yanındaki sekiz kareden
+            birinde yaşayan payı.
+          </li>
+        </ul>
+        <p>
+          Dosyalar UTF-8 kodlamalıdır, sütunlar virgülle ayrılır, ondalık ayırıcı noktadır (ör. <code>36.8</code>); paylar
+          0 ile 1 arasındadır. Türkçe ayarlı Excel&apos;de dosyaya çift tıklamak yerine bu ayarlarla içe aktarmak gerekebilir.
+          Bir dönemde hiç ölçümü olmayan bir ilçenin o dönem için satırı yoktur. BTK&apos;nın il istatistikleri ve ilçe
+          listesi de <a href={`${REPO_URL}/tree/main/data/processed`}>GitHub&apos;daki veri klasöründedir</a>. Dosyalar her
+          veri güncellemesiyle yenilenir ve aşağıdaki lisansla kullanılabilir.
+        </p>
       </section>
 
       <section id="lisans" className={styles.prose}>
