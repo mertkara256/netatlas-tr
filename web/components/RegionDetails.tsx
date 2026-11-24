@@ -33,8 +33,9 @@ function Stat({ label, value, note }: { label: string; value: string; note: stri
 
 /** The heat-map cell under the click, with the values the tooltip gives at that point (cellAt() in
  *  MapView), so a phone, which has no tooltip, can read what a cell's colour stands for. */
-function CellSection({ pick, period, periods, mapHidden }: {
+function CellSection({ pick, located, period, periods, mapHidden }: {
   pick: CellPick;
+  located: boolean;
   period: PeriodInfo;
   periods: PeriodInfo[];
   mapHidden: boolean;
@@ -49,7 +50,7 @@ function CellSection({ pick, period, periods, mapHidden }: {
   return (
     <section className={styles.cell}>
       <h3>
-        Tıkladığın hücre{" "}
+        {located ? "Konumundaki hücre" : "Tıkladığın hücre"}{" "}
         <span className={styles.muted}>
           {reading ? period.ad : [pick.cell && CELL_SIZE[pick.cell.level], readIn.ad].filter(Boolean).join(" · ")}
         </span>
@@ -67,7 +68,7 @@ function CellSection({ pick, period, periods, mapHidden }: {
           </span>
         </p>
       ) : (
-        <p>Tıkladığın yerde {pick.period === period.id ? "bu dönemde" : `${readIn.ad} döneminde`} ölçüm yok.</p>
+        <p>{located ? "Konumunda" : "Tıkladığın yerde"} {pick.period === period.id ? "bu dönemde" : `${readIn.ad} döneminde`} ölçüm yok.</p>
       )}
       {!reading && v && v.t < LOW_TESTS && <p className={styles.note}>{LOW_TESTS}&apos;dan az test var; değerler belirsiz.</p>}
       {old && mapHidden ? (
@@ -77,7 +78,7 @@ function CellSection({ pick, period, periods, mapHidden }: {
         </p>
       ) : old && pick.stale && (
         <p className={styles.note}>
-          Bu bilgi {readIn.ad} dönemine ait: tıkladığın yer haritanın görünen kısmında olmadığı için {period.ad} dönemi
+          Bu bilgi {readIn.ad} dönemine ait: {located ? "konumun" : "tıkladığın yer"} haritanın görünen kısmında olmadığı için {period.ad} dönemi
           okunamadı. Haritayı oraya geri kaydırınca güncellenir.
         </p>
       )}
@@ -87,7 +88,7 @@ function CellSection({ pick, period, periods, mapHidden }: {
 
 /** Device-weighted averages of Ookla's 475 m squares within 1 km of the clicked point, read from the
  *  map tiles in the browser whatever the zoom (lib/nearby.ts). */
-function NearbySection({ point, period }: { point: [number, number]; period: PeriodInfo }) {
+function NearbySection({ point, located, period }: { point: [number, number]; located: boolean; period: PeriodInfo }) {
   const [attempt, setAttempt] = useState(0);
   const [lon, lat] = point;
   const periodId = period.id;
@@ -101,7 +102,7 @@ function NearbySection({ point, period }: { point: [number, number]; period: Per
 
   return (
     <section className={styles.cell}>
-      <h3>Tıkladığın yerin çevresi <span className={styles.muted}>{formatNumber(NEARBY_RADIUS / 1000)} km</span></h3>
+      <h3>{located ? "Konumunun çevresi" : "Tıkladığın yerin çevresi"} <span className={styles.muted}>{formatNumber(NEARBY_RADIUS / 1000)} km</span></h3>
       {outcome === null ? (
         <p className={`${styles.muted} ${styles.nearbyLoading}`} role="status">
           <span className={styles.spinner} aria-hidden="true" />Hesaplanıyor…
@@ -129,7 +130,7 @@ function NearbySection({ point, period }: { point: [number, number]; period: Per
 
 /** Speeds, yearly trend and BTK access of a province or district, beside Türkiye's.
  *  Shared by the map's region panel and the province pages. */
-export default function RegionDetails({ area, province, national, isDistrict, periods, period, metric, point, cell, mapHidden = false }: {
+export default function RegionDetails({ area, province, national, isDistrict, periods, period, metric, point, located = false, cell, mapHidden = false }: {
   area: Area;
   /** The area itself, or a district's province (BTK publishes no district figures). */
   province: Area;
@@ -140,6 +141,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
   metric: Metric;
   /** The point clicked on the map to open the panel. */
   point?: [number, number];
+  /** The point is the reader's own position (the Konumum button), not a click. */
+  located?: boolean;
   /** In the heat map, the cell under that point. */
   cell?: CellPick;
   /** The table is shown in the map's place, so the map cannot read the cell. */
@@ -157,8 +160,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
 
   return (
     <div className={styles.details}>
-      {cell && <CellSection pick={cell} period={period} periods={periods} mapHidden={mapHidden} />}
-      {point && <NearbySection point={point} period={period} />}
+      {cell && <CellSection pick={cell} located={located} period={period} periods={periods} mapHidden={mapHidden} />}
+      {point && <NearbySection point={point} located={located} period={period} />}
 
       <section>
         {/* Under the cell and its surroundings, the heading says whose values these are. */}

@@ -59,7 +59,14 @@ export type CellPick = { period: string; cell: { level: number; values: CellValu
 
 /** The area whose panel is open, the point clicked on the map to open it, if any, and in the heat
  *  map the cell under that point. */
-export type Selection = { kind: AreaKind; code: string; point?: [number, number]; cell?: CellPick };
+export type Selection = {
+  kind: AreaKind;
+  code: string;
+  point?: [number, number];
+  cell?: CellPick;
+  /** The point is the reader's own position (the Konumum button), not a click. */
+  located?: boolean;
+};
 
 const loading = new Map<AreaKind, Promise<Record<string, Area>>>();
 

@@ -78,6 +78,7 @@ export default function RegionPanel({ selection, areas, periods, period, metric,
           period={period}
           metric={metric}
           point={selection.point}
+          located={selection.located}
           cell={heatMap ? selection.cell : undefined}
           mapHidden={mapHidden}
         />

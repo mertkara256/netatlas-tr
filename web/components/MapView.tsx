@@ -8,7 +8,7 @@ import Map, { Layer, NavigationControl, Source, type ErrorEvent, type MapLayerMo
 import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
 import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type CellPick, type CellValues, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { PLACED, SHIFTED, type Camera } from "@/lib/mapHash";
+import { LOCATED, PLACED, SHIFTED, type Camera } from "@/lib/mapHash";
 import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { vectorTile } from "@/lib/siteTiles";
@@ -96,8 +96,8 @@ const HIT_SLOP = 4;
 const PHONE_SHEET_SHARE = 0.62;
 // The "Konumum" button flies to the reader's position at about street level, where the 1 km circle
 // fills much of the map (one level further out on phones, where the panel leaves a strip of map), and
-// says why when it cannot. The position is used here alone: it is never
-// sent anywhere or stored (beyond the map's position in the address, as for any other move).
+// says why when it cannot. The position is used here alone: it is never sent anywhere or stored, and
+// the flight (LOCATED) takes the map's position out of the address, which then names only the area.
 const LOCATE_ZOOM = 14;
 const LOCATE_NOTE_TIME = 6000; // ms
 const LOCATE_ERRORS: Record<number, string> = {
@@ -414,9 +414,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
 
   // A click opens the panel of the area at a point; in the heat map, of the district (or, over the
   // sea, the cell's district), remembering the point and the cell the tooltip gives there. On phones
-  // this replaces the tooltip. The "Konumum" button opens the reader's own point the same way.
-  // Returns whether an area was found there.
-  const selectAt = useCallback((map: MapLibreMap, point: [number, number]): boolean => {
+  // this replaces the tooltip. The "Konumum" button opens the reader's own point the same way, marked
+  // `located` so the panel says so. Returns whether an area was found there.
+  const selectAt = useCallback((map: MapLibreMap, point: [number, number], located = false): boolean => {
     let selection: Selection;
     const at = map.project(point);
     if (view === "kareler") {
@@ -432,7 +432,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       selection = { kind: view, code: String(feature.id), point };
     }
     clear();
-    onSelect(selection);
+    onSelect(located ? { ...selection, located } : selection);
     // On phones the panel covers the lower part of the map; bring the place above it.
     const { clientHeight } = map.getContainer();
     const visible = clientHeight * (1 - PHONE_SHEET_SHARE);
@@ -476,9 +476,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         const at = map.project(point);
         const { clientWidth, clientHeight } = map.getContainer();
         if (at.x < 0 || at.y < 0 || at.x > clientWidth || at.y > clientHeight - sheet) return;
-        if (!selectAt(map, point) && !map.queryRenderedFeatures(at, { layers: ["district-hit"] }).length) setLocateNote(OUTSIDE);
+        if (!selectAt(map, point, true) && !map.queryRenderedFeatures(at, { layers: ["district-hit"] }).length) setLocateNote(OUTSIDE);
       }));
-      map.flyTo({ center: point, zoom, offset: [0, -sheet / 2] }, PLACED);
+      map.flyTo({ center: point, zoom, offset: [0, -sheet / 2] }, LOCATED);
     }, (error) => {
       setLocating(false);
       setLocateNote(LOCATE_ERRORS[error.code] ?? LOCATE_ERRORS[2]);
