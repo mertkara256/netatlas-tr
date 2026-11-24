@@ -8,6 +8,7 @@ import Map, { Layer, NavigationControl, Source, type ErrorEvent, type MapLayerMo
 import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
 import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type CellPick, type CellValues, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
+import type { Camera } from "@/lib/mapHash";
 import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { vectorTile } from "@/lib/siteTiles";
@@ -184,13 +185,17 @@ function describe(metric: Metric, v: CellValues | null): Pick<HoverInfo, "value"
 
 const lowNote = (v: CellValues | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
 
-export default function MapView({ period, metric, view, theme, areas, selection, focus, onHover, onSelect, onDrawn, onMap, secondary = false }: {
+export default function MapView({ period, metric, view, theme, areas, selection, camera = null, jump = null, focus, onHover, onSelect, onDrawn, onMap, secondary = false }: {
   period: PeriodInfo;
   metric: Metric;
   view: View;
   theme: Theme;
   areas: Record<string, Area> | null;
   selection: Selection | null;
+  /** Where the map opens (from the address); without one it shows all of Türkiye. Read once. */
+  camera?: Camera | null;
+  /** A position to move to (from the address); a new one for every request. */
+  jump?: Camera | null;
   /** A bounding box to fly to (a search result); count changes for every new request. */
   focus: { bbox: [number, number, number, number]; count: number } | null;
   onHover: (info: HoverInfo | null) => void;
@@ -283,6 +288,17 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     }, 80);
     return () => clearTimeout(timer);
   }, [focus, secondary]);
+
+  // Move to a position from the address the same way, once the panel it may open has taken its place:
+  // the position is the one seen beside the panel.
+  useEffect(() => {
+    if (!jump || secondary) return;
+    anchorLeft.current = false;
+    const timer = setTimeout(() => {
+      mapRef.current?.getMap().jumpTo({ center: [jump.lon, jump.lat], zoom: jump.zoom });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [jump, secondary]);
 
   const handleLoad = useCallback(() => {
     const map = mapRef.current!.getMap();
@@ -488,7 +504,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     <>
       <Map
         ref={setMap}
-        initialViewState={{ bounds: TURKEY_BOUNDS, fitBoundsOptions: { padding: 12 } }}
+        initialViewState={camera
+          ? { longitude: camera.lon, latitude: camera.lat, zoom: camera.zoom }
+          : { bounds: TURKEY_BOUNDS, fitBoundsOptions: { padding: 12 } }}
         mapStyle={mapStyle}
         // A basemap that failed to load cannot be diffed against; the plain style is built afresh.
         styleDiffing={!fallback}
