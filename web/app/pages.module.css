@@ -77,6 +77,14 @@
   color: var(--muted);
 }
 
+/* "Haritada aç": the map with the area's panel open. */
+.mapLink {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 400;
+  text-underline-offset: 2px;
+}
+
 .toc {
   margin-top: 16px;
   font-size: 14px;
