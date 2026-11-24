@@ -8,7 +8,7 @@ import Map, { Layer, NavigationControl, Source, type ErrorEvent, type MapLayerMo
 import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
 import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type CellPick, type CellValues, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
-import { PLACED, SHIFTED, type Camera } from "@/lib/mapHash";
+import { LOCATED, PLACED, SHIFTED, type Camera } from "@/lib/mapHash";
 import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { vectorTile } from "@/lib/siteTiles";
@@ -96,8 +96,8 @@ const HIT_SLOP = 4;
 const PHONE_SHEET_SHARE = 0.62;
 // The "Konumum" button flies to the reader's position at about street level, where the 1 km circle
 // fills much of the map (one level further out on phones, where the panel leaves a strip of map), and
-// says why when it cannot. The position is used here alone: it is never
-// sent anywhere or stored (beyond the map's position in the address, as for any other move).
+// says why when it cannot. The position is used here alone: it is never sent anywhere or stored, and
+// the flight (LOCATED) takes the map's position out of the address, which then names only the area.
 const LOCATE_ZOOM = 14;
 const LOCATE_NOTE_TIME = 6000; // ms
 const LOCATE_ERRORS: Record<number, string> = {
@@ -478,7 +478,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         if (at.x < 0 || at.y < 0 || at.x > clientWidth || at.y > clientHeight - sheet) return;
         if (!selectAt(map, point) && !map.queryRenderedFeatures(at, { layers: ["district-hit"] }).length) setLocateNote(OUTSIDE);
       }));
-      map.flyTo({ center: point, zoom, offset: [0, -sheet / 2] }, PLACED);
+      map.flyTo({ center: point, zoom, offset: [0, -sheet / 2] }, LOCATED);
     }, (error) => {
       setLocating(false);
       setLocateNote(LOCATE_ERRORS[error.code] ?? LOCATE_ERRORS[2]);

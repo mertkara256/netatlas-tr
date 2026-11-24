@@ -240,6 +240,8 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
   // their input on that map, a wheel, press, touch or key since the last move ended: MapLibre leaves
   // the event off the end of a wheel zoom. A shift marked SHIFTED, the map making room for the panel,
   // is taken only once a position is kept, and a resize of the map, which keeps its centre, never.
+  // The flight to the reader's own position, marked LOCATED, takes the position out of the address
+  // until the reader moves the map, so a link shared after it does not show where they are.
   useEffect(() => {
     if (!mainMap) return;
     const maps = comparing && leftMap ? [mainMap, leftMap] : [mainMap];
@@ -256,6 +258,11 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
       const onMoveEnd = (e: { originalEvent?: unknown } & MoveMark) => {
         const byReader = input;
         input = false;
+        if (e.located) {
+          resized = false;
+          setKept(null);
+          return;
+        }
         if (resized) {
           resized = false;
           return;
