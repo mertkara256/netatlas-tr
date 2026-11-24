@@ -187,9 +187,14 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
   const [kept, setKept] = useState<Camera | null>(null);
   // A position from the address, which the map flies to from where it is (MapView).
   const [jump, setJump] = useState<Camera | null>(null);
+  // Whether the reader has moved the map since the address was last read. The map goes to the
+  // address's position or area only once Türkiye is drawn and the area is loaded, which on a slow
+  // connection takes seconds; a move the reader makes before that (or the Konumum flight) stands.
+  const [held, setHeld] = useState(false);
   if (hash !== null && hash !== seenHash) {
     setSeenHash(hash);
     if (hash !== writtenHash) {
+      setHeld(false);
       const ids = periods.map((p) => p.id);
       const state = parseMapHash(hash, ids);
       const index = state.period ? ids.indexOf(state.period) : -1;
@@ -220,8 +225,9 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
     const { kind, code, camera } = pending;
     const exists = code !== NATIONAL && Boolean(pendingAreas[code]);
     if (exists) setSelection((current) => (current?.kind === kind && current.code === code ? current : { kind, code }));
-    if (camera) setJump(camera);
-    else if (exists) setFitTo({ kind, code });
+    if (camera) {
+      if (!held) setJump(camera);
+    } else if (exists && !held) setFitTo({ kind, code });
   }
   useEffect(() => {
     if (!fitTo) return;
@@ -240,6 +246,8 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
   // their input on that map, a wheel, press, touch or key since the last move ended: MapLibre leaves
   // the event off the end of a wheel zoom. A shift marked SHIFTED, the map making room for the panel,
   // is taken only once a position is kept, and a resize of the map, which keeps its centre, never.
+  // A move the reader starts (MapLibre gives it its input event) or the Konumum flight drops the
+  // address's flight or fit while it still waits to start (held).
   // The flight to the reader's own position, marked LOCATED, takes the position out of the address
   // until the reader moves the map, so a link shared after it does not show where they are.
   useEffect(() => {
@@ -254,6 +262,13 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
       };
       const onResize = () => {
         resized = true;
+      };
+      const onMoveStart = (e: { originalEvent?: unknown } & MoveMark) => {
+        if (!e.originalEvent && !e.located) return;
+        setHeld(true);
+        setJump(null);
+        setFitTo(null);
+        setFocus(null);
       };
       const onMoveEnd = (e: { originalEvent?: unknown } & MoveMark) => {
         const byReader = input;
@@ -275,10 +290,12 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
       const container = map.getContainer();
       for (const type of inputs) container.addEventListener(type, onInput, { capture: true, passive: true });
       map.on("resize", onResize);
+      map.on("movestart", onMoveStart);
       map.on("moveend", onMoveEnd);
       return () => {
         for (const type of inputs) container.removeEventListener(type, onInput, { capture: true });
         map.off("resize", onResize);
+        map.off("movestart", onMoveStart);
         map.off("moveend", onMoveEnd);
       };
     });
