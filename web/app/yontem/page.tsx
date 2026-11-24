@@ -322,7 +322,10 @@ export default async function MethodPage() {
           <li>
             <strong>Çevrendeki {formatNumber(NEARBY_RADIUS / 1000)} km:</strong> Haritada tıklanan noktaya merkezi{" "}
             {formatNumber(NEARBY_RADIUS / 1000)} km&apos;den yakın olan 475 m&apos;lik karelerin cihaz ağırlıklı ortalamasıdır.
-            Hangi yakınlıkta bakılırsa bakılsın Ookla&apos;nın kendi karelerinden hesaplanır.
+            Hangi yakınlıkta bakılırsa bakılsın Ookla&apos;nın kendi karelerinden hesaplanır. Haritadaki
+            &quot;Konumuma git&quot; düğmesi aynı özeti bulunduğun nokta için açar; konumun yalnızca tarayıcında kullanılır ve
+            hiçbir yere gönderilmez, ama harita oraya gittiği için sayfanın adresi o noktayı gösterir, bağlantıyı
+            paylaşırken bunu bil.
           </li>
           <li>
             <strong>Erişim:</strong> 100 kişiye sabit abonelik = sabit genişbant aboneliği ÷ nüfus × 100. Fiber payı = fiber
