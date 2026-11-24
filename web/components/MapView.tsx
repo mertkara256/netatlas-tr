@@ -14,6 +14,7 @@ import { NEARBY_RADIUS } from "@/lib/nearby";
 import { vectorTile } from "@/lib/siteTiles";
 import { hasPhoneSheet } from "@/lib/viewport";
 import styles from "./Atlas.module.css";
+import LocateControl from "./LocateControl";
 import MapLoading from "./MapLoading";
 import type { HoverInfo } from "./Tooltip";
 
@@ -93,6 +94,18 @@ function hatch(color: string): ImageData {
 const HIT_SLOP = 4;
 // Share of the map the region panel covers on phones (max-height in RegionPanel.module.css).
 const PHONE_SHEET_SHARE = 0.62;
+// The "Konumum" button flies to the reader's position at about street level, where the 1 km circle
+// fills much of the map (one level further out on phones, where the panel leaves a strip of map), and
+// says why when it cannot. The position is used here alone: it is never
+// sent anywhere or stored (beyond the map's position in the address, as for any other move).
+const LOCATE_ZOOM = 14;
+const LOCATE_NOTE_TIME = 6000; // ms
+const LOCATE_ERRORS: Record<number, string> = {
+  1: "Konum izni verilmedi.",
+  2: "Konum alınamadı.",
+  3: "Konum alınamadı, süre doldu.",
+};
+const OUTSIDE = "Konumun Türkiye dışında.";
 
 /** The cell the tooltip reads at a point: the one drawn there, else, over the gaps between the parts
  *  drawn zoomed out, one within HIT_SLOP. A click reads it the same way for the region panel. */
@@ -399,31 +412,78 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     });
   }, [view, period, metric, areas, highlight, onHover, clear]);
 
-  // A click opens the panel of the area under the pointer; in the heat map, of the district (or,
-  // over the sea, the cell's district), remembering the clicked point and the cell the tooltip gives
-  // there. On phones this replaces the tooltip.
-  const handleClick = useCallback((e: MapLayerMouseEvent) => {
+  // A click opens the panel of the area at a point; in the heat map, of the district (or, over the
+  // sea, the cell's district), remembering the point and the cell the tooltip gives there. On phones
+  // this replaces the tooltip. The "Konumum" button opens the reader's own point the same way.
+  // Returns whether an area was found there.
+  const selectAt = useCallback((map: MapLibreMap, point: [number, number]): boolean => {
     let selection: Selection;
-    const point: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+    const at = map.project(point);
     if (view === "kareler") {
-      if (!e.target.getLayer("district-hit")) return; // clicked before our layers were added
-      const cell = cellAt(e.target, e.point);
-      const district = e.target.queryRenderedFeatures(e.point, { layers: ["district-hit"] })[0]
-        ?? (cell && districtOfCell(e.target, e.point, cell));
-      if (!district) return;
-      selection = { kind: "ilceler", code: String(district.properties.ilce_kodu), point, cell: pickCell(e.target, e.point, period.id) };
+      if (!map.getLayer("district-hit")) return false; // before our layers were added
+      const cell = cellAt(map, at);
+      const district = map.queryRenderedFeatures(at, { layers: ["district-hit"] })[0]
+        ?? (cell && districtOfCell(map, at, cell));
+      if (!district) return false;
+      selection = { kind: "ilceler", code: String(district.properties.ilce_kodu), point, cell: pickCell(map, at, period.id) };
     } else {
-      const feature = e.features?.[0];
-      if (!feature) return;
+      const feature = map.getLayer(AREA_LAYERS[view]) && map.queryRenderedFeatures(at, { layers: [AREA_LAYERS[view]] })[0];
+      if (!feature) return false;
       selection = { kind: view, code: String(feature.id), point };
     }
     clear();
     onSelect(selection);
-    // On phones the panel covers the lower part of the map; bring the clicked place above it.
-    const { clientHeight } = e.target.getContainer();
+    // On phones the panel covers the lower part of the map; bring the place above it.
+    const { clientHeight } = map.getContainer();
     const visible = clientHeight * (1 - PHONE_SHEET_SHARE);
-    if (hasPhoneSheet() && e.point.y > visible) e.target.panBy([0, e.point.y - visible / 2], undefined, SHIFTED);
+    if (hasPhoneSheet() && at.y > visible) map.panBy([0, at.y - visible / 2], undefined, SHIFTED);
+    return true;
   }, [view, period.id, clear, onSelect]);
+
+  const handleClick = useCallback((e: MapLayerMouseEvent) => {
+    selectAt(e.target, [e.lngLat.lng, e.lngLat.lat]);
+  }, [selectAt]);
+
+  // One position, asked for once: no watching, no marker. The map flies there (on phones, into the
+  // part above the panel) and, once the flight has ended and the map is drawn, opens the panel there
+  // as a click would. Outside the tiles' box nothing is flown to; inside it, a point with no area
+  // under it is outside Türkiye too. A flight the reader stops by moving the map ends quietly.
+  const [locating, setLocating] = useState(false);
+  const [locateNote, setLocateNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!locateNote) return;
+    const timer = setTimeout(() => setLocateNote(null), LOCATE_NOTE_TIME);
+    return () => clearTimeout(timer);
+  }, [locateNote]);
+  const locate = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || locating) return;
+    setLocateNote(null);
+    if (!("geolocation" in navigator)) return setLocateNote(LOCATE_ERRORS[2]);
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition((position) => {
+      const point: [number, number] = [position.coords.longitude, position.coords.latitude];
+      const [west, south, east, north] = CELL_BOUNDS;
+      if (point[0] < west || point[0] > east || point[1] < south || point[1] > north) {
+        setLocating(false);
+        return setLocateNote(OUTSIDE);
+      }
+      const sheet = hasPhoneSheet() ? map.getContainer().clientHeight * PHONE_SHEET_SHARE : 0;
+      const zoom = sheet ? LOCATE_ZOOM - 1 : LOCATE_ZOOM;
+      map.once("moveend", () => map.once("idle", () => {
+        setLocating(false);
+        if (Math.abs(map.getZoom() - zoom) > 0.01) return; // stopped on the way
+        const at = map.project(point);
+        const { clientWidth, clientHeight } = map.getContainer();
+        if (at.x < 0 || at.y < 0 || at.x > clientWidth || at.y > clientHeight - sheet) return;
+        if (!selectAt(map, point) && !map.queryRenderedFeatures(at, { layers: ["district-hit"] }).length) setLocateNote(OUTSIDE);
+      }));
+      map.flyTo({ center: point, zoom, offset: [0, -sheet / 2] }, PLACED);
+    }, (error) => {
+      setLocating(false);
+      setLocateNote(LOCATE_ERRORS[error.code] ?? LOCATE_ERRORS[2]);
+    }, { timeout: 15000, maximumAge: 60000 });
+  }, [locating, selectAt]);
 
   // The panel's cell belongs to the period it was read in. When another period is shown, read it
   // again as a new click at the same point would, once that period's cells are drawn: tried at
@@ -530,6 +590,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         style={{ position: "absolute", inset: 0 }}
       >
         {!secondary && <NavigationControl showCompass={false} />}
+        {!secondary && <LocateControl busy={locating} note={locateNote} onLocate={locate} />}
         {loaded?.style === style && (
           <Source
             key={style}

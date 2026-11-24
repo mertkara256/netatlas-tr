@@ -47,6 +47,65 @@
   }
 }
 
+/* The "Konumum" button (LocateControl) under the zoom buttons, drawn in MapLibre's icon grey, and its
+   note to its left. While the position is asked for, the button is closed and its sight turns. */
+.maplibregl-ctrl.locate {
+  position: relative;
+}
+
+.maplibregl-ctrl-group .locate-button {
+  display: grid;
+  place-items: center;
+  color: #333;
+}
+
+.maplibregl-ctrl-group .locate-button:disabled {
+  cursor: progress;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .locate-button[aria-busy="true"] svg {
+    animation: locate-turn 1.2s linear infinite;
+  }
+}
+
+@keyframes locate-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.locate-note {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 8px);
+  width: max-content;
+  max-width: 220px;
+  margin: 0;
+  padding: 5px 9px;
+  border-radius: 4px;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.locate-note:empty {
+  padding: 0;
+  box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .maplibregl-ctrl-group .locate-button {
+    color: var(--ink);
+  }
+
+  .locate-note {
+    box-shadow: 0 0 0 2px var(--border);
+  }
+}
+
 /* The zoom buttons sit under the map-or-table switch at the top right (Atlas.module.css,
    .mapControls); on phones, under the controls' bar. */
 .maplibregl-ctrl-top-right {
