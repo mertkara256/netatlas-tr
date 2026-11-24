@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import RegionDetails from "@/components/RegionDetails";
 import { NATIONAL, periodText } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
+import { formatMapHash } from "@/lib/mapHash";
 import { HIGH_TESTS, LOW_TESTS, metricById } from "@/lib/metrics";
 import { compareAreas } from "@/lib/order";
 import { readDistricts, readProvinces } from "@/lib/serverData";
@@ -13,6 +14,9 @@ import styles from "../../pages.module.css";
 const DOWNLOAD = metricById("indirme");
 const UPLOAD = metricById("yukleme");
 const LATENCY = metricById("gecikme");
+
+/** The map with the area's panel open and the area in view (lib/mapHash.ts; Atlas fits it to its box). */
+const onMap = (kind: "iller" | "ilceler", code: string) => `/${formatMapHash({ selection: { kind, code } })}`;
 
 // Only the 81 provinces exist; the site is static.
 export const dynamicParams = false;
@@ -55,7 +59,7 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
 
   const districts = Object.entries(await readDistricts())
     .filter(([, d]) => d.il_kodu === code)
-    .map(([, d]) => d)
+    .map(([kod, d]) => ({ ...d, kod }))
     // By name first, so districts with no measurement (and equal values) stay alphabetical.
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"))
     // As the map's table does: a few tests make the extremes, which would otherwise top the list.
@@ -78,6 +82,8 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
         <th scope="row" style={{ fontWeight: 400 }}>
           {d.ad}
           {now && now.test < LOW_TESTS && <span className={styles.muted}> (az test)</span>}
+          <br />
+          <Link className={styles.mapLink} href={onMap("ilceler", d.kod)} aria-label={`${d.ad} haritada aç`}>Haritada aç</Link>
         </th>
         {now ? (
           <>
@@ -112,6 +118,9 @@ export default async function ProvincePage({ params }: PageProps<"/il/[slug]">) 
         ({formatValue(DOWNLOAD, nationalDownload)}){" "}
         {same ? "aynı" : gap === 0 ? "yakın" : `%${Math.abs(gap)} ${gap > 0 ? "yüksek" : "düşük"}`}.
         Dönem: {periodText(current)}.
+      </p>
+      <p style={{ margin: "8px 0 0" }}>
+        <Link className={styles.mapLink} href={onMap("iller", code)}>Haritada aç</Link>
       </p>
 
       <div className={styles.details}>

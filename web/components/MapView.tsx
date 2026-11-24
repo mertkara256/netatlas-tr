@@ -8,6 +8,7 @@ import Map, { Layer, NavigationControl, Source, type ErrorEvent, type MapLayerMo
 import { FEW_TESTS_FILL, RAMPS, areaColor, cellColor, type Theme } from "@/lib/colors";
 import { BASE_PATH, BORDERS_ARCHIVE, CELL_SIZE, cellsArchive, type Area, type CellPick, type CellValues, type PeriodInfo, type Selection, type View } from "@/lib/data";
 import { formatNumber, formatValue } from "@/lib/format";
+import { PLACED, SHIFTED, type Camera } from "@/lib/mapHash";
 import { LOW_TESTS, metricById, reliabilityLabel, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { vectorTile } from "@/lib/siteTiles";
@@ -184,13 +185,15 @@ function describe(metric: Metric, v: CellValues | null): Pick<HoverInfo, "value"
 
 const lowNote = (v: CellValues | null) => (v && v.t < LOW_TESTS ? " · az test, değer belirsiz" : "");
 
-export default function MapView({ period, metric, view, theme, areas, selection, focus, onHover, onSelect, onDrawn, onMap, secondary = false }: {
+export default function MapView({ period, metric, view, theme, areas, selection, jump = null, focus, onHover, onSelect, onDrawn, onMap, secondary = false }: {
   period: PeriodInfo;
   metric: Metric;
   view: View;
   theme: Theme;
   areas: Record<string, Area> | null;
   selection: Selection | null;
+  /** A position to fly to (from the address) once Türkiye is drawn; a new one for every request. */
+  jump?: Camera | null;
   /** A bounding box to fly to (a search result); count changes for every new request. */
   focus: { bbox: [number, number, number, number]; count: number } | null;
   onHover: (info: HoverInfo | null) => void;
@@ -270,19 +273,32 @@ export default function MapView({ period, metric, view, theme, areas, selection,
   }, [panelOpen]);
 
   // Fly to a search result once the panel it opens has taken its place, keeping the area clear
-  // of the phone sheet. The fit replaces the left-edge anchoring of that same resize.
+  // of the phone sheet. The fit replaces the left-edge anchoring of that same resize. Opening the
+  // page on a link, Türkiye is drawn first, so the reader sees where the place lies.
+  const ready = drawn !== null;
   useEffect(() => {
-    if (!focus || secondary) return;
+    if (!focus || secondary || !ready) return;
     anchorLeft.current = false;
     const timer = setTimeout(() => {
       const map = mapRef.current?.getMap();
       if (!map) return;
       const { clientHeight } = map.getContainer();
       const sheet = hasPhoneSheet() ? clientHeight * PHONE_SHEET_SHARE : 0;
-      map.fitBounds(focus.bbox, { padding: { top: 30, left: 30, right: 30, bottom: 30 + sheet }, maxZoom: 11, duration: 800 });
+      map.fitBounds(focus.bbox, { padding: { top: 30, left: 30, right: 30, bottom: 30 + sheet }, maxZoom: 11, duration: 800 }, PLACED);
     }, 80);
     return () => clearTimeout(timer);
-  }, [focus, secondary]);
+  }, [focus, secondary, ready]);
+
+  // Fly to a position from the address the same way, so it is the one seen beside the panel. Readers
+  // who ask for less motion get there at once (MapLibre skips a flight that is not `essential`).
+  useEffect(() => {
+    if (!jump || secondary || !ready) return;
+    anchorLeft.current = false;
+    const timer = setTimeout(() => {
+      mapRef.current?.getMap().flyTo({ center: [jump.lon, jump.lat], zoom: jump.zoom, duration: 1600 }, PLACED);
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [jump, secondary, ready]);
 
   const handleLoad = useCallback(() => {
     const map = mapRef.current!.getMap();
@@ -313,7 +329,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     map.on("resize", () => {
       const next = container.clientWidth;
       if (anchorLeft.current && next !== width) {
-        map.panBy([(next - width) / 2, 0], { animate: false });
+        map.panBy([(next - width) / 2, 0], { animate: false }, SHIFTED);
         anchorLeft.current = false;
       }
       width = next;
@@ -406,7 +422,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
     // On phones the panel covers the lower part of the map; bring the clicked place above it.
     const { clientHeight } = e.target.getContainer();
     const visible = clientHeight * (1 - PHONE_SHEET_SHARE);
-    if (hasPhoneSheet() && e.point.y > visible) e.target.panBy([0, e.point.y - visible / 2]);
+    if (hasPhoneSheet() && e.point.y > visible) e.target.panBy([0, e.point.y - visible / 2], undefined, SHIFTED);
   }, [view, period.id, clear, onSelect]);
 
   // The panel's cell belongs to the period it was read in. When another period is shown, read it

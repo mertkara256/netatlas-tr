@@ -3,10 +3,11 @@
 import dynamic from "next/dynamic";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { loadAreas, REPO_URL, type Area, type AreaKind, type PeriodInfo, type Selection, type View } from "@/lib/data";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { loadAreas, NATIONAL, REPO_URL, type Area, type AreaKind, type PeriodInfo, type Selection, type View } from "@/lib/data";
+import { formatMapHash, parseMapHash, type Camera, type MoveMark } from "@/lib/mapHash";
 import { metricById, type MetricId } from "@/lib/metrics";
-import type { Place } from "@/lib/search";
+import { loadPlaces, type Place } from "@/lib/search";
 import { syncMaps } from "@/lib/syncMaps";
 import { useColorScheme } from "@/lib/useColorScheme";
 import AreaTable from "./AreaTable";
@@ -23,6 +24,16 @@ import styles from "./Atlas.module.css";
 // While the periods play in turn, how long each stays on screen once its cells are drawn.
 const PLAY_STEP = 1200; // ms
 
+// The hash this page last wrote into its address (see Atlas), which is not read back as a change.
+// Forgotten when the map page closes, so coming back to the same address reads it again.
+let writtenHash: string | null = null;
+const subscribeHash = (onChange: () => void) => {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+};
+const currentHash = () => window.location.hash;
+const noHash = () => null;
+
 // MapLibre needs the browser, so the map is left out of the prerendered HTML.
 const MapView = dynamic(() => import("./MapView"), { ssr: false, loading: () => <MapLoading /> });
 
@@ -36,19 +47,24 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [display, setDisplay] = useState<Display>("harita");
+  // An area named in the address waits here until its kind is loaded, which tells whether it exists,
+  // with the position the address gives, if any, for once its panel has opened.
+  const [pending, setPending] = useState<{ kind: AreaKind; code: string; camera: Camera | null } | null>(null);
   // The table lists provinces in the province view and districts otherwise (cells are too many).
   const tableKind: AreaKind = view === "iller" ? "iller" : "ilceler";
 
   // Province and district values are fetched only when a view, the table or the panel needs
   // them; the table and the panel always need the provinces (names, BTK, Türkiye's values).
   const selectedKind = selection?.kind;
+  const pendingKind = pending?.kind;
   const needed = useMemo(() => {
     const needed = new Set<AreaKind>();
     if (view !== "kareler") needed.add(view);
     if (display === "tablo") needed.add("iller").add(tableKind);
     if (selectedKind) needed.add("iller").add(selectedKind);
+    if (pendingKind) needed.add("iller").add(pendingKind);
     return [...needed];
-  }, [view, display, tableKind, selectedKind]);
+  }, [view, display, tableKind, selectedKind, pendingKind]);
   useEffect(() => {
     let cancelled = false;
     for (const kind of needed) {
@@ -160,6 +176,135 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
     setHover(null);
   };
 
+  // The address keeps the map's position, period, measure, view and open area (lib/mapHash.ts). The
+  // prerendered page has no hash, so it is read once the page has hydrated. It is read again whenever
+  // it changes from outside: typed, back and forward, or a link from a province page; what this page
+  // writes itself is skipped.
+  const hash = useSyncExternalStore(subscribeHash, currentHash, noHash);
+  const [seenHash, setSeenHash] = useState<string | null>(null);
+  // The position the address keeps: none until the map is placed by the reader, a search, a link or
+  // the address itself. Until then the map shows all of Türkiye on each reader's own screen.
+  const [kept, setKept] = useState<Camera | null>(null);
+  // A position from the address, which the map flies to from where it is (MapView).
+  const [jump, setJump] = useState<Camera | null>(null);
+  if (hash !== null && hash !== seenHash) {
+    setSeenHash(hash);
+    if (hash !== writtenHash) {
+      const ids = periods.map((p) => p.id);
+      const state = parseMapHash(hash, ids);
+      const index = state.period ? ids.indexOf(state.period) : -1;
+      setPeriodIndex(index === -1 ? last : index);
+      setMetricId(state.metric ?? "indirme");
+      setView(state.view ?? "kareler");
+      setPlaying(false);
+      // The address keeps no comparison, so a new one shows a single period.
+      setLeftIndex(null);
+      setHover(null);
+      const named = state.selection;
+      // The open area stays as it is, with its clicked point, if the address names it.
+      setSelection((current) => (current && named && current.kind === named.kind && current.code === named.code ? current : null));
+      const camera = state.camera ?? null;
+      if (camera) setKept(camera);
+      setPending(named ? { ...named, camera } : null);
+      if (!named && camera) setJump(camera);
+    }
+  }
+
+  // A named area that exists opens its panel once its kind is loaded; one that does not (or Türkiye's
+  // own entry) is dropped quietly. The map then goes to the address's position, so it is the one
+  // seen beside the panel, or without one flies to the area as to a search result.
+  const [fitTo, setFitTo] = useState<{ kind: AreaKind; code: string } | null>(null);
+  const pendingAreas = pending && areas[pending.kind];
+  if (pending && pendingAreas) {
+    setPending(null);
+    const { kind, code, camera } = pending;
+    const exists = code !== NATIONAL && Boolean(pendingAreas[code]);
+    if (exists) setSelection((current) => (current?.kind === kind && current.code === code ? current : { kind, code }));
+    if (camera) setJump(camera);
+    else if (exists) setFitTo({ kind, code });
+  }
+  useEffect(() => {
+    if (!fitTo) return;
+    let cancelled = false;
+    loadPlaces().then((places) => {
+      const place = places.find((p) => p.kod === fitTo.code && (p.tur === "il") === (fitTo.kind === "iller"));
+      if (place && !cancelled) setFocus((last) => ({ bbox: place.bbox, count: (last?.count ?? 0) + 1 }));
+    }, () => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [fitTo]);
+
+  // The position is taken when a move that placed the map ends: one the reader made on either map of
+  // a comparison (which move together), or a fit or flight marked PLACED. A reader's move is told by
+  // their input on that map, a wheel, press, touch or key since the last move ended: MapLibre leaves
+  // the event off the end of a wheel zoom. A shift marked SHIFTED, the map making room for the panel,
+  // is taken only once a position is kept, and a resize of the map, which keeps its centre, never.
+  useEffect(() => {
+    if (!mainMap) return;
+    const maps = comparing && leftMap ? [mainMap, leftMap] : [mainMap];
+    const inputs = ["wheel", "pointerdown", "touchstart", "keydown"];
+    const listeners = maps.map((map) => {
+      let input = false;
+      let resized = false;
+      const onInput = () => {
+        input = true;
+      };
+      const onResize = () => {
+        resized = true;
+      };
+      const onMoveEnd = (e: { originalEvent?: unknown } & MoveMark) => {
+        const byReader = input;
+        input = false;
+        if (resized) {
+          resized = false;
+          return;
+        }
+        const { lng, lat } = mainMap.getCenter();
+        const camera = { zoom: mainMap.getZoom(), lat, lon: lng };
+        if (e.shifted) setKept((last) => (last ? camera : last));
+        else if (byReader || e.originalEvent || e.placed) setKept(camera);
+      };
+      const container = map.getContainer();
+      for (const type of inputs) container.addEventListener(type, onInput, { capture: true, passive: true });
+      map.on("resize", onResize);
+      map.on("moveend", onMoveEnd);
+      return () => {
+        for (const type of inputs) container.removeEventListener(type, onInput, { capture: true });
+        map.off("resize", onResize);
+        map.off("moveend", onMoveEnd);
+      };
+    });
+    return () => {
+      for (const off of listeners) off();
+    };
+  }, [mainMap, leftMap, comparing]);
+
+  // Written back with replaceState, so moving the map adds no history entries. An area still waiting
+  // to load is kept in it. Also after every hash read from outside, so values that were dropped leave
+  // the address; but never over a hash that has not been read yet (a link's, arriving just after the
+  // page was drawn).
+  const shown = selection ?? pending;
+  const shownKind = shown?.kind;
+  const shownCode = shown?.code;
+  useEffect(() => {
+    const current = window.location.hash;
+    if (seenHash === null || (current !== seenHash && current !== writtenHash)) return;
+    const hash = formatMapHash({
+      camera: kept ?? undefined,
+      period: period.id,
+      metric: metricId,
+      view,
+      selection: shownKind && shownCode ? { kind: shownKind, code: shownCode } : undefined,
+    });
+    if (hash === current) return;
+    writtenHash = hash;
+    window.history.replaceState(null, "", hash);
+  }, [kept, period.id, metricId, view, shownKind, shownCode, seenHash]);
+  useEffect(() => () => {
+    writtenHash = null;
+  }, []);
+
   return (
     <>
       <header className={styles.header}>
@@ -197,6 +342,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
             theme={theme}
             areas={view === "kareler" ? null : areas[view] ?? null}
             selection={selection}
+            jump={jump}
             focus={focus}
             onHover={setHover}
             onSelect={setSelection}
