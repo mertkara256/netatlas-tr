@@ -414,9 +414,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
 
   // A click opens the panel of the area at a point; in the heat map, of the district (or, over the
   // sea, the cell's district), remembering the point and the cell the tooltip gives there. On phones
-  // this replaces the tooltip. The "Konumum" button opens the reader's own point the same way.
-  // Returns whether an area was found there.
-  const selectAt = useCallback((map: MapLibreMap, point: [number, number]): boolean => {
+  // this replaces the tooltip. The "Konumum" button opens the reader's own point the same way, marked
+  // `located` so the panel says so. Returns whether an area was found there.
+  const selectAt = useCallback((map: MapLibreMap, point: [number, number], located = false): boolean => {
     let selection: Selection;
     const at = map.project(point);
     if (view === "kareler") {
@@ -432,7 +432,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
       selection = { kind: view, code: String(feature.id), point };
     }
     clear();
-    onSelect(selection);
+    onSelect(located ? { ...selection, located } : selection);
     // On phones the panel covers the lower part of the map; bring the place above it.
     const { clientHeight } = map.getContainer();
     const visible = clientHeight * (1 - PHONE_SHEET_SHARE);
@@ -476,7 +476,7 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         const at = map.project(point);
         const { clientWidth, clientHeight } = map.getContainer();
         if (at.x < 0 || at.y < 0 || at.x > clientWidth || at.y > clientHeight - sheet) return;
-        if (!selectAt(map, point) && !map.queryRenderedFeatures(at, { layers: ["district-hit"] }).length) setLocateNote(OUTSIDE);
+        if (!selectAt(map, point, true) && !map.queryRenderedFeatures(at, { layers: ["district-hit"] }).length) setLocateNote(OUTSIDE);
       }));
       map.flyTo({ center: point, zoom, offset: [0, -sheet / 2] }, LOCATED);
     }, (error) => {
