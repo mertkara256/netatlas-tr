@@ -15,6 +15,14 @@ export type MapHash = {
   selection?: { kind: AreaKind; code: string };
 };
 
+/** Event data on map moves (MapLibre passes it on to their events), saying whether the address takes
+ *  the position they end at. PLACED: a fit or flight to a search result, a link or the address's own
+ *  position. SHIFTED: the map moved to make room for the region panel, taken only once the address
+ *  keeps a position. A move by the reader carries its originalEvent instead. */
+export type MoveMark = { placed?: boolean; shifted?: boolean };
+export const PLACED: MoveMark = { placed: true };
+export const SHIFTED: MoveMark = { shifted: true };
+
 const KEYS = { period: "d", metric: "m", view: "g", selection: "s" } as const;
 const METRIC_IDS = METRICS.map((m) => m.id);
 const VIEWS: View[] = ["kareler", "ilceler", "iller"];
