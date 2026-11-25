@@ -3,7 +3,7 @@ import test from "node:test";
 import { createExpression, latest } from "@maplibre/maplibre-gl-style-spec";
 import { loadLib } from "./load.mjs";
 
-const { areaColor, cellColor, RAMPS } = loadLib("colors");
+const { areaColor, cellColor, fiberLeadColors, RAMPS } = loadLib("colors");
 const { metricById, LOW_TESTS } = loadLib("metrics");
 const download = metricById("indirme");
 const reliability = metricById("guvenilirlik");
@@ -69,5 +69,19 @@ test("a heat map cell's reliability is one of the three classes", () => {
     for (const [tests, label] of [[1, 0], [LOW_TESTS - 1, 0], [LOW_TESTS, 1], [199, 1], [200, 2], [5000, 2]]) {
       assert.equal(drawnColor(reliability, "2024", theme, { t2024: tests }), RAMPS[theme].reliability[label], `${theme} ${tests}`);
     }
+  }
+});
+
+test("the fiber page's years run from the ramp's weakest step for the last year to its strongest for the first", () => {
+  const years = ["2020", "2021", "2022", "2023", "2024", "2025"];
+  for (const theme of ["light", "dark"]) {
+    const ramp = RAMPS[theme].full;
+    const colors = fiberLeadColors(years, theme);
+    assert.equal(colors.years["2025"], ramp[0], theme);
+    assert.equal(colors.years["2020"], ramp[ramp.length - 1], theme);
+    // One step per year, each its own colour; where xDSL still leads, a colour of its own, neither a year's
+    // nor the grey of no data.
+    assert.equal(new Set(Object.values(colors.years)).size, years.length, theme);
+    assert.ok(![...Object.values(colors.years), RAMPS[theme].noData].includes(colors.behind), theme);
   }
 });

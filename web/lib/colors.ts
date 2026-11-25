@@ -42,6 +42,22 @@ export const CONNECTION_COLORS: Record<Theme, Record<ConnectionType, string>> = 
   dark: { fiber: "#3987e5", xdsl: "#d95926", kablo: "#199e70", diger: "#9085e9" },
 };
 
+// Where xDSL still leads on the fiber page: xDSL's orange hue at about the lightness of the blue ramp's
+// weakest step, so the most common class does not cover the map in a saturated block, yet is not the grey
+// of no data. 2.0:1 (light) and 2.1:1 (dark) against the surface; the palette validator tells it apart
+// from the weakest blue for colour-blind readers.
+const XDSL_LEADS: Record<Theme, string> = { light: "#efa286", dark: "#7f3c23" };
+
+/** The fiber page's colours (app/fiber/): a province where fiber leads takes the blue ramp by the year it
+ *  went ahead, from the ramp's weakest step for the last year to its strongest for the first (fiber ahead
+ *  longest); one where xDSL still leads takes a soft orange. */
+export function fiberLeadColors(years: string[], theme: Theme): { years: Record<string, string>; behind: string } {
+  const ramp = RAMPS[theme].full;
+  const last = years.length - 1;
+  const step = (i: number) => ramp[Math.round(((last - i) / Math.max(last, 1)) * (ramp.length - 1))];
+  return { years: Object.fromEntries(years.map((year, i) => [year, step(i)])), behind: XDSL_LEADS[theme] };
+}
+
 /** The legend's edges for a metric, as logarithms: its breaks, with the open-ended classes at both ends given their neighbour's width. */
 function legendEdges(metric: Metric): number[] {
   const logBreaks = metric.breaks.map(Math.log);
