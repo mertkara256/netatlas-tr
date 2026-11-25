@@ -78,7 +78,11 @@ function datasetMarkup([firstYear, firstQuarter]: number[], [lastYear, lastQuart
       "Nüfusun ölçüm yapılan karelerde ya da hemen yanlarında yaşayan payı",
     ],
     isBasedOn: ["https://github.com/teamookla/ookla-open-data", "https://doi.org/10.5258/SOTON/WP00758"],
-    distribution: [table("iller_hiz.csv", "İllere göre hızlar"), table("ilceler_hiz.csv", "İlçelere göre hızlar")],
+    distribution: [
+      table("iller_hiz.csv", "İllere göre hızlar"),
+      table("ilceler_hiz.csv", "İlçelere göre hızlar"),
+      table("iller_yerlesim.csv", "İllere ve yerleşim türüne göre hızlar"),
+    ],
   };
 }
 
@@ -536,11 +540,16 @@ export default async function MethodPage() {
       <section id="indir" className={styles.prose}>
         <h2>Veriyi indir</h2>
         <p>
-          Sitedeki il ve ilçe değerleri iki CSV dosyasında, her alan ve dönem için bir satır olarak indirilebilir:
+          Sitedeki il ve ilçe değerleri üç CSV dosyasında, her alan ve dönem için bir satır olarak indirilebilir
+          (yerleşim türü dosyasında her alan, tür ve dönem için):
         </p>
         <ul>
           <li><a href={`${BASE_PATH}/veri/iller_hiz.csv`} download>iller_hiz.csv</a>: 81 il ve Türkiye geneli</li>
           <li><a href={`${BASE_PATH}/veri/ilceler_hiz.csv`} download>ilceler_hiz.csv</a>: 973 ilçe</li>
+          <li>
+            <a href={`${BASE_PATH}/veri/iller_yerlesim.csv`} download>iller_yerlesim.csv</a>: 81 il ve Türkiye geneli,
+            yerleşim türüne göre
+          </li>
         </ul>
         <p>Sütunlar:</p>
         <ul>
@@ -548,6 +557,12 @@ export default async function MethodPage() {
           <li>
             <code>ilce_kodu</code>, <code>ilce</code>: yalnızca ilçe dosyasında, ilçenin OCHA COD-AB&apos;deki kodu (ör.{" "}
             <code>TUR001001</code>) ve adı.
+          </li>
+          <li>
+            <code>yerlesim</code>: yalnızca yerleşim türü dosyasında, <code>yogun_kent</code>, <code>orta_yogun_kent</code>{" "}
+            ya da <code>kir</code> (bkz. <a href="#kent-kir">kent ve kır</a>). Bu dosyada değerler ilin o türdeki
+            karelerinden hesaplanır; <code>nufus</code> ve <code>olculen_nufus_payi</code> o ilde o türde yaşayanlar
+            içindir.
           </li>
           <li>
             <code>donem</code>: takvim yılı ({years[0]}–{years[years.length - 1]}) ya da <code>guncel</code> (yayımlanmış son
@@ -584,7 +599,9 @@ export default async function MethodPage() {
         <p>
           Dosyalar UTF-8 kodlamalıdır, sütunlar virgülle ayrılır, ondalık ayırıcı noktadır (ör. <code>36.8</code>); paylar
           0 ile 1 arasındadır. Türkçe ayarlı Excel&apos;de dosyaya çift tıklamak yerine bu ayarlarla içe aktarmak gerekebilir.
-          Bir dönemde hiç ölçümü olmayan bir ilçenin o dönem için satırı yoktur. BTK&apos;nın il istatistikleri ve ilçe
+          Bir dönemde hiç ölçümü olmayan bir ilçenin o dönem için satırı yoktur; yerleşim türü dosyasında da bir türde o
+          dönem test yoksa o türün satırı yoktur. Artvin, Bayburt, Gümüşhane, Sinop, Tunceli ve Ardahan&apos;da yoğun kent
+          sayılan yer olmadığı için bu illerin yoğun kent satırı hiç yoktur. BTK&apos;nın il istatistikleri ve ilçe
           listesi de <a href={`${REPO_URL}/tree/main/data/processed`}>GitHub&apos;daki veri klasöründedir</a>. Dosyalar her
           veri güncellemesiyle yenilenir ve aşağıdaki lisansla kullanılabilir.
         </p>

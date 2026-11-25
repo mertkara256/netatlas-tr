@@ -3,7 +3,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-const CSV_FILES = ["iller_hiz.csv", "ilceler_hiz.csv"] as const;
+const CSV_FILES = ["iller_hiz.csv", "ilceler_hiz.csv", "iller_yerlesim.csv"] as const;
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
