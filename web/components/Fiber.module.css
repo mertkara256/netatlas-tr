@@ -56,3 +56,86 @@
   color: var(--accent);
   text-underline-offset: 2px;
 }
+
+/* "Türkiye nerede?": the charts keep to a reading width. */
+.context {
+  max-width: 680px;
+}
+
+/* The OECD members' bars: name, bar, value. The track holds the bar and the median's dashed segment, which
+   join into one line down the rows, as the rows have no gap between them. */
+.bars {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: 8.5em 1fr 3.4em;
+  align-items: center;
+  column-gap: 8px;
+  min-height: 17px;
+  color: var(--ink-2);
+}
+
+.barName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.bar {
+  height: 11px;
+  border-radius: 0 4px 4px 0;
+}
+
+.median {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed var(--ink-2);
+}
+
+.medianLabel {
+  position: absolute;
+  bottom: 2px;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.barRow:first-child {
+  min-height: 20px;
+}
+
+.barValue {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.highlight {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.context h3 {
+  margin: 22px 0 4px;
+  font-size: 16px;
+}
+
+.context p {
+  line-height: 1.55;
+}
+
+.context a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}

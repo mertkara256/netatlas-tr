@@ -30,7 +30,8 @@ It shows what people actually measured in an area, not the maximum speed availab
 
 ## Data files
 
-- [`data/processed/`](data/processed) has the tables behind the site as CSV: speeds per province (`iller_hiz.csv`) and district (`ilceler_hiz.csv`) for every period, per province and settlement type (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), BTK's statistics per province and year (`btk_iller.csv`), and the list of districts (`ilceler.csv`).
+- [`data/processed/`](data/processed) has the tables behind the site as CSV: speeds per province (`iller_hiz.csv`) and district (`ilceler_hiz.csv`) for every period, per province and settlement type (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), BTK's statistics per province and year (`btk_iller.csv`), the list of districts (`ilceler.csv`), and fixed-broadband subscriptions per 100 inhabitants and fiber's share in the 38 OECD members (`oecd_genisbant.csv`, from the OECD's broadband database, for the fiber page).
+- `oecd_genisbant.csv` is not part of the weekly data update; refresh it by hand with `uv run --locked python -m pipeline.oecd`, which takes the last quarter of the latest full year.
 - [Releases](https://github.com/mertkara256/netatlas-tr/releases) hold the files the site loads: the map tiles (PMTiles) and the province, district and search JSON. `web/data-release.txt` names the release the site uses.
 
 ## Running locally
@@ -54,6 +55,7 @@ uv run --locked pytest
 |---|---|---|
 | Fixed-broadband speed tests | [Speedtest® by Ookla® Open Data](https://github.com/teamookla/ookla-open-data) | CC BY-NC-SA 4.0 |
 | Provincial subscriptions and fiber | [BTK, Yıllık İl İstatistikleri](https://www.btk.gov.tr/yillik-il-istatistikleri) | No open license (© BTK); used with attribution |
+| Fixed broadband in OECD countries | [OECD, Broadband and telecom databases](https://data-explorer.oecd.org/vis?df[ds]=dsDisseminateFinalDMZ&df[id]=DSD_BB_DATABASE%40DF_BB_TEL_DATABASE&df[ag]=OECD.STI.DEP) | Reuse with attribution ([OECD terms](https://www.oecd.org/en/about/terms-conditions.html)) |
 | Where people live | [WorldPop, gridded population estimates for Turkey 2021](https://doi.org/10.5258/SOTON/WP00758), spreading TÜİK's district populations | CC BY 4.0 |
 | Province and district boundaries | [OCHA COD-AB Türkiye](https://data.humdata.org/dataset/cod-ab-tur), from the General Command of Mapping (Harita Genel Müdürlüğü) | CC BY-IGO |
 | District names | OpenStreetMap via [geoBoundaries](https://www.geoboundaries.org/) | ODbL |
@@ -93,7 +95,8 @@ Belirli bir adrese verilebilecek en yüksek hızı değil, bir bölgede insanlar
 
 ### Veri dosyaları
 
-- [`data/processed/`](data/processed) sitenin arkasındaki tabloları CSV olarak içerir: her dönem için il (`iller_hiz.csv`) ve ilçe (`ilceler_hiz.csv`) hızları, il ve yerleşim türüne göre hızlar (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), il ve yıla göre BTK istatistikleri (`btk_iller.csv`) ve ilçe listesi (`ilceler.csv`).
+- [`data/processed/`](data/processed) sitenin arkasındaki tabloları CSV olarak içerir: her dönem için il (`iller_hiz.csv`) ve ilçe (`ilceler_hiz.csv`) hızları, il ve yerleşim türüne göre hızlar (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), il ve yıla göre BTK istatistikleri (`btk_iller.csv`), ilçe listesi (`ilceler.csv`) ve OECD'nin 38 üyesinde 100 kişiye sabit genişbant aboneliği ile fiber payı (`oecd_genisbant.csv`, OECD'nin geniş bant veritabanından, fiber sayfası için).
+- `oecd_genisbant.csv` haftalık veri güncellemesine dahil değildir; elle `uv run --locked python -m pipeline.oecd` ile yenilenir, son tam yılın son çeyreğini alır.
 - Sitenin yüklediği dosyalar, yani harita karoları (PMTiles) ve il, ilçe ve arama JSON'ları [Releases](https://github.com/mertkara256/netatlas-tr/releases) altında. Sitenin hangi sürümü kullandığı `web/data-release.txt`'de yazar.
 
 ### Yerelde çalıştırma

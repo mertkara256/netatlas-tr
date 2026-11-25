@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadLib } from "./load.mjs";
 
-const { fiberLead } = loadLib("btk");
-const { inYear } = loadLib("format");
+const { FIBER_TARGET, fiberLead, fiberPer100 } = loadLib("btk");
+const { countOf, inYear } = loadLib("format");
 
 // Fiber and xDSL subscriptions per year, as BTK gives them for 2020-2025.
 const years = (pairs) => Object.fromEntries(pairs.map(([fiber, xdsl], i) => [String(2020 + i), { fiber, xdsl }]));
@@ -30,4 +30,18 @@ test("a year takes the locative suffix it is read aloud with", () => {
     2050: "2050'de", 2060: "2060'ta", 2070: "2070'te", 2080: "2080'de", 2090: "2090'da", 2000: "2000'de", 2100: "2100'de",
   };
   for (const [year, text] of Object.entries(expected)) assert.equal(inYear(year), text);
+});
+
+test("fiber per 100 people is the plan's measure: subscriptions over population", () => {
+  // BTK's Türkiye totals for 2022 and 2025; the plan gives 6,7 for 2022.
+  assert.equal(fiberPer100({ fiber: 5702865, nufus: 85279553 }).toFixed(2), "6.69");
+  assert.equal(fiberPer100({ fiber: 9845226, nufus: 86092168 }).toFixed(2), "11.44");
+  assert.deepEqual({ year: FIBER_TARGET.year, value: FIBER_TARGET.value }, { year: 2028, value: 11 });
+});
+
+test("a count takes the possessive suffix it is read aloud with", () => {
+  assert.equal(countOf(17), "17'si");
+  assert.equal(countOf(4), "4'ü");
+  assert.equal(countOf(40), "40'ı");
+  assert.equal(countOf(81), "81'i");
 });

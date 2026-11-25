@@ -19,6 +19,9 @@ export type TrendPoint = {
  *  beside Türkiye: its key in the points, its name and its colour. */
 export type TrendLine = { key: string; name: string; color: string };
 
+/** A level the chart compares its lines with, such as a target: its value and the label drawn on it ("2028 hedefi: 11,0"). */
+export type TrendReference = { value: number; label: string };
+
 const compact = new Intl.NumberFormat("tr-TR", { notation: "compact", maximumFractionDigits: 1 });
 
 const PLOT_HEIGHT = 140; // px
@@ -26,9 +29,10 @@ const PLOT_HEIGHT = 140; // px
 // with the first chart instead, and an empty box of its height holds its place until then.
 const TrendLines = dynamic(() => import("./TrendLines"), { loading: () => <div style={{ height: PLOT_HEIGHT }} /> });
 
-export default function TrendChart({ title, data, areaName, lines, format, axisFormat = (v) => compact.format(v), theme }: {
+export default function TrendChart({ title, data, areaName, lines, reference, format, axisFormat = (v) => compact.format(v), theme }: {
   title: string;
   data: TrendPoint[];
+  reference?: TrendReference;
   format: (value: number) => string;
   axisFormat?: (value: number) => string;
   theme: Theme;
@@ -56,6 +60,7 @@ export default function TrendChart({ title, data, areaName, lines, format, axisF
         data={data}
         lines={drawn}
         endLabels={lines != null}
+        reference={reference}
         format={format}
         axisFormat={axisFormat}
         theme={theme}
@@ -86,6 +91,11 @@ export default function TrendChart({ title, data, areaName, lines, format, axisF
               </tr>
             ))}
           </tbody>
+          {reference && (
+            <tfoot>
+              <tr><td colSpan={drawn.length + 1}>{reference.label}</td></tr>
+            </tfoot>
+          )}
         </table>
       </details>
     </figure>

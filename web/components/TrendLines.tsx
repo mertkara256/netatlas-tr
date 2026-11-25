@@ -1,7 +1,7 @@
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, usePlotArea, useYAxisScale } from "recharts";
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, usePlotArea, useYAxisScale } from "recharts";
 import { CHART, type Theme } from "@/lib/colors";
 import { HIGH_TESTS } from "@/lib/metrics";
-import type { TrendLine, TrendPoint } from "./TrendChart";
+import type { TrendLine, TrendPoint, TrendReference } from "./TrendChart";
 import styles from "./RegionPanel.module.css";
 
 const LABEL_SIZE = 11; // px, as the axis labels
@@ -45,25 +45,35 @@ function EndLabels({ data, lines, color }: { data: TrendPoint[]; lines: TrendLin
 }
 
 /** The plot of a TrendChart, with its hover tooltip. */
-export default function TrendLines({ data, lines, endLabels, format, axisFormat, theme, height }: {
+export default function TrendLines({ data, lines, endLabels, reference, format, axisFormat, theme, height }: {
   data: TrendPoint[];
   /** The area's ("alan") and Türkiye's ("turkiye"), or lines of the chart's own. */
   lines: TrendLine[];
   /** Name each line at its end. */
   endLabels: boolean;
+  /** A level to compare the lines with, such as a target: a dashed line across the plot, labelled at its left end. */
+  reference?: TrendReference;
   format: (value: number) => string;
   axisFormat: (value: number) => string;
   theme: Theme;
   height: number;
 }) {
   const c = CHART[theme];
-  const ticks = roundTicks(Math.max(...data.flatMap((d) => lines.map((line) => valueOf(d, line) ?? 0))));
+  const ticks = roundTicks(Math.max(reference?.value ?? 0, ...data.flatMap((d) => lines.map((line) => valueOf(d, line) ?? 0))));
   return (
     <ResponsiveContainer width="100%" height={height}>
       {/* Room on the right for the last axis label ("Güncel"), which is centred on its point, or for the lines' names. */}
       {/* Hidden from screen readers, with no keyboard stop: the table under the chart gives its values. */}
       <LineChart data={data} margin={{ top: 8, right: endLabels ? END_LABEL_ROOM : 22, bottom: 0, left: 0 }} accessibilityLayer={false} aria-hidden>
         <CartesianGrid vertical={false} stroke={c.grid} />
+        {reference && (
+          <ReferenceLine
+            y={reference.value}
+            stroke={c.muted}
+            strokeDasharray="4 3"
+            label={{ value: reference.label, position: "insideTopLeft", fill: c.muted, fontSize: LABEL_SIZE }}
+          />
+        )}
         <XAxis dataKey="kisa" interval={0} tickLine={false} axisLine={{ stroke: c.axis }} tick={{ fill: c.muted, fontSize: 11 }} />
         <YAxis width={38} ticks={ticks} domain={[0, ticks[ticks.length - 1]]} tickLine={false} axisLine={false} tick={{ fill: c.muted, fontSize: 11 }} tickFormatter={axisFormat} />
         <Tooltip
