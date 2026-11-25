@@ -1,4 +1,4 @@
-import type { SettlementType, SettlementValues } from "./data";
+import type { Area, SettlementType, SettlementValues } from "./data";
 import { formatNumber, percentOf } from "./format";
 import { HIGH_TESTS } from "./metrics";
 
@@ -30,4 +30,11 @@ const MULTIPLE_FROM = 1.5;
 /** How a ratio reads after "kentte ölçülenin": "%40'ı", "%106'sı", "2,8 katı". */
 export function ratioText(ratio: number): string {
   return ratio < MULTIPLE_FROM ? percentOf(Math.round(ratio * 100)) : `${formatNumber(ratio, 1)} katı`;
+}
+
+/** The types a province has: those with tests in any period. A type missing from every period has no residents
+ *  there (Artvin, Bayburt, Gümüşhane, Sinop, Tunceli and Ardahan have no yoğun kent), as a cluster of 5,000
+ *  residents or more always has tests in eight periods; a type missing from only some periods had no tests in them. */
+export function typesIn(area: Area): Set<SettlementType> {
+  return new Set(Object.values(area.yerlesim ?? {}).flatMap((types) => Object.keys(types) as SettlementType[]));
 }
