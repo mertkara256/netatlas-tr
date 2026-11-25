@@ -390,7 +390,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
                   secondary
                 />
               </div>
-              <CompareDivider split={split} onSplit={setSplit} left={periods[leftIndex].ad} right={period.ad} />
+              <CompareDivider split={split} onSplit={andClearHover(setSplit)} left={periods[leftIndex].ad} right={period.ad} />
             </>
           )}
           {controls(true)}

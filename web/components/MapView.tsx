@@ -586,6 +586,9 @@ export default function MapView({ period, metric, view, theme, areas, selection,
         onMouseMove={handlePointer}
         onClick={handleClick}
         onMouseLeave={clear}
+        // Leaving the canvas for something drawn over it (the compare line's handle, the dock), which
+        // onMouseLeave misses when the pointer was over a gap between cells.
+        onMouseOut={clear}
         onDragStart={clear}
         style={{ position: "absolute", inset: 0 }}
       >
