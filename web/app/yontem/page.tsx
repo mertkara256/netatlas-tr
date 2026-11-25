@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BASE_PATH, CELL_SIZE, NATIONAL, REPO_URL, SITE_ORIGIN } from "@/lib/data";
-import { formatNumber, formatValue } from "@/lib/format";
+import { formatNumber, formatValue, inYear } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, MEASURED_RESIDENTS_SHARE, METRICS, ONE_TILE_SHARE, breakLabels, metricById } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { readProvinces } from "@/lib/serverData";
@@ -175,7 +175,7 @@ export default async function MethodPage() {
                 <td>CC BY-NC-SA 4.0</td>
               </tr>
               <tr>
-                <th scope="row">Abonelik, fiber</th>
+                <th scope="row">Abonelik ve bağlantı türleri</th>
                 <td><a href="https://www.btk.gov.tr/yillik-il-istatistikleri">BTK, Yıllık İl İstatistikleri</a></td>
                 <td>{data.btk_yillari[0]}–{data.btk_yillari[data.btk_yillari.length - 1]}, il düzeyinde, yıl sonu</td>
                 <td>Açık lisans yok (© BTK)</td>
@@ -329,7 +329,11 @@ export default async function MethodPage() {
           </li>
           <li>
             <strong>Erişim:</strong> 100 kişiye sabit abonelik = sabit genişbant aboneliği ÷ nüfus × 100. Fiber payı = fiber
-            abonelik ÷ sabit genişbant aboneliği. Değerler yıl sonudur ve yalnızca il düzeyinde vardır.
+            abonelik ÷ sabit genişbant aboneliği. Değerler yıl sonudur ve yalnızca il düzeyinde vardır. Bağlantı türleri
+            BTK&apos;nın ayrımıdır: fiber, telefon hattı (xDSL: ADSL ve VDSL), kablo TV ve diğer (BTK&apos;ya göre Frame Relay,
+            Metro Ethernet, ATM ve BPL). &quot;Fiber öne geçti&quot;, fiber aboneliklerinin telefon hattı aboneliklerinden
+            fazla olduğu ve son yıla kadar fazla kaldığı dönemin ilk yılıdır. BTK verisi {inYear(data.btk_yillari[0])}{" "}
+            başladığı için o yıl fiberi zaten önde olan bir ilde &quot;{data.btk_yillari[0]} ya da önce&quot; yazılır.
           </li>
         </ul>
       </section>
@@ -418,6 +422,11 @@ export default async function MethodPage() {
           <li>
             <strong>BTK 2020:</strong> dört ilde (Diyarbakır, İstanbul, Kilis, Konya) teknolojilere göre dağılım il toplamıyla
             tutmuyor; farklar birbirini götürür, Türkiye toplamı doğrudur.
+          </li>
+          <li>
+            <strong>&quot;Diğer&quot; bazı illerde büyüktür:</strong> 2025 sonunda Hatay&apos;da aboneliklerin %37&apos;si,
+            Şanlıurfa&apos;da %25&apos;i. BTK bu kalemi teknolojilere ayırmıyor. Türkiye toplamındaki &quot;diğer&quot; ayrıca
+            illere dağıtılamayan ISDN ve uydu aboneliklerini de içerir.
           </li>
           <li><strong>Abonelik hane değildir:</strong> iş yeri abonelikleri de sayıya dahildir.</li>
           <li>
