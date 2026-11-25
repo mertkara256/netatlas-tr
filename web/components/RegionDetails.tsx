@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CELL_SIZE, periodText, type Area, type CellPick, type PeriodInfo } from "@/lib/data";
-import { formatNumber, formatValue } from "@/lib/format";
+import { CONNECTION_TYPES, fiberLead } from "@/lib/btk";
+import { CONNECTION_COLORS, type Theme } from "@/lib/colors";
+import { CELL_SIZE, periodText, type Area, type BtkValues, type CellPick, type PeriodInfo } from "@/lib/data";
+import { formatNumber, formatValue, inYear } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, representationConditions, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { startNearbyRequest, type NearbyRequestResult } from "@/lib/nearby-request";
@@ -18,6 +20,42 @@ const percent = (v: number) => `%${formatNumber(v * 100)}`;
 // One decimal, so a share just under a note's threshold (Hadim's 0.498 residents) does not read as the threshold.
 const share = (v: number) => `%${formatNumber(v * 100, 1)}`;
 const shortLabel = (p: PeriodInfo) => (p.id === "guncel" ? p.ad : `'${p.id.slice(2)}`);
+
+// A part of the connection bar under this share would be thinner than a pixel; the legend still lists it.
+const MIN_DRAWN = 0.005;
+const mixShare = (v: number) => (v < MIN_DRAWN ? "%1'den az" : percent(v));
+
+/** The last BTK year's subscriptions by connection type as one bar, and since when fiber leads xDSL. */
+function ConnectionMix({ btk, theme }: { btk: Record<string, BtkValues>; theme: Theme }) {
+  const years = Object.keys(btk).sort();
+  const last = btk[years[years.length - 1]];
+  const types = CONNECTION_TYPES.filter((t) => last[t.key] > 0);
+  const colors = CONNECTION_COLORS[theme];
+  const lead = fiberLead(btk);
+  return (
+    <div className={styles.mix}>
+      <p className={styles.chartTitle}>Bağlantı türüne göre abonelikler</p>
+      <div className={styles.mixBar} aria-hidden="true">
+        {types.filter((t) => last[t.key] / last.sabit_genisbant >= MIN_DRAWN).map((t) => (
+          <span key={t.key} style={{ flexGrow: last[t.key], background: colors[t.key] }} />
+        ))}
+      </div>
+      <ul className={styles.mixLegend}>
+        {types.map((t) => (
+          <li key={t.key}>
+            <i style={{ background: colors[t.key] }} />
+            {t.label} <b>{mixShare(last[t.key] / last.sabit_genisbant)}</b>
+          </li>
+        ))}
+      </ul>
+      <p className={styles.note}>
+        {lead
+          ? `Fiber abonelikleri telefon hattı aboneliklerini ${inYear(lead.since)}${lead.fromStart ? " ya da daha önce" : ""} geçti.`
+          : "Telefon hattı abonelikleri hâlâ fiberden fazla."}
+      </p>
+    </div>
+  );
+}
 
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
@@ -229,6 +267,7 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
           />
           <Stat label="Fiber payı" value={percent(btk[lastYear].fiber_payi)} note={`Türkiye ${percent(nationalBtk[lastYear].fiber_payi)}`} />
         </dl>
+        <ConnectionMix btk={btk} theme={theme} />
         {(["abone_100", "fiber_payi"] as const).map((key) => (
           <TrendChart
             key={key}

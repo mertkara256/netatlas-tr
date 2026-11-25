@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { fiberLead } from "@/lib/btk";
 import { NATIONAL, periodText } from "@/lib/data";
-import { formatNumber, formatValue } from "@/lib/format";
+import { formatNumber, formatValue, inYear } from "@/lib/format";
 import { metricById } from "@/lib/metrics";
 import { readProvinces } from "@/lib/serverData";
 import { provincePath } from "@/lib/slug";
@@ -23,11 +24,16 @@ export default async function ProvincesPage() {
     .map(([, p]) => p)
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const national = data.iller[NATIONAL];
+  const fiberSince = (p: (typeof provinces)[number]) => {
+    const lead = fiberLead(p.btk!);
+    return lead ? `${lead.since}${lead.fromStart ? " ya da önce" : ""}` : "—";
+  };
   const columns = (p: (typeof provinces)[number]) => [
     formatValue(DOWNLOAD, p.hiz[current.id].indirme_mbps),
     formatValue(DOWNLOAD, p.hiz["2019"].indirme_mbps),
     formatNumber(p.btk![lastBtk].abone_100, 1),
     `%${formatNumber(p.btk![lastBtk].fiber_payi * 100)}`,
+    fiberSince(p),
   ];
 
   return (
@@ -49,6 +55,7 @@ export default async function ProvincesPage() {
               <th scope="col" className={styles.num}>İndirme, 2019</th>
               <th scope="col" className={styles.num}>100 kişiye abonelik, {lastBtk}</th>
               <th scope="col" className={styles.num}>Fiber payı, {lastBtk}</th>
+              <th scope="col" className={styles.num}>Fiber öne geçti</th>
             </tr>
           </thead>
           <tbody>
@@ -67,6 +74,8 @@ export default async function ProvincesPage() {
       </div>
       <p className={styles.footnote}>
         {current.ad}: {periodText(current)}. Hız: Speedtest® by Ookla® açık verisi, cihaz ağırlıklı ortalama. Erişim: BTK.
+        Fiber öne geçti: o yıldan beri fiber abonelikleri telefon hattı (ADSL/VDSL) aboneliklerinden fazla; BTK verisi{" "}
+        {inYear(data.btk_yillari[0])} başlıyor.
       </p>
     </main>
   );

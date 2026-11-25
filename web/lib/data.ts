@@ -34,7 +34,18 @@ export type SpeedValues = {
   olculen_nufus_payi?: number;
 };
 
-export type BtkValues = { nufus: number; sabit_genisbant: number; abone_100: number; fiber_payi: number };
+export type BtkValues = {
+  nufus: number;
+  sabit_genisbant: number;
+  /** Fixed subscriptions by connection type (lib/btk.ts). They add up to sabit_genisbant, except in
+   *  BTK's 2020 figures for four provinces (see the methodology page). */
+  fiber: number;
+  xdsl: number;
+  kablo: number;
+  diger: number;
+  abone_100: number;
+  fiber_payi: number;
+};
 
 /** A province (with its BTK figures per year) or a district (with its province's code). */
 export type Area = { ad: string; il_kodu?: string; hiz: Record<string, SpeedValues>; btk?: Record<string, BtkValues> };
