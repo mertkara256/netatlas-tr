@@ -1,0 +1,14 @@
+square,x,y,nufus
+town_core,38275,24606,30000
+town_core_east,38276,24606,25000
+town_edge_over,38276,24604,1290
+town_edge_under,38275,24605,1240
+town_ring_over,38272,24607,215
+town_ring_under,38273,24605,245
+corner_pair_a,38270,24614,26000
+corner_pair_b,38272,24616,26000
+edge_pair_a,38282,24610,24900
+edge_pair_b,38284,24610,24900
+small_town_under,38278,24614,4900
+small_town_over,38278,24618,5100
+corner_of_small_town,38280,24620,512

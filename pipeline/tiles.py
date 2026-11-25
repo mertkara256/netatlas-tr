@@ -14,7 +14,7 @@ Outputs (web/public/data/, not in git):
     sinirlar.pmtiles          layers "ilceler" and "iller": district and province shapes
     kareler-<period>.pmtiles  layer "hucreler": one period's speed cells (kareler-2019 ... kareler-guncel)
     iller.json       periods, Ookla's access date and quarters (for its attribution), then Türkiye
-                     and the 81 provinces: speeds per period, BTK per year
+                     and the 81 provinces: speeds per period, the same per settlement type, BTK per year
     ilceler.json     the 973 districts: speeds per period
     arama.json       province and district names for search, with bounding boxes
 """
@@ -35,7 +35,7 @@ import shapely
 
 from .boundaries import DISTRICTS_PATH, PROVINCES_PATH
 from .btk import OUT_PATH as BTK_PATH
-from .build import DISTRICT_PATH, PROVINCE_PATH, TILES_PATH, available_quarters, periods
+from .build import DISTRICT_PATH, PROVINCE_PATH, SETTLEMENT_PATH, TILES_PATH, available_quarters, periods
 from .common import ROOT, normalize_name, quadkey_to_tile
 from .ookla import output_path
 
@@ -151,6 +151,12 @@ def speed_values(row: dict) -> dict:
             "olculen_nufus_payi": float(row["olculen_nufus_payi"])}
 
 
+def settlement_values(row: dict) -> dict:
+    """A settlement type's speeds, tests and share of residents measured: what the region panel shows of it."""
+    return {"test": int(row["test"]), "indirme_mbps": float(row["indirme_mbps"]), "yukleme_mbps": float(row["yukleme_mbps"]),
+            "gecikme_ms": float(row["gecikme_ms"]), "olculen_nufus_payi": float(row["olculen_nufus_payi"])}
+
+
 CONNECTION_TYPES = ["fiber", "xdsl", "kablo", "diger"]
 
 
@@ -209,7 +215,11 @@ def main() -> None:
 
     provinces: dict[str, dict] = {}
     for row in read_csv(PROVINCE_PATH):
-        provinces.setdefault(row["il_kodu"], {"ad": row["il"], "hiz": {}, "btk": {}})["hiz"][row["donem"]] = speed_values(row)
+        province = provinces.setdefault(row["il_kodu"], {"ad": row["il"], "hiz": {}, "yerlesim": {}, "btk": {}})
+        province["hiz"][row["donem"]] = speed_values(row)
+    # Per period, the settlement types with tests in it (build.py), in yoğun kent, orta yoğun kent, kır order.
+    for row in read_csv(SETTLEMENT_PATH):
+        provinces[row["il_kodu"]]["yerlesim"].setdefault(row["donem"], {})[row["yerlesim"]] = settlement_values(row)
     btk_years = set()
     for row in read_csv(BTK_PATH):
         provinces[row["il_kodu"]]["btk"][row["yil"]] = btk_values(row)
