@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CONNECTION_TYPES, fiberLead } from "@/lib/btk";
-import { CONNECTION_COLORS, type Theme } from "@/lib/colors";
+import { CONNECTION_COLORS, SETTLEMENT_COLORS, type Theme } from "@/lib/colors";
 import { CELL_SIZE, periodText, type Area, type BtkValues, type CellPick, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue, inYear } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, representationConditions, type Metric } from "@/lib/metrics";
@@ -62,14 +62,17 @@ function ConnectionMix({ btk, theme }: { btk: Record<string, BtkValues>; theme: 
 // What the sentence under the settlement types calls each metric.
 const SETTLEMENT_NOUN: Record<SettlementKey, string> = { indirme_mbps: "indirme hızı", yukleme_mbps: "yükleme hızı", gecikme_ms: "gecikme" };
 
-/** The selected period's values by settlement type (lib/settlement.ts), each beside Türkiye's, and how kır
- *  compares with yoğun kent. Provinces only: a district shows its province's, as its samples would be small. */
-function SettlementSection({ province, national, isDistrict, period, metric }: {
+/** The selected period's values by settlement type (lib/settlement.ts), each beside Türkiye's, how kır
+ *  compares with yoğun kent, and Türkiye's types over the years. Provinces only: a district shows its
+ *  province's, as its samples would be small. */
+function SettlementSection({ province, national, isDistrict, periods, period, metric, theme }: {
   province: Area;
   national: Area;
   isDistrict: boolean;
+  periods: PeriodInfo[];
   period: PeriodInfo;
   metric: Metric;
+  theme: Theme;
 }) {
   const types = province.yerlesim?.[period.id];
   const nationalTypes = national.yerlesim?.[period.id];
@@ -127,6 +130,21 @@ function SettlementSection({ province, national, isDistrict, period, metric }: {
         Ölçüme yakın nüfus: o yerleşim türünde yaşayanlardan ölçüm yapılan karelerde ya da hemen yanlarında oturanların
         payı. {HIGH_TESTS}&apos;den az testli türün hızı gösterilmez.{" "}
         <Link href="/yontem/#kent-kir">Kent ve kır nasıl ayrıldı?</Link>
+      </p>
+      <TrendChart
+        title="Türkiye geneli: yıllara göre ölçülen ortalama indirme hızı"
+        data={periods.map((p) => ({
+          kisa: shortLabel(p),
+          etiket: periodText(p),
+          ...Object.fromEntries(SETTLEMENT_TYPES.map(({ key: type }) => [type, national.yerlesim?.[p.id]?.[type]?.indirme_mbps])),
+        }))}
+        lines={SETTLEMENT_TYPES.map(({ key: type, label }) => ({ key: type, name: label, color: SETTLEMENT_COLORS[theme][type] }))}
+        format={(value) => formatValue(DOWNLOAD, value)}
+        theme={theme}
+      />
+      <p className={styles.note}>
+        2025&apos;in son çeyreğinde ölçülen hızlar bir anda yükseldi; nedenini bilmiyoruz.{" "}
+        <Link href="/yontem/#donemler">Ayrıntılar</Link>
       </p>
     </section>
   );
@@ -331,7 +349,15 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
         )}
       </section>
 
-      <SettlementSection province={province} national={national} isDistrict={isDistrict} period={period} metric={metric} />
+      <SettlementSection
+        province={province}
+        national={national}
+        isDistrict={isDistrict}
+        periods={periods}
+        period={period}
+        metric={metric}
+        theme={theme}
+      />
 
       <section>
         <h3>Erişim · BTK, {lastYear} yıl sonu</h3>

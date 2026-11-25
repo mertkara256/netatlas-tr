@@ -1,5 +1,6 @@
 import type { ExpressionSpecification } from "maplibre-gl";
 import type { ConnectionType } from "./btk";
+import type { SettlementType } from "./data";
 import { classIndex, type Metric } from "./metrics";
 
 export type Theme = "light" | "dark";
@@ -40,6 +41,14 @@ export const CHART: Record<Theme, { area: string; national: string; grid: string
 export const CONNECTION_COLORS: Record<Theme, Record<ConnectionType, string>> = {
   light: { fiber: "#2a78d6", xdsl: "#eb6834", kablo: "#1baf7a", diger: "#6250d6" },
   dark: { fiber: "#3987e5", xdsl: "#d95926", kablo: "#199e70", diger: "#9085e9" },
+};
+
+// Türkiye's settlement types in the region panel's chart: categorical slots 1, 2 and 3 of the reference palette,
+// the most that pass the palette validator with every pair compared, as lines can cross, on both surfaces. The
+// light aqua is 2.7:1 against the surface, so the chart names each line at its end and lists the values in a table.
+export const SETTLEMENT_COLORS: Record<Theme, Record<SettlementType, string>> = {
+  light: { yogun_kent: "#2a78d6", orta_yogun_kent: "#eb6834", kir: "#1baf7a" },
+  dark: { yogun_kent: "#3987e5", orta_yogun_kent: "#d95926", kir: "#199e70" },
 };
 
 // Where xDSL still leads on the fiber page: xDSL's orange hue at about the lightness of the blue ramp's
