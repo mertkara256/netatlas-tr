@@ -47,8 +47,24 @@ export type BtkValues = {
   fiber_payi: number;
 };
 
-/** A province (with its BTK figures per year) or a district (with its province's code). */
-export type Area = { ad: string; il_kodu?: string; hiz: Record<string, SpeedValues>; btk?: Record<string, BtkValues> };
+/** Yoğun kent, orta yoğun kent or kır (lib/settlement.ts). */
+export type SettlementType = "yogun_kent" | "orta_yogun_kent" | "kir";
+
+/** A province's values in one settlement type and period: its squares of that type alone, and the share of its
+ *  residents of that type living in or next to a square with a test. */
+export type SettlementValues = Pick<SpeedValues, "test" | "indirme_mbps" | "yukleme_mbps" | "gecikme_ms"> & {
+  olculen_nufus_payi: number;
+};
+
+/** A province (with its BTK figures per year and its values per period by settlement type, the types with
+ *  tests in that period) or a district (with its province's code). */
+export type Area = {
+  ad: string;
+  il_kodu?: string;
+  hiz: Record<string, SpeedValues>;
+  yerlesim?: Record<string, Partial<Record<SettlementType, SettlementValues>>>;
+  btk?: Record<string, BtkValues>;
+};
 export type AreaKind = "iller" | "ilceler";
 // The map colours either the speed cells (a heat map) or whole districts or provinces.
 export type View = "kareler" | AreaKind;

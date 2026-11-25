@@ -208,6 +208,58 @@
   font-weight: 600;
 }
 
+/* Values by settlement type: one row per type, Türkiye's value under the area's. */
+.types {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.types th,
+.types td {
+  padding: 5px 0 5px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}
+
+.types th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+
+.types thead th {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 400;
+  vertical-align: bottom;
+}
+
+.types tbody th {
+  font-weight: 600;
+}
+
+/* Numbers keep to one line; the type names and the headers wrap on a phone instead. */
+.types td {
+  white-space: nowrap;
+}
+
+.typeNote {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .chart {
   margin: 14px 0 0;
 }

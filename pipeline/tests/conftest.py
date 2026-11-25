@@ -2,7 +2,8 @@
 
 Its quarters and residents are written in the pipeline's own formats, build.py's paths are pointed at
 them and at the clipped district shapes, and build.main() runs as it does on the full data.
-fixture/README.md says what each square is for.
+fixture/README.md says what each square is for. One run adds the towns of fixture/yerlesim.csv, for the
+settlement types.
 
 The periods the full data must have are worked out here too, from its latest quarter, so the checks on
 it keep passing when a new quarter comes out.
@@ -39,6 +40,7 @@ class Sample:
     tiles: pa.Table                            # kareler.parquet
     provinces: dict[tuple[str, str], dict]     # (il_kodu, donem) -> row of iller_hiz.csv
     districts: dict[tuple[str, str], dict]     # (ilce_kodu, donem) -> row of ilceler_hiz.csv
+    types: dict[tuple[str, str, str], dict]    # (il_kodu, yerlesim, donem) -> row of iller_yerlesim.csv
 
 
 def read_csv(path: Path) -> list[dict]:
@@ -46,9 +48,9 @@ def read_csv(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def run_build(directory: Path, latest: tuple[int, int], leave_out: frozenset[str] = frozenset()) -> Sample:
-    """Write the sample's quarters up to `latest` and its residents, without the squares in `leave_out`,
-    then run build.main() on them."""
+def run_build(directory: Path, latest: tuple[int, int], leave_out: frozenset[str] = frozenset(), towns: bool = False) -> Sample:
+    """Write the sample's quarters up to `latest` and its residents, without the squares in `leave_out` and
+    with the towns of yerlesim.csv if asked, then run build.main() on them."""
     squares: dict[str, str] = {}
 
     def quadkey(row: dict) -> str:
@@ -67,7 +69,8 @@ def run_build(directory: Path, latest: tuple[int, int], leave_out: frozenset[str
         quarters[year, quarter] = pa.table({"quadkey": [quadkey(r) for r in rows],
                                             **{c: [int(r[c]) for r in rows] for c in QUARTER_COLUMNS}})
         pq.write_table(quarters[year, quarter], quarter_dir / f"fixed_{year}q{quarter}.parquet")
-    residents = [r for r in read_csv(FIXTURE_DIR / "nufus.csv") if r["square"] not in leave_out]
+    residents = [r for r in read_csv(FIXTURE_DIR / "nufus.csv") + (read_csv(FIXTURE_DIR / "yerlesim.csv") if towns else [])
+                 if r["square"] not in leave_out]
     population = pa.table({"quadkey": [quadkey(r) for r in residents], "nufus": [float(r["nufus"]) for r in residents]})
     pq.write_table(population, directory / "nufus_kareler.parquet")
 
@@ -79,6 +82,7 @@ def run_build(directory: Path, latest: tuple[int, int], leave_out: frozenset[str
         patch.setattr(build, "TILES_PATH", directory / "kareler.parquet")
         patch.setattr(build, "PROVINCE_PATH", directory / "iller_hiz.csv")
         patch.setattr(build, "DISTRICT_PATH", directory / "ilceler_hiz.csv")
+        patch.setattr(build, "SETTLEMENT_PATH", directory / "iller_yerlesim.csv")
         patch.setattr(build, "PROVINCES", {code: PROVINCES[code] for code in SAMPLE_PROVINCES})
         build.main()
 
@@ -91,6 +95,7 @@ def run_build(directory: Path, latest: tuple[int, int], leave_out: frozenset[str
         tiles=pq.read_table(directory / "kareler.parquet"),
         provinces={(r["il_kodu"], r["donem"]): r for r in read_csv(directory / "iller_hiz.csv")},
         districts={(r["ilce_kodu"], r["donem"]): r for r in read_csv(directory / "ilceler_hiz.csv")},
+        types={(r["il_kodu"], r["yerlesim"], r["donem"]): r for r in read_csv(directory / "iller_yerlesim.csv")},
     )
 
 
@@ -111,6 +116,13 @@ def sample_without_measured_residents_in_mardin(tmp_path_factory) -> Sample:
     """Without nusaybin_next: Mardin keeps its measured square and 20 residents, none of them next to it."""
     return run_build(tmp_path_factory.mktemp("sample_without_measured_residents_in_mardin"), (2026, 1),
                      leave_out=frozenset({"nusaybin_next"}))
+
+
+@pytest.fixture(scope="session")
+def sample_with_towns(tmp_path_factory) -> Sample:
+    """All five quarters, with the towns of yerlesim.csv around Adapazarı: Sakarya's measured squares are then
+    yoğun kent and orta yoğun kent, Kocaeli's kır."""
+    return run_build(tmp_path_factory.mktemp("sample_with_towns"), (2026, 1), towns=True)
 
 
 @pytest.fixture(scope="session")

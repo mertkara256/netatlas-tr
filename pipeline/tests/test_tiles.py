@@ -16,7 +16,7 @@ import pytest
 import shapely
 
 from pipeline.btk import OUT_PATH as BTK_PATH
-from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, TILES_PATH
+from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, SETTLEMENT_PATH, TILES_PATH
 from pipeline.common import PROVINCES, ROOT, lonlat_to_tile, normalize_name, quadkey_to_tile, tile_bounds, tile_to_quadkey
 from pipeline.tiles import (
     BORDERS_PATH,
@@ -249,6 +249,17 @@ def test_province_json_matches_the_tables(latest_quarter, expected_periods):
     for row in read_csv(BTK_PATH):
         btk = data["iller"][row["il_kodu"]]["btk"][row["yil"]]
         assert {key: btk[key] for key in CONNECTION_TYPES} == {key: round(float(row[key] or 0)) for key in CONNECTION_TYPES}
+
+
+def test_settlement_json_matches_the_table():
+    """Each province's values per period and settlement type, as iller_yerlesim.csv has them."""
+    data = read_json("iller.json")
+    expected = defaultdict(lambda: defaultdict(dict))
+    for row in read_csv(SETTLEMENT_PATH):
+        expected[row["il_kodu"]][row["donem"]][row["yerlesim"]] = {
+            "test": int(row["test"]), "indirme_mbps": float(row["indirme_mbps"]), "yukleme_mbps": float(row["yukleme_mbps"]),
+            "gecikme_ms": float(row["gecikme_ms"]), "olculen_nufus_payi": float(row["olculen_nufus_payi"])}
+    assert {code: province["yerlesim"] for code, province in data["iller"].items()} == expected
 
 
 def test_district_json_lists_every_district():

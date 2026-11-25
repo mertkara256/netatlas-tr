@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BASE_PATH, CELL_SIZE, NATIONAL, REPO_URL, SITE_ORIGIN } from "@/lib/data";
-import { formatNumber, formatValue, inYear } from "@/lib/format";
+import { formatNumber, formatValue, inYear, percentOf } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, MEASURED_RESIDENTS_SHARE, METRICS, ONE_TILE_SHARE, breakLabels, metricById } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { readProvinces } from "@/lib/serverData";
+import { ratioText, ruralRatio } from "@/lib/settlement";
 import styles from "../pages.module.css";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ const SECTIONS = [
   ["kaynaklar", "Veri kaynakları"],
   ["donemler", "Dönemler ve veri miktarı"],
   ["hesaplama", "Değerler nasıl hesaplanıyor?"],
+  ["kent-kir", "Kent ve kır"],
   ["guvenilirlik", "Güvenilirlik"],
   ["renkler", "Renk ölçeği"],
   ["sinirlamalar", "Sınırlamalar"],
@@ -92,6 +94,18 @@ export default async function MethodPage() {
   const levels = Object.values(CELL_SIZE);
   const current = data.donemler[data.donemler.length - 1];
   const years = data.donemler.slice(0, -1).map((p) => p.id);
+  // Kır's download over yoğun kent's: Türkiye's now and in the first year, and its median over the provinces
+  // where both have enough tests.
+  const settlement = national.yerlesim!;
+  const ruralNow = ruralRatio(settlement[current.id], "indirme_mbps")!;
+  const ruralFirst = ruralRatio(settlement[years[0]], "indirme_mbps")!;
+  const compared = Object.entries(data.iller)
+    .filter(([code]) => code !== NATIONAL)
+    .map(([, p]) => ruralRatio(p.yerlesim?.[current.id], "indirme_mbps"))
+    .filter((ratio): ratio is number => ratio !== null)
+    .sort((a, b) => a - b);
+  const middle = compared.length / 2;
+  const ruralMedian = compared.length % 2 ? compared[Math.floor(middle)] : (compared[middle - 1] + compared[middle]) / 2;
 
   return (
     <main className={styles.page}>
@@ -336,6 +350,72 @@ export default async function MethodPage() {
             başladığı için o yıl fiberi zaten önde olan bir ilde &quot;{data.btk_yillari[0]} ya da önce&quot; yazılır.
             İllerin bu yıla göre haritası <Link href="/fiber/">Fiber</Link> sayfasında.
           </li>
+        </ul>
+      </section>
+
+      <section id="kent-kir" className={styles.prose}>
+        <h2>Kent ve kır</h2>
+        <p>
+          Bir ilin ortalaması kentleriyle kırını tek sayıda birleştirir. Bölge panelindeki &quot;Kent ve kır&quot; bölümü
+          her ilin ve Türkiye&apos;nin değerlerini TÜİK&apos;in kullandığı üç yerleşim türüne ayırır: yoğun kent, orta yoğun
+          kent ve kır. Son dört çeyrekte ({current.aralik}) Türkiye&apos;de kırda ölçülen indirme hızı yoğun kentte
+          ölçülenin {ratioText(ruralNow)}; {inYear(years[0])} bu oran %{formatNumber(ruralFirst * 100)} idi. Aynı dönemde
+          kırda da yoğun kentte de en az {HIGH_TESTS} testi olan {compared.length} ilin ortancasında kırda ölçülen hız
+          yoğun kentte ölçülenin {ratioText(ruralMedian)}.
+        </p>
+        <p>
+          Türler, nüfusun dağılımını veren WorldPop ızgarasından (bkz. <a href="#kaynaklar">kaynaklar</a>), TÜİK&apos;in de
+          kullandığı Eurostat &quot;kentleşme derecesi&quot; yöntemine yakın bir kuralla bulunur. Izgara, Ookla&apos;nın 2 × 2
+          karesinden oluşan ~0,9 km&apos;lik hücrelerde toplanır; bir hücrenin yoğunluğu, nüfusunun hücrenin alanına (km²)
+          bölümüdür.
+        </p>
+        <ul>
+          <li>
+            <strong>Yoğun kent:</strong> km² başına en az 1.500 kişinin yaşadığı, birbirine kenarından değen hücrelerin
+            toplam en az 50.000 kişilik kümeleri.
+          </li>
+          <li>
+            <strong>Orta yoğun kent:</strong> km² başına en az 300 kişinin yaşadığı, birbirine kenarından ya da köşesinden
+            değen hücrelerin toplam en az 5.000 kişilik kümelerinde kalan, yoğun kent olmayan hücreler.
+          </li>
+          <li><strong>Kır:</strong> geri kalan her yer; içinde kimsenin yaşamadığı hücreler de.</li>
+        </ul>
+        <p>
+          Her türün değeri, il değeri gibi, ildeki o türden karelerin cihaz ağırlıklı ortalamasıdır; ölçüme yakın nüfus
+          payı da o türde yaşayanlar için aynı kuralla hesaplanır (bkz. <a href="#hesaplama">hesaplama</a>).{" "}
+          {HIGH_TESTS}&apos;den az testli bir türün hızı gösterilmez. İlçeler türlere ayrılmaz, örnekleri çok küçük kalır; ilçe
+          panelinde ilin değerleri gösterilir. Bu kurala göre Türkiye&apos;de yaşayanların %65,3&apos;ü yoğun kentte,
+          %19,3&apos;ü orta yoğun kentte, %15,5&apos;i kırda yaşıyor; TÜİK&apos;e göre 2025 sonunda bu paylar %67,5, %15,8
+          ve %16,8 (TÜİK, Adrese Dayalı Nüfus Kayıt Sistemi Sonuçları, 2025). Artvin, Bayburt, Gümüşhane, Sinop, Tunceli
+          ve Ardahan&apos;da yoğun kent sayılan yer yok.
+        </p>
+        <p>Bu yaklaşık bir sınıflamadır:</p>
+        <ul>
+          <li>
+            Resmî yöntem 1 km²&apos;lik eşit alanlı bir ızgara kullanır ve yoğun kent kümelerindeki boşlukları doldurur
+            (sekiz komşusundan en az beşi yoğun kent olan hücre kümeye katılır). Burada hücreler Web Mercator karelerine
+            göredir ve boşluk doldurulmaz; doldurmak Türkiye&apos;deki payları 1 puandan az değiştiriyor.
+          </li>
+          <li>
+            TÜİK türleri ızgaradan mahalle ve köylere taşır; burada her hücre kendi türünde kalır. Yerleşimi dağınık illerde
+            kır eksik sayılır: Ağrı&apos;da nüfusun burada %19&apos;u, TÜİK&apos;e göre %37&apos;si kırda.
+          </li>
+          <li>
+            Nüfus ızgarası 2021&apos;den, yani 2023 depremlerinden önceki yerleşimi gösterir. Hatay, Malatya ve
+            Adıyaman&apos;da kırda ve yoğun kentte ölçülen hızlar neredeyse eşit çıkıyor ({MEASURED} döneminde kırdaki hız
+            yoğun kenttekinin %90–101&apos;i).
+          </li>
+          <li>
+            Büyük şehirlerde &quot;kır&quot;ın bir kısmı köy değil, seyrek yapılı dış semtlerdir: {MEASURED} döneminde
+            Ankara&apos;da kırda test yapan cihazların yarıdan fazlası Gölbaşı&apos;nda ve Yenimahalle ile Çankaya&apos;nın
+            kent dışında kalan kesimlerindeydi.
+          </li>
+          <li>
+            Kırda yaşayanların yalnızca {percentOf(Math.round(settlement[current.id].kir!.olculen_nufus_payi * 100))} ölçüm
+            yapılan karelerde ya da hemen yanlarında oturuyor ({current.aralik}); yoğun kentte neredeyse hepsi. Kırın hızı,
+            kırın ölçülen kesiminin hızıdır.
+          </li>
+          <li>Yazlıkçıların ve turistlerin testleri de kıra düşebilir.</li>
         </ul>
       </section>
 

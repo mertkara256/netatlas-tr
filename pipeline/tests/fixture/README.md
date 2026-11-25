@@ -1,12 +1,13 @@
 # Sample for the pipeline tests
 
-A small input for `pipeline/build.py`. `../conftest.py` runs the build on it once per test session, so assigning squares to provinces and districts, pooling quarters into periods, and the province, district and national values are tested on every pull request, without the downloaded data. Each square has one job, and the tests compare the result with numbers worked out by hand (`../test_sample_build.py`, and the hand calculations in `../test_build.py` and the cell checks in `../test_tiles.py`).
+A small input for `pipeline/build.py`. `../conftest.py` runs the build on it once per test session, so assigning squares to provinces and districts, pooling quarters into periods, and the province, district and national values are tested on every pull request, without the downloaded data. Each square has one job, and the tests compare the result with numbers worked out by hand (`../test_sample_build.py`, and the hand calculations in `../test_build.py` and the cell checks in `../test_tiles.py`). One more run adds the towns of `yerlesim.csv` for the settlement types (`../test_settlement.py`).
 
 ## Files
 
 - `ilceler.geojson`: district shapes clipped to three windows of whole zoom-16 squares by `clip_boundaries.py`, so each square in a window has the same land share as in the full data. Only `ilce_kodu` and `il_kodu` are kept; `build.py` takes the names from `data/processed/ilceler.csv`.
 - `ookla.csv`: one row per square and quarter, with Ookla's columns. `x` and `y` place the square on the zoom-16 tile grid; `conftest.py` turns them into quadkeys and writes one file per quarter, as `pipeline.ookla` does.
 - `nufus.csv`: residents per square, written as the table `pipeline.population` makes.
+- `yerlesim.csv`: more residents in the same columns, for the settlement types (`pipeline/settlement.py`); only the run that tests them adds them.
 - `clip_boundaries.py`: remakes `ilceler.geojson` from the full shapes.
 
 ## Windows
@@ -47,6 +48,25 @@ A small input for `pipeline/build.py`. `../conftest.py` runs the build on it onc
 The squares that must be left out carry 50 tests at 999 Mbps, so a leak shows in every total.
 
 The quarters run from 2025 Q1 to 2026 Q1. The build runs twice: on all five quarters (periods "2025" and "guncel", 2025 Q2 – 2026 Q1) and without 2026 Q1 (only "guncel", 2025 Q1–Q4, because the year would repeat it).
+
+## Towns, for the settlement types
+
+`yerlesim.csv` places towns around Adapazarı and to its south-east. A settlement type belongs to a cell of 2x2 squares (zoom 15), about 0.854 km² here, so a cell's residents are those of its four squares. Squares east of x 38275 or south of y 24608 lie outside the clipped shapes: like Qamishli they are left out of every province, but their residents still count towards the towns, as residents along a coast or border do in the full data.
+
+| Square | Its cell's residents | Type | What it checks |
+|---|---|---|---|
+| `town_core` | 30,070 with `adapazari_b` | yoğun kent | With `town_core_east` (25,000) and `town_edge_over`, a cluster of 56,360 joined through edges: `adapazari_b`'s tests are yoğun kent |
+| `town_edge_over` | 1,290: 1,511 per km² | yoğun kent | Just over 1,500 per km², on the cluster's edge: joins it |
+| `town_edge_under` | 1,270 with `adapazari_a`: 1,488 per km² | orta yoğun kent | Just under 1,500, beside the cluster: `adapazari_a`'s tests are orta yoğun kent |
+| `town_ring_over` | 265 with `serdivan_junction`: 310 per km² | orta yoğun kent | Just over 300, beside the cluster: `serdivan_junction`'s tests are orta yoğun kent |
+| `town_ring_under` | 245: 287 per km² | kır | Just under 300, beside the cluster: `izmit_2025q1`'s tests are kır |
+| `corner_pair_a`, `corner_pair_b` | 26,000 each | orta yoğun kent | 52,000 together, but the cells touch only at a corner: no yoğun kent cluster, one orta yoğun kent cluster |
+| `edge_pair_a`, `edge_pair_b` | 24,900 each | orta yoğun kent | Joined through an edge, 49,800: just under 50,000 |
+| `small_town_under` | 4,900 | kır | Dense, but alone and under 5,000 |
+| `small_town_over` | 5,100 | orta yoğun kent | Alone and over 5,000 |
+| `corner_of_small_town` | 512 | orta yoğun kent | Touches `small_town_over` only at a corner, which joins it to that cluster |
+
+Every other cell of the sample is kır: İstanbul's, Kocaeli's and Mardin's tests, and Sakarya's residents in `serdivan_west` and `serdivan_south`, who have no kır tests in their province.
 
 ## Sources and licences
 

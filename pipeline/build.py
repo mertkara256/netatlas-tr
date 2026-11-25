@@ -19,6 +19,9 @@ Each area also gets its residents (WorldPop, see population.py) and the share of
 or next to a tile with at least one test in the period: how much of the area's population the
 measurements stand for. Residents are assigned tile by tile, the same way as the tests.
 
+Provinces and Türkiye are also split by settlement type (settlement.py): each type's values are
+worked out as the whole province's are, from its tiles and residents of that type.
+
 A tile counts for Türkiye when at least 20% of its area is Turkish land. Coastal tiles whose
 centre is offshore stay in; tiles across a land border (e.g. Qamishli) stay out. It goes to the
 province holding most of that land, then to that province's district holding most of it.
@@ -29,6 +32,7 @@ Outputs:
     data/processed/kareler.parquet    one row per tile and period (large, not in git)
     data/processed/iller_hiz.csv      one row per province and period; il_kodu 00 is Türkiye
     data/processed/ilceler_hiz.csv    one row per district and period
+    data/processed/iller_yerlesim.csv one row per province, settlement type and period with tests
 """
 from __future__ import annotations
 
@@ -47,10 +51,12 @@ from .boundaries import DISTRICT_LIST_PATH, DISTRICTS_PATH
 from .common import PROCESSED_DIR, PROVINCES, quadkey_to_tile, tile_bounds
 from .ookla import OUT_DIR, output_path
 from .population import OUT_PATH as POPULATION_PATH
+from .settlement import TYPES, cell_types, tile_types
 
 TILES_PATH = PROCESSED_DIR / "kareler.parquet"
 PROVINCE_PATH = PROCESSED_DIR / "iller_hiz.csv"
 DISTRICT_PATH = PROCESSED_DIR / "ilceler_hiz.csv"
+SETTLEMENT_PATH = PROCESSED_DIR / "iller_yerlesim.csv"
 NATIONAL = "00"
 MIN_LAND_SHARE = 0.2
 # Split-half check (2024 and the current period; median gap between the Q1+Q3 and Q2+Q4 means):
@@ -194,6 +200,12 @@ def area_totals(pooled: pa.Table, key: str) -> dict[str, list[float]]:
     return {code: list(row) for code, *row in zip(grouped[key].to_pylist(), *columns, strict=True)}
 
 
+def add_national(provinces: dict[str, list[float]]) -> None:
+    """Türkiye adds up its provinces' area_totals(); its largest tile is the largest of theirs."""
+    columns = list(zip(*provinces.values(), strict=True))
+    provinces[NATIONAL] = [sum(col) for col in columns[:-1]] + [max(columns[-1])]
+
+
 def grid_ids(quadkeys: list[str]) -> np.ndarray:
     """y * 2^16 + x of each zoom-16 quadkey, so neighbouring tiles are a fixed number apart."""
     xy = np.array([quadkey_to_tile(q)[:2] for q in quadkeys], dtype=np.int64)
@@ -212,6 +224,24 @@ def residents_by(tiles: pa.Table, key: str) -> dict[str, float]:
     return dict(zip(grouped[key].to_pylist(), grouped["nufus_sum"].to_pylist(), strict=True))
 
 
+def settlement_rows(period: str, pooled: pa.Table, population: pa.Table, measured_tiles: pa.Table) -> list[list]:
+    """Each province's and Türkiye's values in each settlement type, from the tiles and residents of that
+    type alone. A resident counts as measured next to a measured tile of any type."""
+    rows = []
+    for kind in TYPES:
+        tiles, people, near = (t.filter(pc.equal(t["yerlesim"], kind)) for t in (pooled, population, measured_tiles))
+        provinces = area_totals(tiles, "il_kodu")
+        if not provinces:  # no tests of this type anywhere, as in parts of the test sample
+            continue
+        add_national(provinces)
+        residents, measured = residents_by(people, "il_kodu"), residents_by(near, "il_kodu")
+        residents[NATIONAL], measured[NATIONAL] = sum(residents.values()), sum(measured.values())
+        for code, totals in provinces.items():
+            name = "Türkiye" if code == NATIONAL else PROVINCES[code]
+            rows.append([code, name, kind, period] + values(*totals, residents[code], measured.get(code, 0.0)))
+    return sorted(rows, key=lambda row: (row[0], TYPES.index(row[2])))
+
+
 def main() -> None:
     quarters = available_quarters()
     period_quarters = periods(quarters)
@@ -219,29 +249,31 @@ def main() -> None:
     population = pq.read_table(POPULATION_PATH)
     quadkeys = pc.unique(pa.concat_arrays([t["quadkey"].combine_chunks() for t in [*data.values(), population]]))
     assignment = assign(quadkeys.to_pylist())
+    # From the whole grid, before the squares outside Türkiye are left out.
+    settlement = cell_types(population)
     population = population.join(assignment, "quadkey", join_type="inner")
+    population = population.append_column("yerlesim", tile_types(population["quadkey"], settlement))
     population_ids = grid_ids(population["quadkey"].to_pylist())
     residents = {key: residents_by(population, key) for key in ("il_kodu", "ilce_kodu")}
 
     with DISTRICT_LIST_PATH.open(encoding="utf-8") as f:
         district_names = {d["ilce_kodu"]: d for d in csv.DictReader(f)}
 
-    tiles, province_rows, district_rows = [], [], []
+    tiles, province_rows, district_rows, type_rows = [], [], [], []
     for period, members in period_quarters.items():
         pooled = (pa.concat_tables([data[q] for q in members])
                   .group_by("quadkey").aggregate([(c, "sum") for c in SUMS])
                   .rename_columns(["quadkey"] + SUMS)
                   .join(assignment, "quadkey", join_type="inner")
                   .sort_by("quadkey"))
+        pooled = pooled.append_column("yerlesim", tile_types(pooled["quadkey"], settlement))
         tiles.append(tile_table(period, pooled))
 
         measured_tiles = population.filter(near_measured(population_ids, grid_ids(pooled["quadkey"].to_pylist())))
         measured = {key: residents_by(measured_tiles, key) for key in ("il_kodu", "ilce_kodu")}
 
         provinces = area_totals(pooled, "il_kodu")
-        # Türkiye adds up its provinces; its largest tile is the largest of theirs.
-        columns = list(zip(*provinces.values(), strict=True))
-        provinces[NATIONAL] = [sum(col) for col in columns[:-1]] + [max(columns[-1])]
+        add_national(provinces)
         people = {code: (residents["il_kodu"][code], measured["il_kodu"].get(code, 0.0)) for code in PROVINCES}
         people[NATIONAL] = tuple(map(sum, zip(*people.values(), strict=True)))
         for code, totals in sorted(provinces.items()):
@@ -251,6 +283,7 @@ def main() -> None:
             d = district_names[code]
             district_rows.append([code, d["il_kodu"], d["il"], d["ilce"], period]
                                  + values(*totals, residents["ilce_kodu"][code], measured["ilce_kodu"].get(code, 0.0)))
+        type_rows += settlement_rows(period, pooled, population, measured_tiles)
 
         n = provinces[NATIONAL]
         print(f"{period:>6} ({members[0][0]} Q{members[0][1]}-{members[-1][0]} Q{members[-1][1]}): "
@@ -260,12 +293,13 @@ def main() -> None:
     for path, header, rows in [
         (PROVINCE_PATH, ["il_kodu", "il", "donem"], province_rows),
         (DISTRICT_PATH, ["ilce_kodu", "il_kodu", "il", "ilce", "donem"], district_rows),
+        (SETTLEMENT_PATH, ["il_kodu", "il", "yerlesim", "donem"], type_rows),
     ]:
         with path.open("w", newline="", encoding="utf-8") as out:
             writer = csv.writer(out)
             writer.writerow(header + VALUE_COLUMNS)
             writer.writerows(rows)
-    print(f"{len(province_rows)} province rows, {len(district_rows)} district rows, "
+    print(f"{len(province_rows)} province rows, {len(district_rows)} district rows, {len(type_rows)} settlement type rows, "
           f"{TILES_PATH.stat().st_size / 1e6:.0f} MB tile table")
 
 
