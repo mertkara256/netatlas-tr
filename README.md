@@ -30,7 +30,7 @@ It shows what people actually measured in an area, not the maximum speed availab
 
 ## Data files
 
-- [`data/processed/`](data/processed) has the tables behind the site as CSV: speeds per province (`iller_hiz.csv`) and district (`ilceler_hiz.csv`) for every period, BTK's statistics per province and year (`btk_iller.csv`), and the list of districts (`ilceler.csv`).
+- [`data/processed/`](data/processed) has the tables behind the site as CSV: speeds per province (`iller_hiz.csv`) and district (`ilceler_hiz.csv`) for every period, per province and settlement type (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), BTK's statistics per province and year (`btk_iller.csv`), and the list of districts (`ilceler.csv`).
 - [Releases](https://github.com/mertkara256/netatlas-tr/releases) hold the files the site loads: the map tiles (PMTiles) and the province, district and search JSON. `web/data-release.txt` names the release the site uses.
 
 ## Running locally
@@ -93,7 +93,7 @@ Belirli bir adrese verilebilecek en yüksek hızı değil, bir bölgede insanlar
 
 ### Veri dosyaları
 
-- [`data/processed/`](data/processed) sitenin arkasındaki tabloları CSV olarak içerir: her dönem için il (`iller_hiz.csv`) ve ilçe (`ilceler_hiz.csv`) hızları, il ve yıla göre BTK istatistikleri (`btk_iller.csv`) ve ilçe listesi (`ilceler.csv`).
+- [`data/processed/`](data/processed) sitenin arkasındaki tabloları CSV olarak içerir: her dönem için il (`iller_hiz.csv`) ve ilçe (`ilceler_hiz.csv`) hızları, il ve yerleşim türüne göre hızlar (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), il ve yıla göre BTK istatistikleri (`btk_iller.csv`) ve ilçe listesi (`ilceler.csv`).
 - Sitenin yüklediği dosyalar, yani harita karoları (PMTiles) ve il, ilçe ve arama JSON'ları [Releases](https://github.com/mertkara256/netatlas-tr/releases) altında. Sitenin hangi sürümü kullandığı `web/data-release.txt`'de yazar.
 
 ### Yerelde çalıştırma
