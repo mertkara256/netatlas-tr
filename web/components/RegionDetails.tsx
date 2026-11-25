@@ -51,7 +51,8 @@ function ConnectionMix({ btk, theme }: { btk: Record<string, BtkValues>; theme: 
       <p className={styles.note}>
         {lead
           ? `Fiber abonelikleri telefon hattı aboneliklerini ${inYear(lead.since)}${lead.fromStart ? " ya da daha önce" : ""} geçti.`
-          : "Telefon hattı abonelikleri hâlâ fiberden fazla."}
+          : "Telefon hattı abonelikleri hâlâ fiberden fazla."}{" "}
+        <Link href="/fiber/">Fiber haritası</Link>
       </p>
     </div>
   );

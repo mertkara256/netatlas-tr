@@ -75,7 +75,7 @@ export default async function ProvincesPage() {
       <p className={styles.footnote}>
         {current.ad}: {periodText(current)}. Hız: Speedtest® by Ookla® açık verisi, cihaz ağırlıklı ortalama. Erişim: BTK.
         Fiber öne geçti: o yıldan beri fiber abonelikleri telefon hattı (ADSL/VDSL) aboneliklerinden fazla; BTK verisi{" "}
-        {inYear(data.btk_yillari[0])} başlıyor.
+        {inYear(data.btk_yillari[0])} başlıyor. <Link href="/fiber/">Fiber haritası</Link>.
       </p>
     </main>
   );

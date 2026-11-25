@@ -339,6 +339,7 @@ export default function Atlas({ periods }: { periods: PeriodInfo[] }) {
         <SearchBox onPick={pickPlace} />
         <nav className={styles.nav} aria-label="Sayfalar">
           <Link className={styles.navLink} href="/il/">İller</Link>
+          <Link className={`${styles.navLink} ${styles.navWide}`} href="/fiber/">Fiber</Link>
           <Link className={styles.navLink} href="/yontem/">Yöntem</Link>
           <a className={styles.navLink} href={REPO_URL}>Kaynak kodu</a>
         </nav>

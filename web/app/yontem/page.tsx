@@ -334,6 +334,7 @@ export default async function MethodPage() {
             Metro Ethernet, ATM ve BPL). &quot;Fiber öne geçti&quot;, fiber aboneliklerinin telefon hattı aboneliklerinden
             fazla olduğu ve son yıla kadar fazla kaldığı dönemin ilk yılıdır. BTK verisi {inYear(data.btk_yillari[0])}{" "}
             başladığı için o yıl fiberi zaten önde olan bir ilde &quot;{data.btk_yillari[0]} ya da önce&quot; yazılır.
+            İllerin bu yıla göre haritası <Link href="/fiber/">Fiber</Link> sayfasında.
           </li>
         </ul>
       </section>

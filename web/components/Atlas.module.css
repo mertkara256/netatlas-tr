@@ -44,6 +44,14 @@
   text-underline-offset: 2px;
 }
 
+/* Under 400px the links no longer fit beside the title, and a second row would take height from the
+   map; the fiber page is also linked from every province's panel. */
+@media (max-width: 400px) {
+  .navWide {
+    display: none;
+  }
+}
+
 .loading {
   flex: 1;
   margin: 0;
