@@ -9,6 +9,7 @@ import { formatNumber, formatValue, inYear } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, representationConditions, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { startNearbyRequest, type NearbyRequestResult } from "@/lib/nearby-request";
+import { enoughTests, ratioText, ruralRatio, SETTLEMENT_TYPES, type SettlementKey } from "@/lib/settlement";
 import { useColorScheme } from "@/lib/useColorScheme";
 import TrendChart from "./TrendChart";
 import styles from "./RegionPanel.module.css";
@@ -55,6 +56,79 @@ function ConnectionMix({ btk, theme }: { btk: Record<string, BtkValues>; theme: 
         <Link href="/fiber/">Fiber haritası</Link>
       </p>
     </div>
+  );
+}
+
+// What the sentence under the settlement types calls each metric.
+const SETTLEMENT_NOUN: Record<SettlementKey, string> = { indirme_mbps: "indirme hızı", yukleme_mbps: "yükleme hızı", gecikme_ms: "gecikme" };
+
+/** The selected period's values by settlement type (lib/settlement.ts), each beside Türkiye's, and how kır
+ *  compares with yoğun kent. Provinces only: a district shows its province's, as its samples would be small. */
+function SettlementSection({ province, national, isDistrict, period, metric }: {
+  province: Area;
+  national: Area;
+  isDistrict: boolean;
+  period: PeriodInfo;
+  metric: Metric;
+}) {
+  const types = province.yerlesim?.[period.id];
+  const nationalTypes = national.yerlesim?.[period.id];
+  if (!types || !nationalTypes) return null;
+  // Test counts have a column of their own, so that view shows download.
+  const shown = metric.id === "guvenilirlik" ? DOWNLOAD : metric;
+  const key = shown.areaKey as SettlementKey;
+  const ratio = ruralRatio(types, key);
+  const nationalRatio = ruralRatio(nationalTypes, key)!;
+  const noun = SETTLEMENT_NOUN[key];
+
+  return (
+    <section>
+      <h3>Kent ve kır <span className={styles.muted}>{periodText(period)}</span></h3>
+      {isDistrict && <p className={styles.note}>Kent-kır değerleri il düzeyinde; değerler {province.ad} il geneli.</p>}
+      <table className={styles.types}>
+        <thead>
+          <tr>
+            <th scope="col"><span className={styles.srOnly}>Yerleşim</span></th>
+            <th scope="col">{shown.label}</th>
+            <th scope="col">Test</th>
+            <th scope="col">Ölçüme yakın nüfus</th>
+          </tr>
+        </thead>
+        <tbody>
+          {SETTLEMENT_TYPES.map(({ key: type, label }) => {
+            const v = types[type];
+            const n = nationalTypes[type];
+            return (
+              <tr key={type}>
+                <th scope="row">{label}</th>
+                {v ? (
+                  <>
+                    <td>
+                      {enoughTests(v) ? formatValue(shown, v[key]) : <span className={styles.muted}>yeterli test yok</span>}
+                      {n && <span className={styles.typeNote}>Türkiye {formatNumber(n[key], shown.digits)}</span>}
+                    </td>
+                    <td>{formatNumber(v.test)}</td>
+                    <td>{share(v.olculen_nufus_payi)}</td>
+                  </>
+                ) : (
+                  <td colSpan={3} className={styles.muted}>ölçüm yok</td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className={styles.note}>
+        {ratio === null
+          ? `Türkiye'de kırda ölçülen ${noun} yoğun kentte ölçülenin ${ratioText(nationalRatio)}.`
+          : `Kırda ölçülen ${noun} yoğun kentte ölçülenin ${ratioText(ratio)} (Türkiye'de ${ratioText(nationalRatio)}).`}
+      </p>
+      <p className={styles.note}>
+        Ölçüme yakın nüfus: o yerleşim türünde yaşayanlardan ölçüm yapılan karelerde ya da hemen yanlarında oturanların
+        payı. {HIGH_TESTS}&apos;den az testli türün hızı gösterilmez.{" "}
+        <Link href="/yontem/#kent-kir">Kent ve kır nasıl ayrıldı?</Link>
+      </p>
+    </section>
   );
 }
 
@@ -256,6 +330,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
           </p>
         )}
       </section>
+
+      <SettlementSection province={province} national={national} isDistrict={isDistrict} period={period} metric={metric} />
 
       <section>
         <h3>Erişim · BTK, {lastYear} yıl sonu</h3>

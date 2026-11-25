@@ -23,3 +23,15 @@ export function inYear(year: number | string): string {
   const y = Number(year);
   return `${y}'${y % 10 ? BY_DIGIT[y % 10] : y % 100 ? BY_TENS[(y % 100) / 10] : "de"}`;
 }
+
+// The possessive suffix a whole number takes as it is read aloud, chosen the same way: biri, ikisi, üçü ... dokuzu;
+// onu, yirmisi ... doksanı; yüzü, bini, sıfırı.
+const OF_DIGIT = ["", "i", "si", "ü", "ü", "i", "sı", "si", "i", "u"];
+const OF_TENS = ["", "u", "si", "u", "ı", "si", "ı", "i", "i", "ı"];
+
+/** A whole percentage as it follows a genitive: "%40'ı", "%87'si", "%100'ü". */
+export function percentOf(value: number): string {
+  const suffix = value % 10 ? OF_DIGIT[value % 10] : value % 100 ? OF_TENS[(value % 100) / 10]
+    : value % 1000 ? "ü" : value ? "i" : "ı";
+  return `%${formatNumber(value)}'${suffix}`;
+}
