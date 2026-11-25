@@ -1,4 +1,5 @@
 import type { ExpressionSpecification } from "maplibre-gl";
+import type { ConnectionType } from "./btk";
 import { classIndex, type Metric } from "./metrics";
 
 export type Theme = "light" | "dark";
@@ -30,6 +31,15 @@ export const FEW_TESTS_FILL = 0.25;
 export const CHART: Record<Theme, { area: string; national: string; grid: string; axis: string; muted: string; surface: string }> = {
   light: { area: "#2a78d6", national: "#898781", grid: "#e1e0d9", axis: "#c3c2b7", muted: "#6f6e69", surface: "#fcfcfb" },
   dark: { area: "#3987e5", national: "#898781", grid: "#2c2c2a", axis: "#383835", muted: "#898781", surface: "#1a1a19" },
+};
+
+// BTK's subscriptions by connection type, stacked in CONNECTION_TYPES' order: categorical slots 1, 2, 3 and 7
+// of the reference palette. "Diğer" takes violet rather than slot 4's yellow because in the 57 provinces without
+// cable it sits next to xDSL's orange, and yellow beside orange is too close for colour-blind readers; every pair
+// that can touch in this order passes the palette validator's checks on both surfaces.
+export const CONNECTION_COLORS: Record<Theme, Record<ConnectionType, string>> = {
+  light: { fiber: "#2a78d6", xdsl: "#eb6834", kablo: "#1baf7a", diger: "#6250d6" },
+  dark: { fiber: "#3987e5", xdsl: "#d95926", kablo: "#199e70", diger: "#9085e9" },
 };
 
 /** The legend's edges for a metric, as logarithms: its breaks, with the open-ended classes at both ends given their neighbour's width. */

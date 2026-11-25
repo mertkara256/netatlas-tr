@@ -164,6 +164,50 @@
   font-size: 12px;
 }
 
+/* Subscriptions by connection type: a thin bar of parts 2px apart, rounded at both ends, and a legend
+   with each part's name and share. */
+.mix {
+  margin: 14px 0 0;
+}
+
+.mixBar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  margin: 6px 0 8px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.mixBar span {
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.mixLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.mixLegend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 2px;
+}
+
+.mixLegend b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .chart {
   margin: 14px 0 0;
 }
