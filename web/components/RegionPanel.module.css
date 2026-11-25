@@ -366,6 +366,13 @@
   font-weight: 600;
 }
 
+/* A reference level under the values, such as a target. */
+.chartTable tfoot td {
+  border-bottom: 0;
+  color: var(--ink-2);
+  text-align: left;
+}
+
 .source {
   margin-top: 18px !important;
   color: var(--muted);
