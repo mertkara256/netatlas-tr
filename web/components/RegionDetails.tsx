@@ -132,20 +132,22 @@ function SettlementSection({ province, national, isDistrict, periods, period, me
         <Link href="/yontem/#kent-kir">Kent ve kır nasıl ayrıldı?</Link>
       </p>
       <TrendChart
-        title="Türkiye geneli: yıllara göre ölçülen ortalama indirme hızı"
+        title={`Türkiye geneli: yıllara göre ${shown.title.toLocaleLowerCase("tr-TR")}`}
         data={periods.map((p) => ({
           kisa: shortLabel(p),
           etiket: periodText(p),
-          ...Object.fromEntries(SETTLEMENT_TYPES.map(({ key: type }) => [type, national.yerlesim?.[p.id]?.[type]?.indirme_mbps])),
+          ...Object.fromEntries(SETTLEMENT_TYPES.map(({ key: type }) => [type, national.yerlesim?.[p.id]?.[type]?.[key]])),
         }))}
         lines={SETTLEMENT_TYPES.map(({ key: type, label }) => ({ key: type, name: label, color: SETTLEMENT_COLORS[theme][type] }))}
-        format={(value) => formatValue(DOWNLOAD, value)}
+        format={(value) => formatValue(shown, value)}
         theme={theme}
       />
-      <p className={styles.note}>
-        2025&apos;in son çeyreğinde ölçülen hızlar bir anda yükseldi; nedenini bilmiyoruz.{" "}
-        <Link href="/yontem/#donemler">Ayrıntılar</Link>
-      </p>
+      {(shown.id === "indirme" || shown.id === "yukleme") && (
+        <p className={styles.note}>
+          2025&apos;in son çeyreğinde ölçülen hızlar bir anda yükseldi; nedenini bilmiyoruz.{" "}
+          <Link href="/yontem/#donemler">Ayrıntılar</Link>
+        </p>
+      )}
     </section>
   );
 }
