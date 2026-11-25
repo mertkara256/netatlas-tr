@@ -1,6 +1,6 @@
 # NetAtlas TR
 
-**A home-internet atlas of Türkiye:** measured fixed-broadband speeds on ~475 m grid squares, a reliability flag for every square, change since 2019, and official access statistics per province.
+**An interactive map of home internet speeds across Türkiye,** built from Ookla's Speedtest data since 2019.
 
 [Türkçe](#türkçe)
 
@@ -67,7 +67,7 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 
 ## Türkçe
 
-**Türkiye ev interneti atlası:** Ölçülen sabit internet hızları ~475 m'lik karelerde, her karede güvenilirlik bilgisi, 2019'dan bugüne değişim ve illere göre resmi erişim istatistikleri.
+**Türkiye'de ev interneti hızlarının etkileşimli haritası,** 2019'dan bu yana Ookla'nın Speedtest verileriyle.
 
 > **Site:** https://mertkara256.github.io/netatlas-tr/ · Proje [yol haritasına](docs/YOL-HARITASI.md) göre adım adım geliştirildi.
 
