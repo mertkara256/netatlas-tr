@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FIBER_TARGET, fiberPer100 } from "@/lib/btk";
 import { BASE_PATH, CELL_SIZE, NATIONAL, REPO_URL, SITE_ORIGIN } from "@/lib/data";
 import { formatNumber, formatValue, inYear, percentOf } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, MEASURED_RESIDENTS_SHARE, METRICS, ONE_TILE_SHARE, breakLabels, metricById } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
-import { readProvinces } from "@/lib/serverData";
+import { OECD_SOURCE_URL, readOecd, readProvinces } from "@/lib/serverData";
 import { ratioText, ruralRatio } from "@/lib/settlement";
 import styles from "../pages.module.css";
 
@@ -98,6 +99,11 @@ export default async function MethodPage() {
   const levels = Object.values(CELL_SIZE);
   const current = data.donemler[data.donemler.length - 1];
   const years = data.donemler.slice(0, -1).map((p) => p.id);
+  // The OECD comparison on the fiber page: its quarter ("2025 Ç4") and when the OECD's data was read.
+  const oecd = await readOecd();
+  const oecdQuarter = oecd[0].donem.replace("-Q", " Ç");
+  const oecdAccessed = oecd[0].erisim;
+  const btk2022 = national.btk?.["2022"];
   // Kır's download over yoğun kent's: Türkiye's now and in the first year, and its median over the provinces
   // where both have enough tests.
   const settlement = national.yerlesim!;
@@ -197,6 +203,12 @@ export default async function MethodPage() {
                 <td><a href="https://www.btk.gov.tr/yillik-il-istatistikleri">BTK, Yıllık İl İstatistikleri</a></td>
                 <td>{data.btk_yillari[0]}–{data.btk_yillari[data.btk_yillari.length - 1]}, il düzeyinde, yıl sonu</td>
                 <td>Açık lisans yok (© BTK)</td>
+              </tr>
+              <tr>
+                <th scope="row">Ülke karşılaştırması</th>
+                <td><a href={OECD_SOURCE_URL}>OECD, Broadband and telecom databases</a> (OECD Broadband Portal)</td>
+                <td>38 OECD ülkesi, {oecdQuarter}</td>
+                <td>Atıfla serbest (<a href="https://www.oecd.org/en/about/terms-conditions.html">OECD kullanım şartları</a>)</td>
               </tr>
               <tr>
                 <th scope="row">Nüfusun dağılımı</th>
@@ -353,6 +365,23 @@ export default async function MethodPage() {
             fazla olduğu ve son yıla kadar fazla kaldığı dönemin ilk yılıdır. BTK verisi {inYear(data.btk_yillari[0])}{" "}
             başladığı için o yıl fiberi zaten önde olan bir ilde &quot;{data.btk_yillari[0]} ya da önce&quot; yazılır.
             İllerin bu yıla göre haritası <Link href="/fiber/">Fiber</Link> sayfasında.
+          </li>
+          <li>
+            <strong>Fiber hedefi:</strong> 100 kişiye fiber abonelik = fiber abonelik ÷ nüfus × 100. Bu, 12. Kalkınma
+            Planı&apos;nın (2024–2028) &quot;fiber genişbant abone yaygınlığı&quot; ölçüsüdür: planın{" "}
+            <a href={FIBER_TARGET.url}>Tablo 28&apos;i</a> (s. 133) onu abone sayısının nüfusa oranı diye tanımlar ve 2022
+            için 6,7, 2023 için tahmini 7,42, {FIBER_TARGET.year} için hedef olarak {formatNumber(FIBER_TARGET.value, 1)}{" "}
+            verir.{btk2022 && ` BTK verisiyle 2022 değeri ${formatNumber(fiberPer100(btk2022), 2)} çıkar, plandakiyle tutar.`}{" "}
+            Hedef Türkiye geneli içindir; Fiber sayfası illeri onunla karşılaştırmaz.
+          </li>
+          <li>
+            <strong>OECD karşılaştırması:</strong> OECD&apos;nin geniş bant veritabanından, 38 üye ülkenin 100 kişiye sabit
+            genişbant aboneliği ve fiberin (Fibre/LAN) sabit abonelikteki payı, {oecdQuarter}. Tanımlar bu sitedekilerle
+            aynıdır. OECD&apos;de Türkiye&apos;nin abonelik sayıları BTK&apos;nınkilerle birebir aynıdır (2025 Ç4: 20.999.895
+            sabit, 9.845.226 fiber), ama OECD 100 kişiye düşen değerleri kendi nüfus tahminiyle hesaplar. Bu yüzden 2025
+            Ç4&apos;te Türkiye&apos;nin 100 kişiye sabit aboneliği OECD&apos;de 23,74, fiberi 11,13; bu sitede BTK&apos;nın
+            nüfusuyla 24,39 ve 11,44. Fiber payı ikisinde de %46,88&apos;dir. Fiber sayfası OECD&apos;nin sayılarını
+            OECD&apos;nin sayıları olarak gösterir, BTK&apos;nınkilerle aynı grafiğe koymaz. Tablo elle güncellenir.
           </li>
         </ul>
       </section>
@@ -602,8 +631,9 @@ export default async function MethodPage() {
           Bir dönemde hiç ölçümü olmayan bir ilçenin o dönem için satırı yoktur; yerleşim türü dosyasında da bir türde o
           dönem test yoksa o türün satırı yoktur. Artvin, Bayburt, Gümüşhane, Sinop, Tunceli ve Ardahan&apos;da yoğun kent
           sayılan yer olmadığı için bu illerin yoğun kent satırı hiç yoktur. BTK&apos;nın il istatistikleri ve ilçe
-          listesi de <a href={`${REPO_URL}/tree/main/data/processed`}>GitHub&apos;daki veri klasöründedir</a>. Dosyalar her
-          veri güncellemesiyle yenilenir ve aşağıdaki lisansla kullanılabilir.
+          listesi ile OECD karşılaştırması (<code>oecd_genisbant.csv</code>) de{" "}
+          <a href={`${REPO_URL}/tree/main/data/processed`}>GitHub&apos;daki veri klasöründedir</a>. Dosyalar her
+          veri güncellemesiyle yenilenir (OECD karşılaştırması elle güncellenir) ve aşağıdaki lisansla kullanılabilir.
         </p>
       </section>
 
@@ -629,12 +659,18 @@ export default async function MethodPage() {
             estimates for Turkey using UN COD-PS estimates 2021, version 1.0. WorldPop, University of Southampton.
             doi:10.5258/SOTON/WP00758. CC BY 4.0.
           </li>
+          <li>
+            Ülke karşılaştırması: OECD ({oecdAccessed.slice(0, 4)}), Broadband and telecom databases, OECD Data Explorer,{" "}
+            <a href={OECD_SOURCE_URL}>data-explorer.oecd.org</a> (erişim: {date(oecdAccessed, "tr-TR")}). OECD&apos;nin{" "}
+            <a href="https://www.oecd.org/en/about/terms-conditions.html">kullanım şartları</a> veriyi atıfla yeniden
+            kullanmaya izin verir.
+          </li>
           <li>İl ve ilçe sınırları: OCHA COD-AB Türkiye, kaynağı Harita Genel Müdürlüğü, CC BY-IGO.</li>
           <li>İlçe adları: © OpenStreetMap katkıcıları (ODbL), geoBoundaries üzerinden (Runfola ve diğ., 2020).</li>
           <li>Altlık harita: OpenFreeMap, © OpenMapTiles, © OpenStreetMap katkıcıları.</li>
           <li>Sitenin kodu <a href={REPO_URL}>GitHub&apos;da</a> MIT lisansıyla açıktır.</li>
         </ul>
-        <p className={styles.footnote}>NetAtlas TR; Ookla, BTK ya da OCHA ile bağlantılı değildir.</p>
+        <p className={styles.footnote}>NetAtlas TR; Ookla, BTK, OECD ya da OCHA ile bağlantılı değildir.</p>
       </section>
     </main>
   );

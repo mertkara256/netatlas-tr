@@ -29,9 +29,12 @@ export function inYear(year: number | string): string {
 const OF_DIGIT = ["", "i", "si", "ü", "ü", "i", "sı", "si", "i", "u"];
 const OF_TENS = ["", "u", "si", "u", "ı", "si", "ı", "i", "i", "ı"];
 
-/** A whole percentage as it follows a genitive: "%40'ı", "%87'si", "%100'ü". */
-export function percentOf(value: number): string {
+/** A whole number as it follows a genitive: "81 ilin 17'si", "40'ı", "100'ü". */
+export function countOf(value: number): string {
   const suffix = value % 10 ? OF_DIGIT[value % 10] : value % 100 ? OF_TENS[(value % 100) / 10]
     : value % 1000 ? "ü" : value ? "i" : "ı";
-  return `%${formatNumber(value)}'${suffix}`;
+  return `${formatNumber(value)}'${suffix}`;
 }
+
+/** A whole percentage as it follows a genitive: "%40'ı", "%87'si", "%100'ü". */
+export const percentOf = (value: number): string => `%${countOf(value)}`;
