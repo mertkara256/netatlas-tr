@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadLib } from "./load.mjs";
 
-const { enoughTests, ratioText, ruralRatio, SETTLEMENT_TYPES } = loadLib("settlement");
+const { enoughTests, ratioText, ruralRatio, SETTLEMENT_TYPES, typesIn } = loadLib("settlement");
 const { percentOf } = loadLib("format");
 
 // Türkiye in the current period (2025 Ç4 – 2026 Ç3).
@@ -53,4 +53,12 @@ test("a percentage takes the possessive suffix it is read aloud with", () => {
     48: "%48'i", 56: "%56'sı", 100: "%100'ü", 101: "%101'i", 110: "%110'u", 200: "%200'ü", 1000: "%1.000'i",
   };
   for (const [value, text] of Object.entries(expected)) assert.equal(percentOf(Number(value)), text, value);
+});
+
+test("a province has the types with tests in any period, not only the selected one", () => {
+  const { kir, orta_yogun_kent } = TURKIYE;
+  // Tunceli has no yoğun kent; another province had no kır tests in 2019 alone.
+  assert.deepEqual([...typesIn({ yerlesim: { 2019: { orta_yogun_kent, kir }, guncel: { orta_yogun_kent, kir } } })].sort(), ["kir", "orta_yogun_kent"]);
+  assert.deepEqual([...typesIn({ yerlesim: { 2019: { orta_yogun_kent }, guncel: { orta_yogun_kent, kir } } })].sort(), ["kir", "orta_yogun_kent"]);
+  assert.equal(typesIn({}).size, 0);
 });

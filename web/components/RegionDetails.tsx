@@ -9,7 +9,7 @@ import { formatNumber, formatValue, inYear } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, representationConditions, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
 import { startNearbyRequest, type NearbyRequestResult } from "@/lib/nearby-request";
-import { enoughTests, ratioText, ruralRatio, SETTLEMENT_TYPES, type SettlementKey } from "@/lib/settlement";
+import { enoughTests, ratioText, ruralRatio, SETTLEMENT_TYPES, typesIn, type SettlementKey } from "@/lib/settlement";
 import { useColorScheme } from "@/lib/useColorScheme";
 import TrendChart from "./TrendChart";
 import styles from "./RegionPanel.module.css";
@@ -83,6 +83,7 @@ function SettlementSection({ province, national, isDistrict, periods, period, me
   const ratio = ruralRatio(types, key);
   const nationalRatio = ruralRatio(nationalTypes, key)!;
   const noun = SETTLEMENT_NOUN[key];
+  const present = typesIn(province);
 
   return (
     <section>
@@ -114,7 +115,7 @@ function SettlementSection({ province, national, isDistrict, periods, period, me
                     <td>{share(v.olculen_nufus_payi)}</td>
                   </>
                 ) : (
-                  <td colSpan={3} className={styles.muted}>ölçüm yok</td>
+                  <td colSpan={3} className={styles.muted}>{present.has(type) ? "ölçüm yok" : "bu ilde yok"}</td>
                 )}
               </tr>
             );
