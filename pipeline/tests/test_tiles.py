@@ -15,9 +15,20 @@ import pyarrow.parquet as pq
 import pytest
 import shapely
 
+from pipeline.btk import OUT_PATH as BTK_PATH
 from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, TILES_PATH
 from pipeline.common import PROVINCES, ROOT, lonlat_to_tile, normalize_name, quadkey_to_tile, tile_bounds, tile_to_quadkey
-from pipeline.tiles import BORDERS_PATH, FOOTPRINT_DEPTH, LEVELS, MAX_ZOOM, OUT_DIR, cell_features, cells_path, tile_zooms
+from pipeline.tiles import (
+    BORDERS_PATH,
+    CONNECTION_TYPES,
+    FOOTPRINT_DEPTH,
+    LEVELS,
+    MAX_ZOOM,
+    OUT_DIR,
+    cell_features,
+    cells_path,
+    tile_zooms,
+)
 
 
 def read_json(name):
@@ -234,6 +245,10 @@ def test_province_json_matches_the_tables(latest_quarter, expected_periods):
         for btk in province["btk"].values():
             assert btk["abone_100"] == pytest.approx(btk["sabit_genisbant"] / btk["nufus"] * 100, abs=0.01)
             assert 0 < btk["fiber_payi"] < 1
+    # Subscriptions by connection type, a blank in BTK's table (no cable in the province) as 0.
+    for row in read_csv(BTK_PATH):
+        btk = data["iller"][row["il_kodu"]]["btk"][row["yil"]]
+        assert {key: btk[key] for key in CONNECTION_TYPES} == {key: round(float(row[key] or 0)) for key in CONNECTION_TYPES}
 
 
 def test_district_json_lists_every_district():

@@ -151,9 +151,15 @@ def speed_values(row: dict) -> dict:
             "olculen_nufus_payi": float(row["olculen_nufus_payi"])}
 
 
+CONNECTION_TYPES = ["fiber", "xdsl", "kablo", "diger"]
+
+
 def btk_values(row: dict) -> dict:
     population, fixed = float(row["nufus"]), float(row["sabit_genisbant"])
-    return {"nufus": int(population), "sabit_genisbant": round(fixed),
+    # Fixed subscriptions by connection type. BTK leaves a type blank where a province has none
+    # (cable in 57 provinces): the other types then add up to the total.
+    types = {key: round(float(row[key] or 0)) for key in CONNECTION_TYPES}
+    return {"nufus": int(population), "sabit_genisbant": round(fixed), **types,
             "abone_100": round(fixed / population * 100, 2), "fiber_payi": round(float(row["fiber"]) / fixed, 3)}
 
 
