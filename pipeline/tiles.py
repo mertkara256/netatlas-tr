@@ -15,6 +15,7 @@ Outputs (web/public/data/, not in git):
     kareler-<period>.pmtiles  layer "hucreler": one period's speed cells (kareler-2019 ... kareler-guncel)
     iller.json       periods, Ookla's access date and quarters (for its attribution), then Türkiye
                      and the 81 provinces: speeds per period, the same per settlement type, BTK per year
+                     (with subscriptions per 100 households from TÜİK's average household size)
     ilceler.json     the 973 districts: speeds per period
     arama.json       province and district names for search, with bounding boxes
 """
@@ -38,6 +39,7 @@ from .btk import OUT_PATH as BTK_PATH
 from .build import DISTRICT_PATH, PROVINCE_PATH, SETTLEMENT_PATH, TILES_PATH, available_quarters, periods
 from .common import ROOT, normalize_name, quadkey_to_tile
 from .ookla import output_path
+from .tuik import OUT_PATH as HOUSEHOLD_PATH
 
 OUT_DIR = ROOT / "web" / "public" / "data"
 BORDERS_PATH = OUT_DIR / "sinirlar.pmtiles"
@@ -160,13 +162,16 @@ def settlement_values(row: dict) -> dict:
 CONNECTION_TYPES = ["fiber", "xdsl", "kablo", "diger"]
 
 
-def btk_values(row: dict) -> dict:
-    population, fixed = float(row["nufus"]), float(row["sabit_genisbant"])
+def btk_values(row: dict, household_size: float) -> dict:
+    population, fixed, fiber = float(row["nufus"]), float(row["sabit_genisbant"]), float(row["fiber"])
     # Fixed subscriptions by connection type. BTK leaves a type blank where a province has none
     # (cable in 57 provinces): the other types then add up to the total.
     types = {key: round(float(row[key] or 0)) for key in CONNECTION_TYPES}
+    # BTK's population is TÜİK's (ADNKS), so dividing it by TÜİK's average household size that year gives households.
+    households = population / household_size
     return {"nufus": int(population), "sabit_genisbant": round(fixed), **types,
-            "abone_100": round(fixed / population * 100, 2), "fiber_payi": round(float(row["fiber"]) / fixed, 3)}
+            "abone_100": round(fixed / population * 100, 2), "fiber_payi": round(fiber / fixed, 3),
+            "abone_100_hane": round(fixed / households * 100, 2), "fiber_100_hane": round(fiber / households * 100, 2)}
 
 
 def ookla_source(quarters: list[tuple[int, int]]) -> dict:
@@ -220,9 +225,13 @@ def main() -> None:
     # Per period, the settlement types with tests in it (build.py), in yoğun kent, orta yoğun kent, kır order.
     for row in read_csv(SETTLEMENT_PATH):
         provinces[row["il_kodu"]]["yerlesim"].setdefault(row["donem"], {})[row["yerlesim"]] = settlement_values(row)
+    household_size = {(row["il_kodu"], row["yil"]): float(row["ortalama_hane_buyuklugu"]) for row in read_csv(HOUSEHOLD_PATH)}
     btk_years = set()
     for row in read_csv(BTK_PATH):
-        provinces[row["il_kodu"]]["btk"][row["yil"]] = btk_values(row)
+        key = (row["il_kodu"], row["yil"])
+        if key not in household_size:
+            raise SystemExit(f"no household size for {key} in {HOUSEHOLD_PATH.name}: rerun `python -m pipeline.tuik`")
+        provinces[row["il_kodu"]]["btk"][row["yil"]] = btk_values(row, household_size[key])
         btk_years.add(int(row["yil"]))
     write_json("iller.json", {
         "donemler": [{"id": p, "ad": "Güncel" if p == "guncel" else p, "aralik": period_label(p, q)}

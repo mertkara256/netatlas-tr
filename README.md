@@ -30,8 +30,9 @@ It shows what people actually measured in an area, not the maximum speed availab
 
 ## Data files
 
-- [`data/processed/`](data/processed) has the tables behind the site as CSV: speeds per province (`iller_hiz.csv`) and district (`ilceler_hiz.csv`) for every period, per province and settlement type (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), BTK's statistics per province and year (`btk_iller.csv`), the list of districts (`ilceler.csv`), and fixed-broadband subscriptions per 100 inhabitants and fiber's share in the 38 OECD members (`oecd_genisbant.csv`, from the OECD's broadband database, for the fiber page).
+- [`data/processed/`](data/processed) has the tables behind the site as CSV: speeds per province (`iller_hiz.csv`) and district (`ilceler_hiz.csv`) for every period, per province and settlement type (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), BTK's statistics per province and year (`btk_iller.csv`), the list of districts (`ilceler.csv`), and fixed-broadband subscriptions per 100 inhabitants and fiber's share in the 38 OECD members (`oecd_genisbant.csv`, from the OECD's broadband database, for the fiber page), and TÜİK's average household size per province and year (`tuik_hane.csv`, for subscriptions per 100 households).
 - `oecd_genisbant.csv` is not part of the weekly data update; refresh it by hand with `uv run --locked python -m pipeline.oecd`, which takes the last quarter of the latest full year.
+- `tuik_hane.csv` is not part of the weekly data update either. TÜİK's server refuses downloads outside a browser, so save the table "İllere Göre Ortalama Hanehalkı Büyüklüğü" from [TÜİK's ADNKS bulletin](https://veriportali.tuik.gov.tr/tr/press/53899) as `data/raw/tuik/ortalama_hane_buyuklugu_2008_2025.xls`, then run `uv run --locked python -m pipeline.tuik`.
 - [Releases](https://github.com/mertkara256/netatlas-tr/releases) hold the files the site loads: the map tiles (PMTiles) and the province, district and search JSON. `web/data-release.txt` names the release the site uses.
 
 ## Running locally
@@ -95,8 +96,9 @@ Belirli bir adrese verilebilecek en yüksek hızı değil, bir bölgede insanlar
 
 ### Veri dosyaları
 
-- [`data/processed/`](data/processed) sitenin arkasındaki tabloları CSV olarak içerir: her dönem için il (`iller_hiz.csv`) ve ilçe (`ilceler_hiz.csv`) hızları, il ve yerleşim türüne göre hızlar (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), il ve yıla göre BTK istatistikleri (`btk_iller.csv`), ilçe listesi (`ilceler.csv`) ve OECD'nin 38 üyesinde 100 kişiye sabit genişbant aboneliği ile fiber payı (`oecd_genisbant.csv`, OECD'nin geniş bant veritabanından, fiber sayfası için).
+- [`data/processed/`](data/processed) sitenin arkasındaki tabloları CSV olarak içerir: her dönem için il (`iller_hiz.csv`) ve ilçe (`ilceler_hiz.csv`) hızları, il ve yerleşim türüne göre hızlar (`iller_yerlesim.csv`: yoğun kent, orta yoğun kent, kır), il ve yıla göre BTK istatistikleri (`btk_iller.csv`), ilçe listesi (`ilceler.csv`) ve OECD'nin 38 üyesinde 100 kişiye sabit genişbant aboneliği ile fiber payı (`oecd_genisbant.csv`, OECD'nin geniş bant veritabanından, fiber sayfası için) ve TÜİK'e göre il ve yıllara göre ortalama hane büyüklüğü (`tuik_hane.csv`, 100 haneye abonelik için).
 - `oecd_genisbant.csv` haftalık veri güncellemesine dahil değildir; elle `uv run --locked python -m pipeline.oecd` ile yenilenir, son tam yılın son çeyreğini alır.
+- `tuik_hane.csv` de haftalık güncellemeye dahil değildir. TÜİK'in sunucusu tarayıcı dışından indirmeye izin vermediği için [TÜİK'in ADNKS bülteninden](https://veriportali.tuik.gov.tr/tr/press/53899) "İllere Göre Ortalama Hanehalkı Büyüklüğü" tablosu tarayıcıyla `data/raw/tuik/ortalama_hane_buyuklugu_2008_2025.xls` olarak kaydedilir, sonra `uv run --locked python -m pipeline.tuik` çalıştırılır.
 - Sitenin yüklediği dosyalar, yani harita karoları (PMTiles) ve il, ilçe ve arama JSON'ları [Releases](https://github.com/mertkara256/netatlas-tr/releases) altında. Sitenin hangi sürümü kullandığı `web/data-release.txt`'de yazar.
 
 ### Yerelde çalıştırma

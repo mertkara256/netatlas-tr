@@ -29,6 +29,7 @@ from pipeline.tiles import (
     cells_path,
     tile_zooms,
 )
+from pipeline.tuik import OUT_PATH as HOUSEHOLD_PATH
 
 
 def read_json(name):
@@ -240,11 +241,16 @@ def test_province_json_matches_the_tables(latest_quarter, expected_periods):
         values = data["iller"][row["il_kodu"]]["hiz"][row["donem"]]
         assert values["test"] == int(row["test"]) and values["indirme_mbps"] == float(row["indirme_mbps"])
         assert values["olculen_nufus_payi"] == float(row["olculen_nufus_payi"])
+    sizes = {(r["il_kodu"], r["yil"]): float(r["ortalama_hane_buyuklugu"]) for r in read_csv(HOUSEHOLD_PATH)}
     for code, province in data["iller"].items():
         assert set(province["btk"]) == {str(y) for y in data["btk_yillari"]}, code
-        for btk in province["btk"].values():
+        for year, btk in province["btk"].items():
             assert btk["abone_100"] == pytest.approx(btk["sabit_genisbant"] / btk["nufus"] * 100, abs=0.01)
             assert 0 < btk["fiber_payi"] < 1
+            # Per 100 households: subscriptions over population divided by TÜİK's average household size that year.
+            households = btk["nufus"] / sizes[(code, year)]
+            assert btk["abone_100_hane"] == pytest.approx(btk["sabit_genisbant"] / households * 100, abs=0.01), (code, year)
+            assert btk["fiber_100_hane"] == pytest.approx(btk["fiber"] / households * 100, abs=0.01), (code, year)
     # Subscriptions by connection type, a blank in BTK's table (no cable in the province) as 0.
     for row in read_csv(BTK_PATH):
         btk = data["iller"][row["il_kodu"]]["btk"][row["yil"]]
