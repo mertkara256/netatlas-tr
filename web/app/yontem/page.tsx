@@ -33,14 +33,15 @@ const DOWNLOAD = metricById("indirme");
 // Güncel, so they stay true when Güncel moves on.
 const MEASURED = "2025 Ç4 – 2026 Ç3";
 
-// BTK's subscribers by package speed, from the text beside Şekil 3-4 of its latest quarterly report
-// (≤50 Mbps = 100 − the share above 50; 50–100 is given rounded). Update by hand with a newer report.
+// BTK's subscribers by package speed, from Şekil 3-4 of its latest quarterly report and the text beside it
+// (≤50 Mbps = 100 − the share above 50; 50–100 and above 100 are the figure's shares, rounded). Update by hand
+// with a newer report.
 const BTK_PACKAGES = {
-  donem: "2026 Ç1",
-  kaynak: "https://www.btk.gov.tr/s3/web-btk-site/7708c26c-5161-4919-8b3d-daa31d4ac8fb/2026/06/71082aad-cfbc-47b0-9b03-8295991140a6.pdf",
-  ellialti: 55,
-  elliyuz: 30,
-  yuzustu: 15,
+  donem: "2026 Ç2",
+  kaynak: "https://www.btk.gov.tr/s3/web-btk-site/7708c26c-5161-4919-8b3d-daa31d4ac8fb/2026/10/6a6ae76a-f3ad-4af1-95e3-bbb95b0d1a07.pdf",
+  ellialti: 52,
+  elliyuz: 31,
+  yuzustu: 17,
 };
 
 // TÜİK's table of average household size per province and year, and the terms that allow reusing it with attribution.
@@ -148,7 +149,7 @@ export default async function MethodPage() {
           </li>
           <li>
             <strong>Ortalama, tipik bir evin hızından yüksektir.</strong> Son dört çeyrekte Türkiye ortalaması{" "}
-            {formatValue(DOWNLOAD, national.hiz[current.id].indirme_mbps)}, oysa abonelerin %{BTK_PACKAGES.ellialti}&apos;i 50
+            {formatValue(DOWNLOAD, national.hiz[current.id].indirme_mbps)}, oysa abonelerin {percentOf(BTK_PACKAGES.ellialti)} 50
             Mbps ve altı paket kullanıyor. Değerler en çok bölgeleri ve yılları karşılaştırmak için anlamlıdır (bkz.{" "}
             <a href="#ne-gosteriyor">harita ne gösteriyor</a>).
           </li>
@@ -179,8 +180,8 @@ export default async function MethodPage() {
         <p>
           Bu, abonelerin paket hızlarının ortalaması da değildir. Son dört çeyrekte ({current.aralik}) Speedtest
           ölçümlerinin Türkiye ortalaması {formatValue(DOWNLOAD, national.hiz[current.id].indirme_mbps)}. BTK&apos;ya göre ise{" "}
-          {BTK_PACKAGES.donem}&apos;de sabit genişbant abonelerinin %{BTK_PACKAGES.ellialti}&apos;i 50 Mbps ve altı, yaklaşık
-          %{BTK_PACKAGES.elliyuz}&apos;u 50–100 Mbps, yaklaşık %{BTK_PACKAGES.yuzustu}&apos;i 100 Mbps üstü paket kullanıyor (
+          {BTK_PACKAGES.donem}&apos;de sabit genişbant abonelerinin {percentOf(BTK_PACKAGES.ellialti)} 50 Mbps ve altı, yaklaşık{" "}
+          {percentOf(BTK_PACKAGES.elliyuz)} 50–100 Mbps, yaklaşık {percentOf(BTK_PACKAGES.yuzustu)} 100 Mbps üstü paket kullanıyor (
           <a href={BTK_PACKAGES.kaynak}>BTK Üç Aylık Pazar Verileri Raporu, {BTK_PACKAGES.donem}</a>, Şekil 3-4). İkisi aynı
           şeyi ölçmez, ama aradaki fark ortalamanın hızlı bağlantılarca yukarı çekildiğini gösterir (bkz.{" "}
           <a href="#sinirlamalar">sınırlamalar</a>). Haritadaki değerler tipik bir evin hızı olarak değil, bölgeleri ve
