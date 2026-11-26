@@ -48,7 +48,7 @@ Key design decisions (full notes and experiments in [docs/YOL-HARITASI.md](docs/
 - **Browser-side spatial queries without a backend:** The 1 km lookup decodes zoom-12 vector tiles directly from the shared LRU tile cache ([`web/lib/nearby.ts`](web/lib/nearby.ts), [`web/lib/siteTiles.ts`](web/lib/siteTiles.ts)), counting each square only in the tile holding its center so tippecanoe's tile buffers are never double-counted.
 - **Empirically checked methodology:** Device-weighted averages (verified with split-half volatility checks), reliability floors (10 and 200 tests), WorldPop vs. GHSL validation against TÜİK provincial totals, Eurostat-style settlement clustering ([`pipeline/settlement.py`](pipeline/settlement.py)), and OKLab-spaced, color-blind-checked ramps ([`web/lib/colors.ts`](web/lib/colors.ts)).
 - **Automated quarterly updates:** A weekly GitHub Action checks Ookla's S3 bucket for new quarters, builds `tippecanoe` pinned to a commit SHA, runs the full pipeline and test suite, publishes a Release, redraws the OpenGraph preview, and opens a pull request ([`.github/workflows/data-update.yml`](.github/workflows/data-update.yml)).
-- **Cross-layer tests:** Python pipeline tests (including hand-verified coastal and border fixtures that run in CI without raw data) and frontend tests covering tile caching, URL hash state, request races, and Python–TypeScript agreement on Turkish name folding and reliability labels ([`web/tests/pipeline-agreement.test.mjs`](web/tests/pipeline-agreement.test.mjs)).
+- **Cross-layer tests:** Python pipeline tests (including hand-verified coastal and border fixtures that run in CI without raw data), frontend unit/agreement tests covering tile caching, URL hash state, request races, and Python–TypeScript agreement on Turkish name folding and reliability labels ([`web/tests/pipeline-agreement.test.mjs`](web/tests/pipeline-agreement.test.mjs)), and Playwright browser smoke tests over the built static site ([`web/e2e/smoke.spec.ts`](web/e2e/smoke.spec.ts)).
 
 ## Data files
 
@@ -70,6 +70,12 @@ The site is then at http://localhost:3000/. Run the linters and test suites from
 uv run --locked ruff check
 uv run --locked pytest
 cd web && npm run lint && npm test
+```
+
+To run the Playwright smoke tests against the static build (`npx playwright install chromium` once beforehand):
+
+```bash
+cd web && npm run build && npm run test:e2e
 ```
 
 ### Refreshing manual data tables
@@ -142,7 +148,7 @@ Başlıca tasarım kararları (ayrıntılı notlar ve denemeler [docs/YOL-HARITA
 - **Sunucusuz tarayıcı-içi uzamsal sorgular:** 1 km çevresi sorgusu, paylaşılan LRU karo önbelleğindeki 12. seviye vektör karolarını tarayıcıda açar ([`web/lib/nearby.ts`](web/lib/nearby.ts), [`web/lib/siteTiles.ts`](web/lib/siteTiles.ts)); her kareyi yalnızca merkezini tutan karoda sayarak tippecanoe tamponundaki çift sayımı önler.
 - **Veriyle doğrulanmış yöntem:** İki yarı oynaklık denetimiyle seçilen cihaz ağırlıklı ortalamalar, güvenilirlik eşikleri (10 ve 200 test), WorldPop ile GHSL'nin TÜİK il toplamlarına karşı sınanması, Eurostat yaklaşımıyla yerleşim kümelemesi ([`pipeline/settlement.py`](pipeline/settlement.py)) ve OKLab aralıklı, renk körlüğü denetiminden geçmiş renk dizileri ([`web/lib/colors.ts`](web/lib/colors.ts)).
 - **Otomatik çeyreklik güncellemeler:** Haftalık GitHub Actions iş akışı Ookla'nın S3 kaynağında yeni çeyrek arar, belirli bir commit SHA'sına sabitlenmiş `tippecanoe` derler, tüm veri hattını ve testleri çalıştırır, yeni Release oluşturur, bağlantı önizleme resmini yeniler ve PR açar ([`.github/workflows/data-update.yml`](.github/workflows/data-update.yml)).
-- **Katmanlar arası testler:** Python veri hattı testleri (ham veri olmadan CI'da çalışan kıyı ve sınır örnekleri dahil) ve karo önbelleği, URL hash durumu, eşzamanlı istek yarışları ile Türkçe ad katlama ve güvenilirlik etiketlerinde Python–TypeScript uyumunu sınayan ön yüz testleri ([`web/tests/pipeline-agreement.test.mjs`](web/tests/pipeline-agreement.test.mjs)).
+- **Katmanlar arası testler:** Python veri hattı testleri (ham veri olmadan CI'da çalışan kıyı ve sınır örnekleri dahil), karo önbelleği, URL hash durumu, eşzamanlı istek yarışları ile Türkçe ad katlama ve güvenilirlik etiketlerinde Python–TypeScript uyumunu sınayan ön yüz testleri ([`web/tests/pipeline-agreement.test.mjs`](web/tests/pipeline-agreement.test.mjs)) ve statik çıktı üzerinde çalışan Playwright uçtan uca tarayıcı testleri ([`web/e2e/smoke.spec.ts`](web/e2e/smoke.spec.ts)).
 
 ### Veri dosyaları
 
@@ -164,6 +170,12 @@ Site ardından http://localhost:3000/ adresinde açılır. Biçim/kod denetimler
 uv run --locked ruff check
 uv run --locked pytest
 cd web && npm run lint && npm test
+```
+
+Statik çıktı üzerinde Playwright uçtan uca tarayıcı testlerini çalıştırmak için (ilk seferinde `npx playwright install chromium` gerekir):
+
+```bash
+cd web && npm run build && npm run test:e2e
 ```
 
 #### Elle güncellenen tablolar

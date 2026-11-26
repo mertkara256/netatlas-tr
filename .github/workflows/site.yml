@@ -52,6 +52,25 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
           SITE_ORIGIN: https://${{ github.repository_owner }}.github.io
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: web
+
+      - name: Run end-to-end smoke tests
+        run: npm run test:e2e
+        working-directory: web
+        env:
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
+
       - if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v5
         with:
