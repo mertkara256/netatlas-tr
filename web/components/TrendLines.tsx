@@ -7,8 +7,9 @@ import styles from "./RegionPanel.module.css";
 const LABEL_SIZE = 11; // px, as the axis labels
 // Room on the right for the names at the lines' ends: the longest, "Orta yoğun kent", is about 80 px.
 const END_LABEL_ROOM = 92;
-// Names closer than this would overlap, so the lower ones move down.
-const LABEL_GAP = LABEL_SIZE + 2;
+// A name's box is LABEL_SIZE + 2 px tall. Names closer than this would touch or overlap, so the lower ones move down,
+// leaving 2 px between boxes.
+const LABEL_GAP = LABEL_SIZE + 4;
 
 /** 0 up to just above max in a round step (1, 2, 2.5 or 5 times a power of ten), about 4 steps. */
 function roundTicks(max: number): number[] {
