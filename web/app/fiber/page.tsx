@@ -59,13 +59,19 @@ export default async function FiberPage() {
   const reached = years.find((year) => fiberPer100(national[year]) > FIBER_TARGET.value);
   const perProvince = Object.values(data.iller)
     .filter((p) => p !== data.iller[NATIONAL])
-    .map((p) => ({ name: p.ad, value: fiberPer100(p.btk![last]), other: p.btk![last].diger / p.btk![last].sabit_genisbant }))
+    .map((p) => ({
+      name: p.ad,
+      value: fiberPer100(p.btk![last]),
+      perHousehold: p.btk![last].fiber_100_hane,
+      other: p.btk![last].diger / p.btk![last].sabit_genisbant,
+    }))
     .sort((a, b) => a.value - b.value);
   const aboveTarget = perProvince.filter((p) => p.value > FIBER_TARGET.value).length;
   const lowest = perProvince.slice(0, 3);
   const highest = perProvince.slice(-3).reverse();
-  const listed = (list: typeof perProvince) => {
-    const items = list.map((p) => `${p.name} (${formatNumber(p.value, 1)})`);
+  const lowestPerHousehold = [...perProvince].sort((a, b) => a.perHousehold - b.perHousehold).slice(0, 3);
+  const listed = (list: typeof perProvince, value: (p: (typeof perProvince)[number]) => number = (p) => p.value) => {
+    const items = list.map((p) => `${p.name} (${formatNumber(value(p), 1)})`);
     return `${items.slice(0, -1).join(", ")} ve ${items[items.length - 1]}`;
   };
   const targetLabel = `${FIBER_TARGET.year} hedefi: ${formatNumber(FIBER_TARGET.value, 1)}`;
@@ -119,7 +125,8 @@ export default async function FiberPage() {
           Hedef ülke geneli içindir; illere ayrı hedef konmamıştır. {inYear(last)} 100 kişiye fiber aboneliği en düşük iller{" "}
           {listed(lowest)}, en yüksek iller {listed(highest)}. Kişi başına ölçü, haneleri kalabalık illeri geride
           gösterir, çünkü bir ev aboneliğini bütün hane kullanır; Ağrı, Muş ve Şanlıurfa&apos;nın geride görünmesinin bir
-          nedeni bu.
+          nedeni bu. 100 haneye düşen fiber aboneliğinde ise en geride iller{" "}
+          {listed(lowestPerHousehold, (p) => p.perHousehold)}.
           {lowest.filter((p) => p.other >= LARGE_OTHER).map((p) => (
             <span key={p.name}>
               {" "}{p.name} ilinde aboneliklerin {percentOf(Math.round(p.other * 100))} BTK&apos;nın &quot;Diğer&quot; türünde ve
@@ -129,7 +136,8 @@ export default async function FiberPage() {
         </p>
         <p className={styles.footnote}>
           Hedef: <a href={FIBER_TARGET.url}>12. Kalkınma Planı (2024–2028)</a>, Tablo 28, s. 133: fiber genişbant abone
-          yaygınlığı, yani fiber abonelik ÷ nüfus × 100. Değerler: BTK, Yıllık İl İstatistikleri ({first}–{last}, yıl sonu).
+          yaygınlığı, yani fiber abonelik ÷ nüfus × 100. Değerler: BTK, Yıllık İl İstatistikleri ({first}–{last}, yıl sonu);
+          hane büyüklüğü: TÜİK, Adrese Dayalı Nüfus Kayıt Sistemi Sonuçları (bkz. <Link href="/yontem/#hane">Yöntem</Link>).
         </p>
 
         <h3>OECD ülkeleri arasında</h3>

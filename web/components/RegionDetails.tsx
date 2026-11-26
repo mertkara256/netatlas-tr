@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CONNECTION_TYPES, fiberLead } from "@/lib/btk";
+import { CONNECTION_TYPES, fiberLead, fiberPer100 } from "@/lib/btk";
 import { CONNECTION_COLORS, SETTLEMENT_COLORS, type Theme } from "@/lib/colors";
 import { CELL_SIZE, periodText, type Area, type BtkValues, type CellPick, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue, inYear } from "@/lib/format";
@@ -371,8 +371,28 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
             value={formatNumber(btk[lastYear].abone_100, 1)}
             note={`Türkiye ${formatNumber(nationalBtk[lastYear].abone_100, 1)}`}
           />
+          <Stat
+            label="100 haneye sabit abonelik"
+            value={formatNumber(btk[lastYear].abone_100_hane, 1)}
+            note={`Türkiye ${formatNumber(nationalBtk[lastYear].abone_100_hane, 1)}`}
+          />
+          <Stat
+            label="100 kişiye fiber abonelik"
+            value={formatNumber(fiberPer100(btk[lastYear]), 1)}
+            note={`Türkiye ${formatNumber(fiberPer100(nationalBtk[lastYear]), 1)}`}
+          />
+          <Stat
+            label="100 haneye fiber abonelik"
+            value={formatNumber(btk[lastYear].fiber_100_hane, 1)}
+            note={`Türkiye ${formatNumber(nationalBtk[lastYear].fiber_100_hane, 1)}`}
+          />
           <Stat label="Fiber payı" value={percent(btk[lastYear].fiber_payi)} note={`Türkiye ${percent(nationalBtk[lastYear].fiber_payi)}`} />
         </dl>
+        <p className={styles.note}>
+          Kişi başına ölçü, haneleri kalabalık illeri geride gösterir, çünkü bir ev aboneliğini bütün hane kullanır; hane
+          başına ölçü bunu düzeltir. Aboneliklere iş yerleri de dahil olduğu için bu sayı, internetli evlerin oranı
+          değildir. <Link href="/yontem/#hane">Hane sayısı nasıl bulundu?</Link>
+        </p>
         <ConnectionMix btk={btk} theme={theme} />
         {(["abone_100", "fiber_payi"] as const).map((key) => (
           <TrendChart
@@ -394,7 +414,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
 
       <p className={styles.source}>
         Hız: Speedtest ölçümlerinin cihaz ağırlıklı ortalaması (Speedtest® by Ookla® açık verisi); abonelerin paket
-        hızları değildir. Erişim: BTK yıllık il istatistikleri.{" "}
+        hızları değildir. Erişim: BTK yıllık il istatistikleri; hane büyüklüğü: TÜİK, Adrese Dayalı Nüfus Kayıt Sistemi
+        Sonuçları.{" "}
         <Link href="/yontem/#ne-gosteriyor">Bu sayılar neyi gösterir?</Link>
       </p>
     </div>

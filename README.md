@@ -21,7 +21,7 @@
 - Average download, upload and latency from Ookla's open Speedtest data as a heat map: Ookla's own ~475 m squares (at Türkiye's latitude) up close, merged into larger cells as you zoom out, plus province and district summaries.
 - How reliable each value is, based on the number of tests behind it.
 - Yearly views from 2019 to 2025, plus a "current" view of the latest four published quarters.
-- Fixed-broadband subscriptions per 100 people and fiber share per province, from BTK (Türkiye's telecom regulator).
+- Fixed-broadband subscriptions per 100 people and per 100 households and fiber share per province, from BTK (Türkiye's telecom regulator), with households from TÜİK's average household size.
 - The share of each province's and district's residents who live in or next to a square where a test was run.
 
 ![Zoomed in on Kadıköy, İstanbul: 475 m squares, and the district's panel with its speeds, tests and trend since 2019](docs/gorseller/kadikoy.png)
@@ -87,7 +87,7 @@ Code is released under the [MIT License](LICENSE). Data derived from Ookla's ope
 - Ookla'nın açık Speedtest verisinden ortalama indirme, yükleme ve gecikme, ısı haritası olarak: yakınlaşınca Ookla'nın kendi ~475 m'lik kareleri, uzaklaştıkça daha büyük hücreler. Ayrıca il ve ilçe özetleri.
 - Her değerin ne kadar güvenilir olduğu (arkasındaki test sayısına göre).
 - 2019–2025 yıllık görünümler ve yayınlanmış son dört çeyreği gösteren "Güncel" görünüm.
-- BTK'dan il bazında 100 kişiye sabit abonelik ve fiber payı.
+- BTK'dan il bazında 100 kişiye ve 100 haneye sabit abonelik ve fiber payı (hane sayısı TÜİK'in ortalama hane büyüklüğünden).
 - Her il ve ilçede nüfusun, ölçüm yapılan karelerde ya da hemen yanlarında yaşayan payı.
 
 ![Kadıköy'e yakından: 475 m'lik kareler ve ilçenin hızlarını, test sayısını ve 2019'dan bu yana değişimini gösteren panel](docs/gorseller/kadikoy.png)

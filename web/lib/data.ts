@@ -45,6 +45,10 @@ export type BtkValues = {
   diger: number;
   abone_100: number;
   fiber_payi: number;
+  /** Fixed and fiber subscriptions per 100 households: households are BTK's population over TÜİK's average household
+   *  size in the province that year. Business subscriptions are counted too, so this is not a share of homes. */
+  abone_100_hane: number;
+  fiber_100_hane: number;
 };
 
 /** Yoğun kent, orta yoğun kent or kır (lib/settlement.ts). */
