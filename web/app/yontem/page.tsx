@@ -65,14 +65,15 @@ function datasetMarkup([firstYear, firstQuarter]: number[], [lastYear, lastQuart
       "Türkiye'nin 81 ili ve 973 ilçesinde Speedtest ile ölçülen ortalama sabit internet indirme ve yükleme hızı ile "
       + "gecikme; 2019'dan bugüne her takvim yılı ve yayınlanmış son dört çeyrek için. Değerler cihaz ağırlıklıdır; "
       + "test sayısı, kare ve çeyrek başına cihaz sayılarının toplamı, güvenilirlik etiketi ve nüfusun ölçüm yapılan "
-      + "karelerde ya da hemen yanlarında yaşayan payı da verilir. "
+      + "karelerde ya da hemen yanlarında yaşayan payı da verilir. İllerin ve Türkiye'nin değerleri ayrıca nüfus "
+      + "yoğunluğuna göre üç yerleşim türüne ayrılır: yoğun kent, orta yoğun kent ve kır. "
       + "Ookla'nın açık Speedtest verisinden türetilmiştir.",
     url: `${SITE_ORIGIN}${BASE_PATH}/yontem/`,
     sameAs: REPO_URL,
     inLanguage: "tr",
     isAccessibleForFree: true,
     license: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
-    keywords: ["internet hızı", "sabit genişbant", "Speedtest", "Ookla", "Türkiye", "il", "ilçe"],
+    keywords: ["internet hızı", "sabit genişbant", "Speedtest", "Ookla", "Türkiye", "il", "ilçe", "kent", "kır", "yerleşim türü"],
     temporalCoverage: `${firstYear}-${month(firstQuarter, 1)}/${lastYear}-${month(lastQuarter, 3)}`,
     spatialCoverage: { "@type": "Place", name: "Türkiye" },
     variableMeasured: [
