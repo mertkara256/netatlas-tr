@@ -10,6 +10,7 @@ dependencies = [
     "pyarrow>=16",
     "rasterio>=1.4.4",
     "shapely>=2.0",
+    "xlrd>=2.0.2",
 ]
 
 [dependency-groups]

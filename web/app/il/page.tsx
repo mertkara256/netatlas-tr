@@ -32,6 +32,7 @@ export default async function ProvincesPage() {
     formatValue(DOWNLOAD, p.hiz[current.id].indirme_mbps),
     formatValue(DOWNLOAD, p.hiz["2019"].indirme_mbps),
     formatNumber(p.btk![lastBtk].abone_100, 1),
+    formatNumber(p.btk![lastBtk].abone_100_hane, 1),
     `%${formatNumber(p.btk![lastBtk].fiber_payi * 100)}`,
     fiberSince(p),
   ];
@@ -54,6 +55,7 @@ export default async function ProvincesPage() {
               <th scope="col" className={styles.num}>İndirme, {current.ad}</th>
               <th scope="col" className={styles.num}>İndirme, 2019</th>
               <th scope="col" className={styles.num}>100 kişiye abonelik, {lastBtk}</th>
+              <th scope="col" className={styles.num}>100 haneye abonelik, {lastBtk}</th>
               <th scope="col" className={styles.num}>Fiber payı, {lastBtk}</th>
               <th scope="col" className={styles.num}>Fiber öne geçti</th>
             </tr>
@@ -73,7 +75,9 @@ export default async function ProvincesPage() {
         </table>
       </div>
       <p className={styles.footnote}>
-        {current.ad}: {periodText(current)}. Hız: Speedtest® by Ookla® açık verisi, cihaz ağırlıklı ortalama. Erişim: BTK.
+        {current.ad}: {periodText(current)}. Hız: Speedtest® by Ookla® açık verisi, cihaz ağırlıklı ortalama. Erişim: BTK;
+        hane sayısı TÜİK&apos;in ortalama hane büyüklüğünden (<Link href="/yontem/#hane">Yöntem</Link>). Aboneliklere iş
+        yerleri de dahildir.
         Fiber öne geçti: o yıldan beri fiber abonelikleri telefon hattı (ADSL/VDSL) aboneliklerinden fazla; BTK verisi{" "}
         {inYear(data.btk_yillari[0])} başlıyor. <Link href="/fiber/">Fiber haritası</Link>.
       </p>
