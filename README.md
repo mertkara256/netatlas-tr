@@ -56,6 +56,7 @@ uv run --locked pytest
 |---|---|---|
 | Fixed-broadband speed tests | [Speedtest® by Ookla® Open Data](https://github.com/teamookla/ookla-open-data) | CC BY-NC-SA 4.0 |
 | Provincial subscriptions and fiber | [BTK, Yıllık İl İstatistikleri](https://www.btk.gov.tr/yillik-il-istatistikleri) | No open license (© BTK); used with attribution |
+| Average household size per province | [TÜİK, Adrese Dayalı Nüfus Kayıt Sistemi Sonuçları](https://veriportali.tuik.gov.tr/tr/press/53899) | Reuse with attribution ([TÜİK legal notice](https://www.tuik.gov.tr/Kurumsal/Yasal_Uyari)) |
 | Fixed broadband in OECD countries | [OECD, Broadband and telecom databases](https://data-explorer.oecd.org/vis?df[ds]=dsDisseminateFinalDMZ&df[id]=DSD_BB_DATABASE%40DF_BB_TEL_DATABASE&df[ag]=OECD.STI.DEP) | Reuse with attribution ([OECD terms](https://www.oecd.org/en/about/terms-conditions.html)) |
 | Where people live | [WorldPop, gridded population estimates for Turkey 2021](https://doi.org/10.5258/SOTON/WP00758), spreading TÜİK's district populations | CC BY 4.0 |
 | Province and district boundaries | [OCHA COD-AB Türkiye](https://data.humdata.org/dataset/cod-ab-tur), from the General Command of Mapping (Harita Genel Müdürlüğü) | CC BY-IGO |

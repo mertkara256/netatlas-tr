@@ -43,6 +43,10 @@ const BTK_PACKAGES = {
   yuzustu: 15,
 };
 
+// TÜİK's table of average household size per province and year, and the terms that allow reusing it with attribution.
+const TUIK_SOURCE_URL = "https://veriportali.tuik.gov.tr/tr/press/53899";
+const TUIK_TERMS_URL = "https://www.tuik.gov.tr/Kurumsal/Yasal_Uyari";
+
 /** The province and district tables as a schema.org Dataset, so dataset search engines can list them. */
 function datasetMarkup([firstYear, firstQuarter]: number[], [lastYear, lastQuarter]: number[]) {
   const month = (quarter: number, offset: number) => String((quarter - 1) * 3 + offset).padStart(2, "0");
@@ -205,6 +209,12 @@ export default async function MethodPage() {
                 <td>Açık lisans yok (© BTK)</td>
               </tr>
               <tr>
+                <th scope="row">Ortalama hane büyüklüğü</th>
+                <td><a href={TUIK_SOURCE_URL}>TÜİK, Adrese Dayalı Nüfus Kayıt Sistemi Sonuçları 2025</a></td>
+                <td>{data.btk_yillari[0]}–{data.btk_yillari[data.btk_yillari.length - 1]}, il düzeyinde, yıl sonu</td>
+                <td>Kaynak gösterilerek serbest (<a href={TUIK_TERMS_URL}>TÜİK yasal uyarı</a>)</td>
+              </tr>
+              <tr>
                 <th scope="row">Ülke karşılaştırması</th>
                 <td><a href={OECD_SOURCE_URL}>OECD, Broadband and telecom databases</a> (OECD Broadband Portal)</td>
                 <td>38 OECD ülkesi, {oecdQuarter}</td>
@@ -365,6 +375,20 @@ export default async function MethodPage() {
             fazla olduğu ve son yıla kadar fazla kaldığı dönemin ilk yılıdır. BTK verisi {inYear(data.btk_yillari[0])}{" "}
             başladığı için o yıl fiberi zaten önde olan bir ilde &quot;{data.btk_yillari[0]} ya da önce&quot; yazılır.
             İllerin bu yıla göre haritası <Link href="/fiber/">Fiber</Link> sayfasında.
+          </li>
+          <li id="hane">
+            <strong>Hane başına abonelik:</strong> 100 haneye sabit (ya da fiber) abonelik = abonelik ÷ hane sayısı × 100.
+            Hane sayısı, BTK&apos;nın verdiği il nüfusunun TÜİK&apos;in o il ve yıl için yayımladığı ortalama hane
+            büyüklüğüne bölünmesiyle bulunur; BTK&apos;nın nüfusu da TÜİK&apos;in adrese dayalı nüfusudur. Yani 100 haneye
+            abonelik, 100 kişiye aboneliğin ortalama hane büyüklüğüyle çarpımıdır; her yıl o yılın hane büyüklüğüyle
+            hesaplanır. Kişi başına ölçü, haneleri kalabalık illeri geride gösterir, çünkü bir ev aboneliğini bütün hane
+            kullanır: 2025&apos;te ortalama hane Şırnak&apos;ta 4,84, Tunceli&apos;de 2,49 kişi. Hane başına ölçü bunu
+            düzeltir. 2025 sonunda Türkiye&apos;de 100 kişiye 24,4 sabit abonelik düşüyor, 100 haneye 75,2; fiberde 11,4 ve
+            35,2. 81 il iki ölçüye göre sıralandığında sıralar çoğunlukla benzer (2025 sonu, sıra korelasyonu sabitte 0,90,
+            fiberde 0,88), ama bazı iller çok yer değiştirir. Sabitte Gaziantep (48.&nbsp;→&nbsp;20.), Diyarbakır (69.&nbsp;→&nbsp;49.) ve
+            Batman (73.&nbsp;→&nbsp;50.) yükselir, Karabük (19.&nbsp;→&nbsp;34.) ve Giresun (43.&nbsp;→&nbsp;66.) düşer; fiberde Diyarbakır (34.&nbsp;→&nbsp;10.), Siirt (50.&nbsp;→&nbsp;18.), Mardin (53.&nbsp;→&nbsp;25.) ve Şırnak (75.&nbsp;→&nbsp;44.) yükselir. BTK&apos;nın sayılarına iş yeri
+            abonelikleri de girdiği için bu değer internete bağlı evlerin oranı değildir: İstanbul&apos;da 100 haneye 97,9
+            abonelik düşüyor. Hane büyüklüğü tablosu elle güncellenir.
           </li>
           <li>
             <strong>Fiber hedefi:</strong> 100 kişiye fiber abonelik = fiber abonelik ÷ nüfus × 100. Bu, 12. Kalkınma
@@ -542,7 +566,10 @@ export default async function MethodPage() {
             Şanlıurfa&apos;da %25&apos;i. BTK bu kalemi teknolojilere ayırmıyor. Türkiye toplamındaki &quot;diğer&quot; ayrıca
             illere dağıtılamayan ISDN ve uydu aboneliklerini de içerir.
           </li>
-          <li><strong>Abonelik hane değildir:</strong> iş yeri abonelikleri de sayıya dahildir.</li>
+          <li>
+            <strong>Abonelik hane değildir:</strong> iş yeri abonelikleri de sayıya dahildir; 100 haneye abonelik de bu
+            yüzden internete bağlı evlerin oranını göstermez (bkz. <a href="#hane">hane başına abonelik</a>).
+          </li>
           <li>
             <strong>Ölçüm olmayan ilçe-yıllar</strong> boş kalır (ör. eski ilçe merkezi Ilısu Barajı&apos;nın altında kalan
             Hasankeyf&apos;te 2020–2024).
@@ -630,10 +657,12 @@ export default async function MethodPage() {
           0 ile 1 arasındadır. Türkçe ayarlı Excel&apos;de dosyaya çift tıklamak yerine bu ayarlarla içe aktarmak gerekebilir.
           Bir dönemde hiç ölçümü olmayan bir ilçenin o dönem için satırı yoktur; yerleşim türü dosyasında da bir türde o
           dönem test yoksa o türün satırı yoktur. Artvin, Bayburt, Gümüşhane, Sinop, Tunceli ve Ardahan&apos;da yoğun kent
-          sayılan yer olmadığı için bu illerin yoğun kent satırı hiç yoktur. BTK&apos;nın il istatistikleri ve ilçe
-          listesi ile OECD karşılaştırması (<code>oecd_genisbant.csv</code>) de{" "}
+          sayılan yer olmadığı için bu illerin yoğun kent satırı hiç yoktur. BTK&apos;nın il istatistikleri, ilçe
+          listesi, OECD karşılaştırması (<code>oecd_genisbant.csv</code>) ve TÜİK&apos;in illere ve yıllara göre ortalama
+          hane büyüklüğü (<code>tuik_hane.csv</code>) de{" "}
           <a href={`${REPO_URL}/tree/main/data/processed`}>GitHub&apos;daki veri klasöründedir</a>. Dosyalar her
-          veri güncellemesiyle yenilenir (OECD karşılaştırması elle güncellenir) ve aşağıdaki lisansla kullanılabilir.
+          veri güncellemesiyle yenilenir (OECD karşılaştırması ve hane büyüklüğü elle güncellenir) ve aşağıdaki lisansla
+          kullanılabilir.
         </p>
       </section>
 
@@ -665,12 +694,17 @@ export default async function MethodPage() {
             <a href="https://www.oecd.org/en/about/terms-conditions.html">kullanım şartları</a> veriyi atıfla yeniden
             kullanmaya izin verir.
           </li>
+          <li>
+            Ortalama hane büyüklüğü: TÜİK, Adrese Dayalı Nüfus Kayıt Sistemi Sonuçları (<a href={TUIK_SOURCE_URL}>2025
+            bülteni</a>, &quot;İllere Göre Ortalama Hanehalkı Büyüklüğü&quot;). TÜİK&apos;in{" "}
+            <a href={TUIK_TERMS_URL}>yasal uyarısı</a> verilerin kaynak gösterilerek, izin gerekmeden kullanılmasına izin verir.
+          </li>
           <li>İl ve ilçe sınırları: OCHA COD-AB Türkiye, kaynağı Harita Genel Müdürlüğü, CC BY-IGO.</li>
           <li>İlçe adları: © OpenStreetMap katkıcıları (ODbL), geoBoundaries üzerinden (Runfola ve diğ., 2020).</li>
           <li>Altlık harita: OpenFreeMap, © OpenMapTiles, © OpenStreetMap katkıcıları.</li>
           <li>Sitenin kodu <a href={REPO_URL}>GitHub&apos;da</a> MIT lisansıyla açıktır.</li>
         </ul>
-        <p className={styles.footnote}>NetAtlas TR; Ookla, BTK, OECD ya da OCHA ile bağlantılı değildir.</p>
+        <p className={styles.footnote}>NetAtlas TR; Ookla, BTK, TÜİK, OECD ya da OCHA ile bağlantılı değildir.</p>
       </section>
     </main>
   );
