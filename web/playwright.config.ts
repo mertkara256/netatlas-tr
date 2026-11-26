@@ -32,7 +32,7 @@ export default defineConfig({
   webServer: {
     command: "node e2e/serve.mjs",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     env: {
       ...process.env,
       PORT: String(port),
