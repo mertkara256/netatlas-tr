@@ -10,13 +10,14 @@ import tempfile
 from collections import defaultdict
 from datetime import date
 
+import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pytest
 import shapely
 
 from pipeline.btk import OUT_PATH as BTK_PATH
-from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, SETTLEMENT_PATH, TILES_PATH
+from pipeline.build import DISTRICT_PATH, NATIONAL, PROVINCE_PATH, SETTLEMENT_PATH, TILES_PATH, tile_table
 from pipeline.common import PROVINCES, ROOT, lonlat_to_tile, normalize_name, quadkey_to_tile, tile_bounds, tile_to_quadkey
 from pipeline.tiles import (
     BORDERS_PATH,
@@ -27,6 +28,7 @@ from pipeline.tiles import (
     OUT_DIR,
     cell_features,
     cells_path,
+    district_values,
     tile_zooms,
 )
 from pipeline.tuik import OUT_PATH as HOUSEHOLD_PATH
@@ -276,6 +278,37 @@ def test_district_json_lists_every_district():
         assert data[row["ilce_kodu"]]["hiz"][row["donem"]]["test"] == int(row["test"])
         counts[row["ilce_kodu"]] += 1
     assert sum(len(d["hiz"]) for d in data.values()) == sum(counts.values())
+
+
+def test_district_download_distribution_counts_each_eligible_square_once(tmp_path, monkeypatch):
+    kadikoy, adapazari = "TUR034023", "TUR054001"
+    speed_kbps = [40000, 49999, 50000, 99999, 100000, 199999, 200000, 250000, 50000]
+    size = len(speed_kbps)
+    pooled = pa.table({
+        "quadkey": [f"{i:016b}" for i in range(size)],
+        "il_kodu": ["34"] * (size - 1) + ["54"],
+        "ilce_kodu": [kadikoy] * (size - 1) + [adapazari],
+        "tests": [10.0] * 7 + [9.0, 9.0],
+        "devices": [2.0] * size,
+        "d_dev": [v * 2 for v in speed_kbps],
+        "u_dev": [0] * size,
+        "lat_dev": [0] * size,
+    })
+    district_csv = tmp_path / "ilceler_hiz.csv"
+    district_csv.write_text("ilce_kodu,il_kodu,il,ilce,donem\n", encoding="utf-8")
+    boundaries = tmp_path / "ilceler.geojson"
+    boundaries.write_text(json.dumps({"features": [
+        {"properties": {"ilce_kodu": kadikoy, "il_kodu": "34", "ilce": "Kadıköy"}},
+        {"properties": {"ilce_kodu": adapazari, "il_kodu": "54", "ilce": "Adapazarı"}},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr("pipeline.tiles.DISTRICT_PATH", district_csv)
+    monkeypatch.setattr("pipeline.tiles.DISTRICTS_PATH", boundaries)
+
+    data = district_values(tile_table("2025", pooled), ["2025", "guncel"])
+    bands = data[kadikoy]["indirme_dagilimi"]
+    assert bands["2025"] == [2, 2, 2, 1]
+    assert sum(bands["2025"]) == sum(t >= 10 for t in pooled["tests"].to_pylist())
+    assert bands["guncel"] == data[adapazari]["indirme_dagilimi"]["2025"] == [0, 0, 0, 0]
 
 
 def test_search_finds_places_typed_without_turkish_letters():
