@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CONNECTION_TYPES, fiberLead, fiberPer100 } from "@/lib/btk";
 import { CONNECTION_COLORS, SETTLEMENT_COLORS, type Theme } from "@/lib/colors";
-import { CELL_SIZE, periodText, type Area, type BtkValues, type CellPick, type PeriodInfo } from "@/lib/data";
+import { CELL_SIZE, periodText, type Area, type BtkValues, type CellPick, type DownloadDistribution, type PeriodInfo } from "@/lib/data";
 import { formatNumber, formatValue, inYear } from "@/lib/format";
 import { HIGH_TESTS, LOW_TESTS, metricById, reliabilityLabel, representationConditions, type Metric } from "@/lib/metrics";
 import { NEARBY_RADIUS } from "@/lib/nearby";
@@ -21,6 +21,44 @@ const percent = (v: number) => `%${formatNumber(v * 100)}`;
 // One decimal, so a share just under a note's threshold (Hadim's 0.498 residents) does not read as the threshold.
 const share = (v: number) => `%${formatNumber(v * 100, 1)}`;
 const shortLabel = (p: PeriodInfo) => (p.id === "guncel" ? p.ad : `'${p.id.slice(2)}`);
+
+const DOWNLOAD_BANDS = ["50 Mbps altı", "50–100 Mbps", "100–200 Mbps", "200 Mbps ve üstü"] as const;
+
+function DownloadDistributionSection({ counts }: { counts: DownloadDistribution }) {
+  const total = counts.reduce((sum, count) => sum + count, 0);
+  return (
+    <section aria-labelledby="district-download-distribution">
+      <h3 id="district-download-distribution">İlçede hız nasıl dağılıyor?</h3>
+      {total > 0 ? (
+        <>
+          <ul className={styles.distribution} role="list">
+            {DOWNLOAD_BANDS.map((label, index) => {
+              const count = counts[index];
+              const fraction = count / total;
+              return (
+                <li key={label}>
+                  <div className={styles.distributionLabel}>
+                    <span>{label}</span>{" "}
+                    <span>{formatNumber(count)} kare · {share(fraction)}</span>
+                  </div>
+                  <div className={styles.distributionTrack} aria-hidden="true">
+                    <span style={{ width: `${fraction * 100}%` }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className={styles.note}>
+            Bu dönemde en az {LOW_TESTS} test yapılan {formatNumber(total)} kare hesaba katıldı.
+            Her 475 m&apos;lik kare, ortalama indirme hızına göre bir kez sayıldı.
+          </p>
+        </>
+      ) : (
+        <p className={styles.note}>Bu dönemde en az {LOW_TESTS} test yapılan 475 m&apos;lik kare yok.</p>
+      )}
+    </section>
+  );
+}
 
 // A part of the connection bar under this share would be thinner than a pixel; the legend still lists it.
 const MIN_DRAWN = 0.005;
@@ -285,6 +323,7 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
   const theme = useColorScheme();
   const v = area.hiz[period.id];
   const n = national.hiz[period.id];
+  const distribution = isDistrict ? area.indirme_dagilimi?.[period.id] : undefined;
   const tests = metric.id === "guvenilirlik";
   const representation = v ? representationConditions(v) : [];
   const btk = province.btk!;
@@ -329,6 +368,8 @@ export default function RegionDetails({ area, province, national, isDistrict, pe
           </p>
         )}
       </section>
+
+      {distribution && <DownloadDistributionSection counts={distribution} />}
 
       <section>
         <TrendChart

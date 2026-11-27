@@ -60,12 +60,16 @@ export type SettlementValues = Pick<SpeedValues, "test" | "indirme_mbps" | "yukl
   olculen_nufus_payi: number;
 };
 
+/** Counts of eligible squares below 50, from 50 to below 100, from 100 to below 200, and at least 200 Mbps. */
+export type DownloadDistribution = [number, number, number, number];
+
 /** A province (with its BTK figures per year and its values per period by settlement type, the types with
  *  tests in that period) or a district (with its province's code). */
 export type Area = {
   ad: string;
   il_kodu?: string;
   hiz: Record<string, SpeedValues>;
+  indirme_dagilimi?: Record<string, DownloadDistribution>;
   yerlesim?: Record<string, Partial<Record<SettlementType, SettlementValues>>>;
   btk?: Record<string, BtkValues>;
 };
