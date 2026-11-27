@@ -62,7 +62,9 @@ MIN_LAND_SHARE = 0.2
 # Split-half check (2024 and the current period; median gap between the Q1+Q3 and Q2+Q4 means):
 # a tile's download moves about 50% between half-years below 10 tests, 22-31% at 50-199 tests and
 # 16-17% at 200-499. Areas, device-weighted, are about the same at the same test counts.
-RELIABILITY = [(200, "yuksek"), (10, "orta"), (0, "dusuk")]
+LOW_TESTS = 10
+RELIABILITY = [(200, "yuksek"), (LOW_TESTS, "orta"), (0, "dusuk")]
+DOWNLOAD_BREAKS = (50, 100, 200)  # Mbps
 # Per tile-quarter: tests and devices, and each average times devices.
 SUMS = ["tests", "devices", "d_dev", "u_dev", "lat_dev"]
 # A resident counts as measured when a test was run in their tile or one of the eight around it.
@@ -174,6 +176,9 @@ def values(tiles: int, tests: float, devices: float, d_dev: float, u_dev: float,
 def tile_table(period: str, pooled: pa.Table) -> pa.Table:
     """One row per tile: tests, devices and device-weighted speeds, as for an area."""
     tests, devices = pooled["tests"], pooled["devices"]
+    download = pc.divide(pooled["d_dev"], pc.multiply(devices, 1000))
+    # Use the unrounded mean and put a value on a break in the higher band.
+    download_band = np.searchsorted(DOWNLOAD_BREAKS, download.to_numpy(), side="right")
     return pa.table({
         "donem": pa.array([period] * pooled.num_rows),
         "quadkey": pooled["quadkey"],
@@ -181,7 +186,8 @@ def tile_table(period: str, pooled: pa.Table) -> pa.Table:
         "ilce_kodu": pooled["ilce_kodu"],
         "test": pc.cast(tests, pa.int64()),
         "cihaz": pc.cast(devices, pa.int64()),
-        "indirme_mbps": pc.round(pc.divide(pooled["d_dev"], pc.multiply(devices, 1000)), 1),
+        "indirme_mbps": pc.round(download, 1),
+        "indirme_araligi": pa.array(download_band, type=pa.uint8()),
         "yukleme_mbps": pc.round(pc.divide(pooled["u_dev"], pc.multiply(devices, 1000)), 1),
         "gecikme_ms": pc.round(pc.divide(pooled["lat_dev"], devices), 1),
         "guvenilirlik": pa.array([reliability(t) for t in tests.to_pylist()]),

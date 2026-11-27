@@ -16,7 +16,7 @@ Outputs (web/public/data/, not in git):
     iller.json       periods, Ookla's access date and quarters (for its attribution), then Türkiye
                      and the 81 provinces: speeds per period, the same per settlement type, BTK per year
                      (with subscriptions per 100 households from TÜİK's average household size)
-    ilceler.json     the 973 districts: speeds per period
+    ilceler.json     the 973 districts: speeds and counts of squares by download band per period
     arama.json       province and district names for search, with bounding boxes
 """
 from __future__ import annotations
@@ -36,7 +36,16 @@ import shapely
 
 from .boundaries import DISTRICTS_PATH, PROVINCES_PATH
 from .btk import OUT_PATH as BTK_PATH
-from .build import DISTRICT_PATH, PROVINCE_PATH, SETTLEMENT_PATH, TILES_PATH, available_quarters, periods
+from .build import (
+    DISTRICT_PATH,
+    DOWNLOAD_BREAKS,
+    LOW_TESTS,
+    PROVINCE_PATH,
+    SETTLEMENT_PATH,
+    TILES_PATH,
+    available_quarters,
+    periods,
+)
 from .common import ROOT, normalize_name, quadkey_to_tile
 from .ookla import output_path
 from .tuik import OUT_PATH as HOUSEHOLD_PATH
@@ -153,6 +162,28 @@ def speed_values(row: dict) -> dict:
             "olculen_nufus_payi": float(row["olculen_nufus_payi"])}
 
 
+def district_values(tiles: pa.Table, period_ids: list[str]) -> dict[str, dict]:
+    """District summaries and the four download-band counts for every district and period."""
+    counts = tiles.filter(pc.greater_equal(tiles["test"], LOW_TESTS)).group_by(
+        ["ilce_kodu", "donem", "indirme_araligi"]).aggregate([("test", "count")])
+    by_band = {(r["ilce_kodu"], r["donem"], r["indirme_araligi"]): r["test_count"] for r in counts.to_pylist()}
+
+    districts: dict[str, dict] = {}
+    for row in read_csv(DISTRICT_PATH):
+        district = districts.setdefault(row["ilce_kodu"], {"ad": row["ilce"], "il_kodu": row["il_kodu"], "hiz": {}})
+        district["hiz"][row["donem"]] = speed_values(row)
+    # Also give districts without measurements an entry for the panel and search.
+    for f in json.loads(DISTRICTS_PATH.read_text(encoding="utf-8"))["features"]:
+        p = f["properties"]
+        districts.setdefault(p["ilce_kodu"], {"ad": p["ilce"], "il_kodu": p["il_kodu"], "hiz": {}})
+    for code, district in districts.items():
+        district["indirme_dagilimi"] = {
+            period: [by_band.get((code, period, band), 0) for band in range(len(DOWNLOAD_BREAKS) + 1)]
+            for period in period_ids
+        }
+    return dict(sorted(districts.items()))
+
+
 def settlement_values(row: dict) -> dict:
     """A settlement type's speeds, tests and share of residents measured: what the region panel shows of it."""
     return {"test": int(row["test"]), "indirme_mbps": float(row["indirme_mbps"]), "yukleme_mbps": float(row["yukleme_mbps"]),
@@ -241,15 +272,7 @@ def main() -> None:
         "iller": provinces,
     })
 
-    districts: dict[str, dict] = {}
-    for row in read_csv(DISTRICT_PATH):
-        district = districts.setdefault(row["ilce_kodu"], {"ad": row["ilce"], "il_kodu": row["il_kodu"], "hiz": {}})
-        district["hiz"][row["donem"]] = speed_values(row)
-    # Districts without a single measurement still need an entry for the panel and search.
-    for f in json.loads(DISTRICTS_PATH.read_text(encoding="utf-8"))["features"]:
-        p = f["properties"]
-        districts.setdefault(p["ilce_kodu"], {"ad": p["ilce"], "il_kodu": p["il_kodu"], "hiz": {}})
-    write_json("ilceler.json", dict(sorted(districts.items())))
+    write_json("ilceler.json", district_values(tiles, list(period_quarters)))
     write_json("arama.json", search_index())
 
     for path in [*sorted(OUT_DIR.glob("*.pmtiles")), *(OUT_DIR / name for name in ["iller.json", "ilceler.json", "arama.json"])]:
