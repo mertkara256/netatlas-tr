@@ -164,6 +164,42 @@
   font-size: 12px;
 }
 
+.distribution {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.distributionLabel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 8px;
+}
+
+.distributionLabel span:last-child {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.distributionTrack {
+  height: 6px;
+  margin-top: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--border);
+}
+
+.distributionTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
 /* Subscriptions by connection type: a thin bar of parts 2px apart, rounded at both ends, and a legend
    with each part's name and share. */
 .mix {

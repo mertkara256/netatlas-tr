@@ -152,6 +152,46 @@ test("table view filters areas and opens the region panel", async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
+test("the district panel shows the selected period's download distribution on a phone", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await stubOpenFreeMap(page);
+  const errors = watchErrors(page);
+  await page.route("**/data/ilceler.json", async (route) => {
+    const response = await route.fetch();
+    const districts = await response.json();
+    districts.TUR034011.indirme_dagilimi = { "2025": [1, 2, 0, 1], "2024": [0, 0, 0, 0] };
+    delete districts.TUR034007.indirme_dagilimi;
+    await route.fulfill({ response, json: districts });
+  });
+
+  await page.goto("./#d=2025&g=ilceler");
+  await page.getByRole("group", { name: "Gösterim" }).getByRole("button", { name: "Tablo" }).click();
+  const periods = page.getByRole("group", { name: "Dönem" });
+  await expect(periods.getByRole("button", { name: /^2025/ })).toHaveAttribute("aria-pressed", "true");
+  const filter = page.getByRole("searchbox", { name: "İlçelerde ara" });
+  await filter.fill("beykoz");
+  await page.getByRole("button", { name: "Beykoz", exact: true }).click();
+
+  const panel = page.getByRole("complementary", { name: "Bölge bilgileri" });
+  const distribution = panel.getByRole("region", { name: "İlçede hız nasıl dağılıyor?" });
+  await expect(distribution.getByRole("listitem")).toHaveText([
+    "50 Mbps altı 1 kare · %25,0", "50–100 Mbps 2 kare · %50,0", "100–200 Mbps 0 kare · %0,0", "200 Mbps ve üstü 1 kare · %25,0",
+  ]);
+  await expect(distribution.getByText(/en az 10 test yapılan 4 kare hesaba katıldı/)).toBeVisible();
+  await expect(panel).toHaveJSProperty("scrollWidth", await panel.evaluate((el) => el.clientWidth));
+
+  await periods.getByRole("button", { name: /^2024/ }).click();
+  await expect(distribution.getByText(/en az 10 test yapılan 475 m'lik kare yok/)).toBeVisible();
+  await expect(distribution.getByRole("listitem")).toHaveCount(0);
+
+  await panel.getByRole("button", { name: "Paneli kapat" }).click();
+  await filter.fill("bakirkoy");
+  await page.getByRole("button", { name: "Bakırköy", exact: true }).click();
+  await expect(panel.getByRole("heading", { name: "Bakırköy" })).toBeVisible();
+  await expect(distribution).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test("URL hash deep-link restores period, metric, view, and selection", async ({ page }) => {
   await stubOpenFreeMap(page);
   const errors = watchErrors(page);
