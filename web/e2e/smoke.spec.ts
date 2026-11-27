@@ -180,7 +180,7 @@ test("the district panel shows the selected period's download distribution on a 
   await expect(distribution.getByText(/en az 10 test yapılan 4 kare hesaba katıldı/)).toBeVisible();
   await expect(panel).toHaveJSProperty("scrollWidth", await panel.evaluate((el) => el.clientWidth));
 
-  await periods.getByRole("button", { name: /^2024/ }).press("Enter");
+  await periods.getByRole("button", { name: /^2024/ }).click();
   await expect(distribution.getByText(/en az 10 test yapılan 475 m'lik kare yok/)).toBeVisible();
   await expect(distribution.getByRole("listitem")).toHaveCount(0);
 

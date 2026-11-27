@@ -851,6 +851,11 @@
     padding: 8px 12px 10px;
   }
 
+  /* The period ticks are absolutely positioned, so the track needs its own width in table mode. */
+  .controls > .field {
+    flex-basis: 100%;
+  }
+
   /* Over the map the controls become a bar along its top edge, wrapping as they need. */
   .mapControls {
     top: 0;
